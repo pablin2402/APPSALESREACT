@@ -50,8 +50,8 @@ export default function AccountScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.profileContainer}>
         <Image
-          source={{ uri: profile?.profileImage || "https://via.placeholder.com/100" }}
-          style={styles.profileImage}
+          source={{ uri: profile?.identificationImage || "https://via.placeholder.com/100" }}
+          style={styles.identificationImage}
         />
 <Text style={styles.profileName}>{displayName}</Text>
 

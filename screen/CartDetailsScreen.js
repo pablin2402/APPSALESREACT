@@ -43,43 +43,43 @@ export default function CartDetailsScreen() {
     newCart[index].quantity = isNaN(number) || number < 0 ? 0 : number;
     setCart(newCart);
   };
-  
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <Text style={styles.title}>Tu carrito</Text>
       <ScrollView style={styles.cartList}>
-      {cart.map((item, index) => (
-  <View key={index} style={styles.card}>
-    <Image
-      source={{ uri: item.productImage || "https://via.placeholder.com/50" }}
-      style={styles.productImage}
-    />
+        {cart.map((item, index) => (
+          <View key={index} style={styles.card}>
+            <Image
+              source={{ uri: item.productImage || "https://via.placeholder.com/50" }}
+              style={styles.productImage}
+            />
 
-    <View style={styles.detailsContainer}>
-      <View style={styles.topRow}>
-        <Text style={styles.name}>{item.productName}</Text>
-        <TouchableOpacity onPress={() => handleRemoveItem(index)}>
-          <Ionicons name="trash" size={20} color="#D3423E" />
-        </TouchableOpacity>
-      </View>
+            <View style={styles.detailsContainer}>
+              <View style={styles.topRow}>
+                <Text style={styles.name}>{item.productName}</Text>
+                <TouchableOpacity onPress={() => handleRemoveItem(index)}>
+                  <Ionicons name="trash" size={20} color="#D3423E" />
+                </TouchableOpacity>
+              </View>
 
-      <Text style={styles.price}>Precio: Bs {item.price.toFixed(2)}</Text>
+              <Text style={styles.price}>Precio: Bs {item.price.toFixed(2)}</Text>
 
-      <View style={styles.bottomRow}>
-        <TextInput
-          value={String(item.quantity)}
-          onChangeText={(text) => handleQuantityInput(index, text)}
-          keyboardType="numeric"
-          style={styles.quantityInput}
-          placeholder="0"
-        />
-        <Text style={styles.totalText}>
-          Total: Bs {(item.quantity * (item.price - (item.discount || 0))).toFixed(2)}
-        </Text>
-      </View>
-    </View>
-  </View>
-))}
+              <View style={styles.bottomRow}>
+                <TextInput
+                  value={String(item.quantity)}
+                  onChangeText={(text) => handleQuantityInput(index, text)}
+                  keyboardType="numeric"
+                  style={styles.quantityInput}
+                  placeholder="0"
+                />
+                <Text style={styles.totalText}>
+                  Total: Bs {(item.quantity * (item.price - (item.discount || 0))).toFixed(2)}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ))}
 
       </ScrollView>
 
@@ -111,7 +111,7 @@ const { width } = Dimensions.get("window");
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#E7E6E6",
     paddingHorizontal: 16,
   },
   title: {
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-  
+
   productImage: {
     width: 60,
     height: 60,
@@ -152,14 +152,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "space-between",
   },
-  
+
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 4,
   },
-  
+
   name: {
     fontSize: 16,
     fontWeight: "bold",
@@ -171,13 +171,13 @@ const styles = StyleSheet.create({
     color: "#555",
     marginBottom: 6,
   },
-  
+
   bottomRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  
+
   quantityInput: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  
+
   quantityBtn: {
     padding: 6,
     borderRadius: 5,

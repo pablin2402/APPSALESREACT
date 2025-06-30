@@ -93,7 +93,7 @@ export default function ClientOrderDetailsScreen() {
                 <TouchableOpacity style={styles.card} onPress={() => goToClientDetails(item)}>
                     <Image
                         style={styles.image}
-                        source={{ uri: item.profilePicture || "https://us.123rf.com/450wm/tkacchuk/tkacchuk2004/tkacchuk200400017/143745488-no-hay-icono-de-imagen-vector-de-línea-editable-no-hay-imagen-no-hay-foto-disponible-o-no-hay.jpg" }}
+                        source={{ uri: item.identificationImage || "https://us.123rf.com/450wm/tkacchuk/tkacchuk2004/tkacchuk200400017/143745488-no-hay-icono-de-imagen-vector-de-línea-editable-no-hay-imagen-no-hay-foto-disponible-o-no-hay.jpg" }}
                     />
                     <View style={styles.cardContent}>
                         <Text style={styles.clientName}>{item.name} {item.lastName}</Text>

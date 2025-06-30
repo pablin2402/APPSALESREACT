@@ -1,4 +1,4 @@
-import React, { useEffect, useState,useCallback, useContext } from "react";
+import React, { useEffect, useState, useCallback, useContext } from "react";
 
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Modal, Button, Platform } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -21,8 +21,8 @@ export default function SalesManActivityScreen() {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         return yesterday;
-      });
-          const [endDate, setEndDate] = useState(new Date());
+    });
+    const [endDate, setEndDate] = useState(new Date());
     const [detailsFilter, setDetailsFilter] = useState("");
     const [showStartDatePicker, setShowStartDatePicker] = useState(false);
     const [showEndDatePicker, setShowEndDatePicker] = useState(false);
@@ -130,7 +130,7 @@ export default function SalesManActivityScreen() {
                             {(!showStartDatePicker && !showEndDatePicker) && (
                                 <TouchableOpacity onPress={() => setShowStartDatePicker(true)} style={styles.dateInput}>
                                     <Text placeholderTextColor="#4A4A4A"
-                                        style={{ color: "black" }}>{formatDate2(startDate-1)}</Text>
+                                        style={{ color: "black" }}>{formatDate2(startDate - 1)}</Text>
                                 </TouchableOpacity>
                             )}
 
@@ -266,7 +266,7 @@ export default function SalesManActivityScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#f9f9f9",
+        backgroundColor: "#E7E6E6",
         paddingHorizontal: 20,
     },
 

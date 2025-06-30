@@ -7,7 +7,7 @@ import { useRoute } from "@react-navigation/native";
 import { useNavigation } from "@react-navigation/native";
 import { AuthContext } from "../AuthContext";
 
-export default function OrderDetailsScreen() {
+export default function OrderDetailsScreenDeliver() {
     const route = useRoute();
     const insets = useSafeAreaInsets();
     const navigation = useNavigation();
@@ -66,11 +66,10 @@ export default function OrderDetailsScreen() {
     }, [fetchProducts]);
     const fetchPayments = useCallback(async () => {
         try {
-          console.log(filesList._id,filesList.id_client._id)
             const response = await axios.post(API_URL + "/whatsapp/order/pay/id", {
-                id_client: filesList.id_client._id,
+                id_client: filesList.clientId,
                 id_owner: idOwner,
-                orderId: filesList._id
+                orderId: clientId
             }, {
                 headers: {
                     Authorization: `Bearer ${token}`
@@ -109,7 +108,7 @@ export default function OrderDetailsScreen() {
 
     const calculatedDebt = totalGeneral - totalPaid > 0 ? totalGeneral - totalPaid : 0;
     const handlePay = () => {
-        navigation.navigate("AddPayment", { client: filesList.id_client._id, order: clientId, debt: calculatedDebt });
+        navigation.navigate("AddPayment", { client: filesList.clientId, order: clientId, debt: calculatedDebt });
     };
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -118,20 +117,13 @@ export default function OrderDetailsScreen() {
               Cliente: <Text style={styles.highlight}>{filesList?.salesId?.fullName + " " + filesList?.salesId?.lastName}</Text>
             </Text>
             <Text style={styles.title}>
-              Nota de remisión: <Text style={styles.highlight}>{filesList?.receiveNumber|| "No disponible"}</Text>
+              Nota de remisión: <Text style={styles.highlight}>{filesList?.receiveNumber}</Text>
             </Text>
             <Text style={styles.subtitle}>
               Tipo de pago:{" "}
-              <Text style={styles.highlight}>{formatAccountStatus(filesList?.accountStatus)|| "No disponible"}</Text>
+              <Text style={styles.highlight}>{formatAccountStatus(filesList?.accountStatus)}</Text>
             </Text>
-            <Text style={styles.subtitle}>
-              Vencimiento:{" "}
-              <Text style={styles.highlight}>
-                {filesList?.dueDate
-                  ? new Date(filesList.dueDate).toLocaleDateString("es-ES")
-                  : new Date(filesList?.creationDate).toLocaleDateString("es-ES")}
-              </Text>
-            </Text>
+          
           </View>
     
           <View style={[styles.tabContainer, { marginTop: 20 }]}>
@@ -158,10 +150,10 @@ export default function OrderDetailsScreen() {
                 renderItem={({ item }) => (
                   <TouchableOpacity style={styles.card}>
                     <View style={styles.cardContent}>
-                      <Text style={styles.rowText}>{item.nombre|| "No disponible"}</Text>
+                      <Text style={styles.rowText}>{item.nombre}</Text>
                       <View style={styles.rowItem}>
                         <Text style={styles.rowLabel}>Cantidad botella:</Text>
-                        <Text style={styles.rowValue}>{item.cantidad|| "No disponible"}</Text>
+                        <Text style={styles.rowValue}>{item.cantidad}</Text>
                       </View>
                       <View style={styles.rowItem}>
                         <Text style={styles.rowLabel}>Precio:</Text>
@@ -176,7 +168,7 @@ export default function OrderDetailsScreen() {
               <View style={{ alignItems: "flex-end", marginTop: 15, marginBottom: 20 }}>
                 <View style={styles.row}>
                   <Text style={styles.label}>Saldo por pagar:</Text>
-                  <Text style={styles.value}> Bs. {calculatedDebt.toFixed(2)|| "No disponible"}</Text>
+                  <Text style={styles.value}> Bs. {calculatedDebt.toFixed(2)}</Text>
                   </View>
                 <View style={styles.row}>
                   <Text style={styles.label}>Total Pagado:</Text>

@@ -36,7 +36,7 @@ export default function PaymentScreen() {
             const payload = {
                 id_owner: idOwner,
                 sales_id: idUser,
-                limit: 8,
+                limit: 5,
                 page: page,
                 clientName: searchTerm
             };
@@ -158,13 +158,14 @@ export default function PaymentScreen() {
                     return (
                         <TouchableOpacity style={styles.card}>
                             <View style={styles.cardContent}>
-                                <Text style={styles.rowText}>{formatDate(item.creationDate)}</Text>
+                                <Text style={styles.rowText}>{formatDate(item.creationDate)|| "No disponible"}</Text>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <Text style={styles.clientName2}>{item.orderId.id_client.name + " " + item.orderId.id_client.lastName}</Text>
                                     <Text style={styles.location}>Bs. {item.total.toFixed(2) || "No disponible"}</Text>
                                 </View>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <View style={styles.location}></View>
+                                    <Text style={styles.clientName2}>{"# "+item.orderId.receiveNumber}</Text>
+
                                     <View
                                         style={{
                                             backgroundColor: item.paymentStatus === "paid" ? "#E74C3C" : "#27AE60",
@@ -172,7 +173,8 @@ export default function PaymentScreen() {
                                             paddingVertical: 2,
                                             paddingHorizontal: 8,
                                             alignSelf: 'flex-start',
-                                            marginTop: 2,
+                                            marginTop: 4,
+                                            marginBottom:4,
                                             marginVertical: 4,
                                         }}
                                     >
@@ -224,22 +226,22 @@ export default function PaymentScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#f9f9f9",
+        backgroundColor: "#E7E6E6",
         paddingHorizontal: 20,
     },
     pagination: {
         flexDirection: "row",
         justifyContent: "center",
         alignItems: "center",
-        marginTop: 10,
-    },
-    pageButton: {
-        padding: 10,
+        marginVertical: 10,
+      },
+      pageButton: {
+        padding: 8,
         borderWidth: 1,
-        borderRadius: 5,
+        borderColor: "#B0B0B0",
         marginHorizontal: 5,
-        borderColor: "#D3423E",
-    },
+        borderRadius: 5,
+      },
 
     activePage: {
         backgroundColor: "#D3423E",
@@ -250,6 +252,7 @@ const styles = StyleSheet.create({
     },
     searchContainer: {
         marginBottom: 15,
+        
     },
     location: {
         fontSize: 18,
@@ -275,7 +278,7 @@ const styles = StyleSheet.create({
         height: 40,
         elevation: 3,
         borderWidth: 1,
-        borderColor: "#ddd",
+        borderColor: "#B0B0B0",
     },
     searchIcon: {
         marginRight: 10,
@@ -294,8 +297,8 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         padding: 15,
         marginVertical: 5,
+        borderColor: "#AFABAB",
         borderWidth: 1,
-        borderColor: "#ddd",
         elevation: 3,
     },
     cardContent: {
@@ -334,8 +337,8 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         marginVertical: 5,
         marginRight: 5,
+        borderColor: "#AFABAB",
         borderWidth: 1,
-        borderColor: "#ddd",
         color: "black",
         backgroundColor: "#fff",
     },
@@ -346,8 +349,8 @@ const styles = StyleSheet.create({
         color: "black",
         borderRadius: 10,
         marginVertical: 5,
+        borderColor: "#AFABAB",
         borderWidth: 1,
-        borderColor: "#ddd",
         backgroundColor: "#fff",
     },
     selectorButton: {

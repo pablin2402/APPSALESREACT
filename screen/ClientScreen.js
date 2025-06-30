@@ -85,7 +85,7 @@ export default function ClientScreen() {
                     <TouchableOpacity style={styles.card} onPress={() => goToClientDetails(item)}>
                         <Image
                             style={styles.image}
-                            source={{ uri: item.profilePicture || "https://us.123rf.com/450wm/tkacchuk/tkacchuk2004/tkacchuk200400017/143745488-no-hay-icono-de-imagen-vector-de-línea-editable-no-hay-imagen-no-hay-foto-disponible-o-no-hay.jpg" }}
+                            source={{ uri: item.identificationImage || "https://us.123rf.com/450wm/tkacchuk/tkacchuk2004/tkacchuk200400017/143745488-no-hay-icono-de-imagen-vector-de-línea-editable-no-hay-imagen-no-hay-foto-disponible-o-no-hay.jpg" }}
                         />
                         <View style={styles.cardContent}>
                             <Text style={styles.clientName}>{item.name} {item.lastName}</Text>
@@ -134,7 +134,7 @@ export default function ClientScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#f9f9f9",
+        backgroundColor: "#E7E6E6",
         paddingHorizontal: 20,
     },
     input: {
@@ -143,7 +143,8 @@ const styles = StyleSheet.create({
         width: "20%",
         padding: 5,
         color: "#000",
-        borderRadius: 25
+        borderRadius: 25,
+        
     },
     card: {
         flexDirection: "row",
@@ -152,11 +153,10 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         borderRadius: 25,
         elevation: 3,
-        borderColor: "#ccc",
+        borderColor: "#AFABAB",
+        borderWidth: 1,        
         color: "#000",
-        borderColor: "#ddd",
         elevation: 3,
-        borderWidth: 1,
         marginVertical: 5,
     },
     image: {
@@ -188,6 +188,7 @@ const styles = StyleSheet.create({
     },
     searchContainer: {
         marginBottom: 15,
+        
     },
 
     searchRow: {
@@ -202,8 +203,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         height: 40,
         elevation: 3,
+        borderColor: "#AFABAB",
         borderWidth: 1,
-        borderColor: "#ddd",
         flex: 1,
         marginRight: 10,
 

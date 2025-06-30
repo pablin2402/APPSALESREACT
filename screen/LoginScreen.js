@@ -15,26 +15,31 @@ export default function LoginScreen() {
   const { login } = useContext(AuthContext);
 
   const handleSubmit = async () => {
-    setErrorMessage("");
     try {
       const response = await axios.post(API_URL + "/whatsapp/login", {
         email,
         password,
       });
-
+  
       if (response.status === 200) {
         const { token, usuarioDB } = response.data;
-        await AsyncStorage.setItem("token", token);
-        await AsyncStorage.setItem("id_owner", usuarioDB.id_owner);
-        await AsyncStorage.setItem("id_user", usuarioDB.salesMan);
-        await login(token, usuarioDB.id_owner, usuarioDB.salesMan);
-      }
+  
+  
+          await AsyncStorage.setItem("token", token);
+          await AsyncStorage.setItem("id_owner", usuarioDB.id_owner);
+          await AsyncStorage.setItem("id_user", usuarioDB.salesMan);
+         // await AsyncStorage.setItem("role", usuarioDB.role);
+          await AsyncStorage.setItem("sales_id", usuarioDB._id);
+  
+          await login(token, usuarioDB.id_owner, usuarioDB.salesMan, usuarioDB.role, usuarioDB._id);
+        }
+      
     } catch (err) {
       const message = err.response?.data?.message || "Usuario o contraseña incorrectos";
       setErrorMessage(message);
     }
   };
-
+  
   return (
     <View style={styles.container}>
       <View style={styles.card}>

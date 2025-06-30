@@ -71,7 +71,7 @@ export default function ProductListScreen() {
   }, [page, selectedCategory]);
 
   return (
-    <View style={{ flex: 1, paddingTop: insets.top }}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#D3423E" style={styles.searchIcon} />
         <TextInput
@@ -88,7 +88,7 @@ export default function ProductListScreen() {
       </View>
 
       <FlatList
-        contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 10 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
         data={salesData}
         keyExtractor={(item) => item._id}
         numColumns={2}
@@ -154,6 +154,8 @@ export default function ProductListScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 10,
+    backgroundColor: "#E7E6E6",
+    paddingHorizontal: 20,
   },
   floatingButton: {
     position: "absolute",
@@ -189,8 +191,8 @@ const styles = StyleSheet.create({
   floatingPayButton: {
     position: "absolute",
     bottom: 20,
-    left: 20,
-    right: 20,
+    alignSelf: "center",
+    width: "90%",
     backgroundColor: "#D3423E",
     paddingVertical: 15,
     borderRadius: 25,
@@ -207,30 +209,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 18,
   },
-  
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 25,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 1,
-    marginHorizontal: 10,
 
-    width: "100%",
-    justifyContent: "space-between",
-  },
   searchIcon: {
     marginRight: 10,
   },
   input: {
     flex: 1,
     fontSize: 16,
-
+    
   },
   continueButton: {
     paddingVertical: 8,
@@ -248,6 +234,21 @@ const styles = StyleSheet.create({
   row: {
     justifyContent: "space-between",
   },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 1,
+    padding: 10,
+    borderColor: "#AFABAB",
+    borderWidth: 1,
+    width: "100%",
+    justifyContent: "space-between",
+  },
   card: {
     flex: 1,
     backgroundColor: "#fff",
@@ -255,8 +256,8 @@ const styles = StyleSheet.create({
     padding: 10,
     marginVertical: 8,
     marginHorizontal: 5,
+    borderColor: "#AFABAB",
     borderWidth: 1,
-    borderColor: "#ddd",
     alignItems: "center",
     minHeight: 180,
     justifyContent: "space-between"

@@ -26,6 +26,7 @@ import { TimerProvider } from "../components/TimerContext";
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 import { AuthContext } from "../AuthContext";
+import OrderDetailsScreenDeliver from "../components/OrderDetailsScreenDeliver";
 
 function UserStack() {
     return (
@@ -83,18 +84,7 @@ function UserStack() {
                     headerTitle: '',
                     headerStyle: { shadowColor: 'transparent', elevation: 0 },
                 })} />
-            <Stack.Screen
-                name="PaymentScreen"
-                component={PaymentScreen}
-                options={({ navigation }) => ({
-                    headerLeft: () => (
-                        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
-                            <Ionicons name="arrow-back" size={24} color="black" />
-                        </TouchableOpacity>
-                    ),
-                    headerTitle: '',
-                    headerStyle: { shadowColor: 'transparent', elevation: 0 },
-                })} />
+          
             <Stack.Screen
                 name="CartDetailsScreen"
                 component={CartDetailsScreen}
@@ -231,9 +221,10 @@ export default function AppNavigator() {
                                 headerTitle: '',
                                 headerStyle: { shadowColor: 'transparent', elevation: 0 },
                             })} />
-                        <Stack.Screen
-                            name="SalesInformScreen"
-                            component={SalesInformScreen}
+                             <Stack.Screen
+                            name="OrderDetailsScreenDeliver"
+                            component={OrderDetailsScreenDeliver}
+                            initialParams={{ products: null, files: null, orderId: null }}
                             options={({ navigation }) => ({
                                 headerLeft: () => (
                                     <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
@@ -243,19 +234,43 @@ export default function AppNavigator() {
                                 headerTitle: '',
                                 headerStyle: { shadowColor: 'transparent', elevation: 0 },
                             })} />
-                        <Stack.Screen
-                            name="AddPayment"
-                            component={AddPayment}
-                            initialParams={{ client: null, order: null, debt:null }}
-                            options={({ navigation }) => ({
-                                headerLeft: () => (
-                                    <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
-                                        <Ionicons name="arrow-back" size={24} color="black" />
-                                    </TouchableOpacity>
-                                ),
-                                headerTitle: '',
-                                headerStyle: { shadowColor: 'transparent', elevation: 0 },
-                            })} />
+                              <Stack.Screen
+                                name="PaymentScreen"
+                                component={PaymentScreen}
+                                options={({ navigation }) => ({
+                                    headerLeft: () => (
+                                        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                                            <Ionicons name="arrow-back" size={24} color="black" />
+                                        </TouchableOpacity>
+                                    ),
+                                    headerTitle: '',
+                                    headerStyle: { shadowColor: 'transparent', elevation: 0 },
+                                })} />
+                            <Stack.Screen
+                                name="SalesInformScreen"
+                                component={SalesInformScreen}
+                                options={({ navigation }) => ({
+                                    headerLeft: () => (
+                                        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                                            <Ionicons name="arrow-back" size={24} color="black" />
+                                        </TouchableOpacity>
+                                    ),
+                                    headerTitle: '',
+                                    headerStyle: { shadowColor: 'transparent', elevation: 0 },
+                                })} />
+                            <Stack.Screen
+                                name="AddPayment"
+                                component={AddPayment}
+                                initialParams={{ client: null, order: null, debt:null }}
+                                options={({ navigation }) => ({
+                                    headerLeft: () => (
+                                        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                                            <Ionicons name="arrow-back" size={24} color="black" />
+                                        </TouchableOpacity>
+                                    ),
+                                    headerTitle: '',
+                                    headerStyle: { shadowColor: 'transparent', elevation: 0 },
+                                })} />
                     </>
                 )}
             </Stack.Navigator>

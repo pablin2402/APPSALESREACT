@@ -115,8 +115,8 @@ export default function ClientDetailsScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.profileContainer}>
         <Image
-          source={{ uri: client.profilePicture || "https://via.placeholder.com/150" }}
-          style={styles.profileImage}
+          source={{ uri: client.identificationImage || "https://via.placeholder.com/150" }}
+          style={styles.identificationImage}
         />
         <Text style={styles.clientName}>{client.name} {client.lastName}</Text>
         <View style={styles.infoRow}>
