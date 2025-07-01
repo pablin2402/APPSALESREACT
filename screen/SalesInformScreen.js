@@ -40,7 +40,18 @@ export default function SalesInformScreen() {
     const year = d.getFullYear();
     return `${day}-${month}-${year}`;
   };
-
+  function utcToLocalDateString(utcDateStr, timeZone = 'America/La_Paz') {
+  
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  
+    return formatter.format(utcDateStr); 
+  } 
+  
   const fetchProducts = async () => {
     try {
       const payload = {
@@ -49,9 +60,12 @@ export default function SalesInformScreen() {
         page: page,
         limit: itemsPerPage
       };
+     
       if (startDate && endDate) {
-        payload.startDate = startDate;
-        payload.endDate = endDate;
+        const startDateLocal = utcToLocalDateString(startDate);
+        const endDateLocal = utcToLocalDateString(endDate);
+        payload.startDate = startDateLocal;
+        payload.endDate = endDateLocal;
       }
       if (searchTerm) {
         payload.fullName = searchTerm;

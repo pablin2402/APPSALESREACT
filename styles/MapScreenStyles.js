@@ -6,6 +6,82 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    clientDetailCard: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        paddingVertical: 20,
+        paddingHorizontal: 25,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOpacity: 0.15,
+        shadowOffset: { width: 0, height: -2 },
+        shadowRadius: 8,
+    },
+    modalHandle: {
+        width: 60,
+        height: 5,
+        backgroundColor: '#ccc',
+        alignSelf: 'center',
+        borderRadius: 3,
+        marginBottom: 15,
+    },
+    clientDetailName: {
+        fontSize: 25,
+        fontWeight: 'bold',
+        marginBottom: 30,
+        color: '#333',
+        textAlign: 'center',
+    },
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    infoText: {
+        marginLeft: 8,
+        fontSize: 18,
+        color: '#444',
+    },
+    primaryButton: {
+        paddingVertical: 14,
+        borderRadius: 10,
+        marginTop: 15,
+    },
+    primaryButtonText: {
+        color: '#D3423E',
+        textAlign: 'center',
+        fontWeight: 'bold',
+        fontSize: 18,
+    },
+    terminateButton: {
+        paddingVertical: 14,
+        borderRadius: 10,
+        marginTop: 15,
+    },
+    terminateButtonText: {
+        color: '#000',
+        textAlign: 'center',
+        fontWeight: 'bold',
+        fontSize: 18,
+    },
+    secondaryButton: {
+        paddingVertical: 12,
+        borderRadius: 10,
+        marginTop: 10,
+        padding: 10,
+    },
+    secondaryButtonText: {
+        color: '#333',
+        textAlign: 'center',
+        fontWeight: 'bold',
+        fontSize: 18,
+    },
+
+   
     loadingContainer: {
         flex: 1,
         justifyContent: "center",
@@ -46,6 +122,7 @@ const styles = StyleSheet.create({
     },
     card: {
         width: width * 0.7,
+        height: 80,
         marginRight: 10,
         borderRadius: 15,
         overflow: "hidden",
@@ -56,8 +133,8 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
     },
     cardImage: {
-        width: 70,
-        height: 70,
+        width: 60,
+        height: 60,
         borderRadius: 5,
         marginRight: 10,
         marginLeft: 10
@@ -78,7 +155,7 @@ const styles = StyleSheet.create({
         color: "black",
         marginBottom: 6,
         marginLeft: 10,
-        marginTop: 6  
+        marginTop: 6
     },
     cardAddressContainer: {
         flexDirection: "row",
@@ -117,11 +194,6 @@ const styles = StyleSheet.create({
         borderRadius: 15,
         elevation: 5,
         alignItems: "center",
-    },
-    clientDetailName: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: "black"
     },
     timerText: {
         fontSize: 18,

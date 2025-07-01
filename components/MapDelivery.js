@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useContext } from "react";
-import { View, StyleSheet, Dimensions, Text, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from "react-native";
+import { View,Text, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from "react-native";
 import MapView from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -28,7 +28,9 @@ const MapDelivery = () => {
     const [loading, setLoading] = useState(true);
     const [origin, setOrigin] = useState({ latitude: 0, longitude: 0 });
     const mapRef = useRef(null);
-
+    const [distance, setDistance] = useState("");
+    const [duration, setDuration] = useState("");
+    const [orderId, setOrderId] = useState("")
     const [filteredClients, setFilteredClients] = useState([]);
 
     const [selectedClient, setSelectedClient] = useState(null);
@@ -50,7 +52,7 @@ const MapDelivery = () => {
 
     const localTime = new Date();
     const [routeId, setRouteId] = useState("");
-    const { token,idOwner,idUser } = useContext(AuthContext);
+    const { token, idOwner, idUser } = useContext(AuthContext);
 
     function getStartOfDayInUTCMinus4(date) {
         const utcDate = new Date(date);
@@ -63,34 +65,38 @@ const MapDelivery = () => {
         const dateInGMTMinus4 = getStartOfDayInUTCMinus4(today);
         try {
 
-            const response = await axios.post(API_URL + "/whatsapp/salesman/route/id", {
+            const response = await axios.post(API_URL + "/whatsapp/delivery/list/route", {
                 salesMan: idUser,
                 id_owner: idOwner,
                 startDate: dateInGMTMinus4,
+                status: "",
             }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }});
-            setListRoute(response.data);
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            //  console.log(response.data.data)
+            setListRoute(response.data.data);
         } catch (error) {
         }
     };
     const getRoutesById = async (value) => {
         try {
-            const response = await axios.post(API_URL + "/whatsapp/salesman/route/sales/id", {
+            const response = await axios.post(API_URL + "/whatsapp/delivery/list/route/id", {
                 _id: value,
                 id_owner: idOwner,
             }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }});
+                    Authorization: `Bearer ${token}`
+                }
+            });
             setRoute(response.data);
         } catch (error) {
         }
     };
-    const uploadRoute = async (value, visitStartTime, visitEndTime, visitTime) => {
+    const uploadRoute = async (value, visitStartTime, visitEndTime, visitTime, tripTime1, distanceTrip1, messsageTrack) => {
         try {
-            await axios.put(API_URL + "/whatsapp/route/sales/id", {
+            const res = await axios.put(API_URL + "/whatsapp/route/delivery/id", {
                 status: "En progreso",
                 id_owner: idOwner,
                 _id: routeId,
@@ -100,22 +106,41 @@ const MapDelivery = () => {
                 orderTaken: false,
                 visitStartTime: visitStartTime,
                 visitEndTime: visitEndTime,
+                tripTime: tripTime1,
+                distanceTrip: distanceTrip1,
             }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }});
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            if(res.status === 200){
+                console.log(orderId)
+                await axios.post(API_URL + "/whatsapp/order/track", {
+                    orderId: orderId, 
+                    eventType: messsageTrack,
+                    triggeredBySalesman: "",
+                    triggeredByDelivery: idUser,
+                    triggeredByUser: "",
+                    location: { lat: 0, lng: 0 }
+                  }, {
+                    headers: {
+                      Authorization: `Bearer ${token}`
+                    }
+                  });
+            }
         } catch (error) {
         }
     };
     const uploadProgressRoute = async () => {
         try {
-            await axios.put(API_URL + "/whatsapp/route/progress/id", {
-                id_owner:idOwner,
+            await axios.put(API_URL + "/whatsapp/route/delivery/progress/id", {
+                id_owner: idOwner,
                 _id: routeId,
             }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }});
+                    Authorization: `Bearer ${token}`
+                }
+            });
         } catch (error) {
         }
     };
@@ -141,49 +166,56 @@ const MapDelivery = () => {
             longitude: location.coords.longitude
         };
     }
-    const fetchActivity = async (selectedClient2, text) => {
-        try {
-            const userLocation = await getUserLocation();
-            const formattedTime = formatTime(timer);
-            const totalSeconds = timer;
-            await axios.post(API_URL + "/whatsapp/salesman/activity", {
-                salesMan:idUser,
-                details: text,
-                latitude: userLocation.latitude,
-                longitude: userLocation.longitude,
-                location: selectedClient2.client_location.direction,
-                id_owner: idOwner,
-                clientName: selectedClient2._id,
-                visitDuration: formattedTime,
-                visitDurationSeconds: totalSeconds,
-            }, {
-                headers: {
-                  Authorization: `Bearer ${token}`
-                }});
-        } catch (error) {
-        } finally {
-        }
-    };
+
     const handleTimerToggle = async (selectedClient2, text) => {
-        if (isTimerRunning) {
-            setTimer(0);
-            const stopTime = await stopTimer();
-            setShowRoute(true);
-            setShowClients(false);
-            await uploadRoute(selectedClient2, null, stopTime, formatTime(timer));
-            await uploadProgressRoute();
-            await getRoutesById(routeId);
-            await fetchActivity(selectedClient2, text);
-            setModal(false);
-            setSelectedClient(null);
-            await AsyncStorage.removeItem("timer_start");
-        } else {
-            const startTime = await startTimer();
-            startMapping();
-            await uploadRoute(selectedClient2, startTime, null, null);
-            fetchActivity(selectedClient2, text);
+
+        const userLocation = await getUserLocation();
+        const latitudDelivery = userLocation.latitude;
+        const longitudDelivery = userLocation.longitude;
+        const latitudDest = selectedClient2.client_location.latitud;
+        const longitudDest = selectedClient2.client_location.longitud;
+
+        const url = `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${latitudDelivery},${longitudDelivery}&destinations=${latitudDest},${longitudDest}&key=${GOOGLE_API_KEY}`;
+        try {
+            const response = await axios.get(url);
+            const data = response.data;
+
+            if (
+                data.rows.length > 0 &&
+                data.rows[0].elements.length > 0 &&
+                data.rows[0].elements[0].status === "OK"
+            ) {
+                const distance = data.rows[0].elements[0].distance.text;
+                const duration = data.rows[0].elements[0].duration.text;
+                setDistance(distance);
+                setDuration(duration);
+                if (isTimerRunning) {
+                    setTimer(0);
+                    const stopTime = await stopTimer();
+                    setShowRoute(true);
+                    setShowClients(false);
+                    await uploadRoute(selectedClient2, null, stopTime, formatTime(timer), duration, distance,"ha llegado al destino");
+                    await uploadProgressRoute();
+                    await getRoutesById(routeId);
+                    setOrderId("")
+                    setModal(false);
+                    setSelectedClient(null);
+                    await AsyncStorage.removeItem("timer_start");
+                } else {
+                    const startTime = await startTimer();
+                    startMapping();
+                    await uploadRoute(selectedClient2, startTime, null, null, duration, distance,"está en camino al destino");
+                }
+                setIsTimerRunning(!isTimerRunning);
+            } else {
+                throw new Error("No se pudo calcular la distancia.");
+            }
+        } catch (error) {
+            console.error("Error al calcular distancia:", error);
+            return null;
         }
-        setIsTimerRunning(!isTimerRunning);
+
+
     };
     const showRoutesList = () => {
         setShowRoutes(true);
@@ -197,11 +229,14 @@ const MapDelivery = () => {
         try {
             const response = await axios.post(API_URL + "/whatsapp/maps/list/sales/id", {
                 id_owner: idOwner,
-                sales_id:idUser
+                userCategory: "",
+                salesCategory: "",
+                nameClient: ""
             }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }});
+                    Authorization: `Bearer ${token}`
+                }
+            });
             setClients(response.data.users);
             setFilteredClients(response.data.users);
             setLoading(false);
@@ -238,6 +273,7 @@ const MapDelivery = () => {
 
     const centerMapOnClient = (client) => {
         setSelectedClient(client);
+        setOrderId(client._id);
         setModal(true);
         mapRef.current?.animateToRegion({
             latitude: client.client_location.latitud,
@@ -248,6 +284,7 @@ const MapDelivery = () => {
     };
     const centerMapOnClient2 = (client) => {
         setSelectedClient(client);
+        setOrderId(client._id)
         setModal(true);
         mapRef.current?.animateToRegion({
             latitude: client.client_location.latitud,
@@ -260,9 +297,6 @@ const MapDelivery = () => {
         const minutes = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    };
-    const navigate = () => {
-        navigation.navigate("Order", { screen: "ProductListScreen" });
     };
     const showAllClients = () => {
         setShowClients(true);
@@ -281,6 +315,9 @@ const MapDelivery = () => {
         const month = (date.getMonth() + 1).toString().padStart(2, "0");
         const year = date.getFullYear();
         return `${day}-${month}-${year}`;
+    };
+    const handlePay = (selectedClient) => {
+        navigation.navigate("OrderPickUp", { client: selectedClient});
     };
     return (
         <View style={styles.container}>
@@ -313,6 +350,7 @@ const MapDelivery = () => {
                                 onPress={() => {
                                     if (!isTimerRunning || selectedClient?.client_location._id === point.client_location._id) {
                                         setSelectedClient(point);
+                                        setOrderId(selectedClient._id)
                                         setModal(true);
                                     }
                                 }}
@@ -444,7 +482,7 @@ const MapDelivery = () => {
                                 <View style={styles.cardInfo}>
                                     <Text style={styles.cardTitle2}>{item.details}</Text>
                                     <View style={styles.cardAddressContainer}>
-                                        <Text style={styles.cardAddress}>Fecha de Inicio {formatDate(item.startDate)}</Text>
+                                        <Text style={styles.cardAddress}>Fecha de Inicio: {formatDate(item.startDate)}</Text>
                                     </View>
                                 </View>
                             </TouchableOpacity>
@@ -484,7 +522,7 @@ const MapDelivery = () => {
                                             paddingVertical: 2,
                                             paddingHorizontal: 8,
                                             alignSelf: "flex-start",
-                                            marginTop: 4,
+                                            marginTop: 6,
                                             marginVertical: 4,
                                         }}
                                     >
@@ -499,31 +537,59 @@ const MapDelivery = () => {
                 </View>
             )}
             {modality && selectedClient && (
-                <View style={[styles.clientDetailCard, { bottom: insets.bottom + 200 }]}>
-                    {!selectedClient.name ? (
-                        <Text style={styles.clientDetailName}>{selectedClient.nombre}</Text>
-                    ) : (
-                        <Text style={styles.clientDetailName}>{selectedClient.name} {selectedClient.lastName}</Text>
+                <View style={[styles.clientDetailCard, { bottom: insets.bottom + 40 }]}>
+                    <View style={styles.modalHandle} />
+
+                    <Text style={styles.clientDetailName}>
+                        {!selectedClient.name
+                            ? selectedClient.nombre
+                            : `${selectedClient.name} ${selectedClient.lastName}`}
+                    </Text>
+
+                    {isTimerRunning && (
+                        <>
+                            <View style={styles.infoRow}>
+                                <Ionicons name="location-outline" size={20} color="#D3423E" />
+                                <Text style={styles.infoText}>Distancia: {distance}</Text>
+                            </View>
+                            <View style={styles.infoRow}>
+                                <Ionicons name="time-outline" size={20} color="#D3423E" />
+                                <Text style={styles.infoText}>Duración: {duration}</Text>
+                            </View>
+                        </>
                     )}
+
                     {!isTimerRunning && !selectedClient.visitStatus && (
-                        <TouchableOpacity style={styles.redButton} onPress={() => handleTimerToggle(selectedClient, "Visita al cliente")}>
-                            <Text style={styles.buttonText2}>Iniciar visita</Text>
+                        <TouchableOpacity
+                            style={styles.primaryButton}
+                            onPress={() => handleTimerToggle(selectedClient, "Visita al cliente")}
+                        >
+                            <Text style={styles.primaryButtonText}>Iniciar trayecto</Text>
                         </TouchableOpacity>
                     )}
 
                     {isTimerRunning && (
-                        <TouchableOpacity style={styles.redButton} onPress={() => handleTimerToggle(selectedClient, "Termina la visita")}>
-                            <Text style={styles.buttonText2}>Terminar visita</Text>
-                        </TouchableOpacity>
-                    )}
+                        <>
+                            <TouchableOpacity
+                                style={styles.terminateButton}
+                                onPress={() => handlePay(selectedClient)}
+                                >
+                                <Text style={styles.terminateButtonText}>Registrar entrega</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.terminateButton}
+                                onPress={() => handleTimerToggle(selectedClient, "Termina la visita")}
+                            >
+                                <Text style={styles.terminateButtonText}>Llegada al punto de entrega</Text>
+                            </TouchableOpacity>
+                        </>
 
-                    <TouchableOpacity style={styles.redButton} onPress={() => navigate()}>
-                        <Text style={styles.buttonText2}>Registrar Pedido</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.redButton} onPress={() => setModal(false)}>
-                        <Text style={styles.buttonText2}>Cerrar</Text>
+                    )}
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => setModal(false)}>
+                        <Text style={styles.secondaryButtonText}>Cerrar</Text>
                     </TouchableOpacity>
                 </View>
+
             )}
             {loading && (
                 <View style={styles.loadingContainer}>

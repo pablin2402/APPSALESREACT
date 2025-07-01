@@ -30,7 +30,6 @@ export default function LoginScreen() {
           await AsyncStorage.setItem("id_user", usuarioDB.salesMan);
          // await AsyncStorage.setItem("role", usuarioDB.role);
           await AsyncStorage.setItem("sales_id", usuarioDB._id);
-  
           await login(token, usuarioDB.id_owner, usuarioDB.salesMan, usuarioDB.role, usuarioDB._id);
         }
       

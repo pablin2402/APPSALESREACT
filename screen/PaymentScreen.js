@@ -32,7 +32,16 @@ export default function PaymentScreen() {
     const pagesToShow = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
     const { token, idOwner, idUser } = useContext(AuthContext);
     const [loading, setLoading] = useState(true);
-
+    function utcToLocalDateString(utcDateStr, timeZone = 'America/La_Paz') {
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+          timeZone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+      
+        return formatter.format(utcDateStr); 
+      } 
     const fetchProducts = async (page) => {
         try {
             const payload = {
@@ -44,8 +53,10 @@ export default function PaymentScreen() {
             };
 
             if (startDate && endDate) {
-                payload.startDate = startDate;
-                payload.endDate = endDate;
+                const startDateLocal = utcToLocalDateString(startDate);
+                const endDateLocal = utcToLocalDateString(endDate);
+                payload.startDate = startDateLocal;
+                payload.endDate = endDateLocal;
             }
 
             const response = await axios.post(API_URL + "/whatsapp/order/pay/sales/id", payload, {

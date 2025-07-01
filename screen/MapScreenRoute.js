@@ -22,8 +22,6 @@ const MapScreenRoute = () => {
     const [clients, setClients] = useState([]);
     const [origin, setOrigin] = useState({ latitude: 0, longitude: 0 });
     const mapRef = useRef(null);
-    const insets = useSafeAreaInsets();
-    const navigation = useNavigation();
     const [filteredData, setFilteredData] = useState([]);
 
     const [selectedClient, setSelectedClient] = useState(null);

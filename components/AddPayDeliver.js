@@ -23,8 +23,6 @@ export default function AddpayDeliver() {
   const { token, idOwner, idUser } = useContext(AuthContext);
 
   const client = route.params?.client;
-  const order = route.params?.order;
-  const debt = route.params?.debt;
 
   const [file, setFile] = useState(null);
 
@@ -57,21 +55,57 @@ export default function AddpayDeliver() {
       }
     }
   };
+  const uploadImage = async () => {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const res = await axios.post(API_URL + "/whatsapp/upload/image", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return res.data.imageUrl;
+  };
+  async function getUserLocation() {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+        alert("Permisos denegados");
+        return;
+    }
+    let location = await Location.getCurrentPositionAsync({});
+    const current = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+    };
+    setOrigin(prevOrigin => {
+        if (prevOrigin.latitude !== current.latitude || prevOrigin.longitude !== current.longitude) {
+            return current;
+        }
+        return prevOrigin;
+    });
+    return {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+    };
+}
   const handlePay = async () => {
     try {
+      const imageUrl = file ? await uploadImage() : "";
       const formData = new FormData();
-      formData.append("saleImage", file);
-      formData.append("total", amount);
-      formData.append("note", note);
-      formData.append("orderId", order);
-      formData.append("numberOrden", "");
-      formData.append("paymentStatus", "paid");
-      formData.append("id_client", client);
-      formData.append("sales_id", idUser);
-      formData.append("id_owner", idOwner);
-      const orderResponse = await Promise.race([
+      const userLocation = await getUserLocation();
+      const latitudDelivery = userLocation.latitude;
+      const longitudDelivery = userLocation.longitude;
 
-        axios.post(API_URL + "/whatsapp/order/pay", formData, {
+      formData.append("saleImage", imageUrl);
+      formData.append("delivery", idUser);
+      formData.append("clientName", note);
+      formData.append("longitud", longitudDelivery);
+      formData.append("latitud", latitudDelivery);
+      formData.append("orderId", client._id);
+      formData.append("id_owner", idOwner);
+      console.log(formData);
+      const orderResponse = await Promise.race([
+        axios.post(API_URL + "/delivery/order/image", formData, {
           headers: {
             "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${token}`
@@ -80,7 +114,6 @@ export default function AddpayDeliver() {
         new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000))
       ]);
       if (orderResponse.status === 200) {
-        setAmount('');
         setNote('');
         setImageUri(null);
         navigation.navigate("SalesInformScreen");
@@ -155,12 +188,13 @@ export default function AddpayDeliver() {
 
         <Text style={styles.label}>Adjunta aquí una imagen del comprobante de pago</Text>
         <TouchableOpacity onPress={handlePickImage} style={styles.imageContainer}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.image} />
-          ) : (
-            <Text style={{ color: '#FF2D55' }}>Imagen adjunta</Text>
-          )}
-        </TouchableOpacity>
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.image} />
+            ) : (
+              <Text style={{ color: '#FF2D55' }}>Imagen adjunta</Text>
+            )}
+          </TouchableOpacity>
+
 
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>

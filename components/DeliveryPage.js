@@ -22,12 +22,13 @@ export default function DeliveryPage() {
   const [id, setId] = useState([]);
   const [isRouteLoading, setIsRouteLoading] = useState(true);
   const [routeLoaded, setRouteLoaded] = useState(false);
-  const { token, idOwner, salesId } = useContext(AuthContext);
+  const { token, idOwner, idUser } = useContext(AuthContext);
+  
   const fetchProfile = async () => {
     try {
       const response = await axios.post(API_URL + "/whatsapp/delivery/id", {
         id_owner: idOwner,
-        _id: salesId,
+        id: idUser,
       }, {
         headers: {
           Authorization: `Bearer ${token}`
@@ -37,7 +38,7 @@ export default function DeliveryPage() {
       if (response.status === 200) {
         setId(response.data._id);
         setProfile(response.data);
-        await startRoute(response.data._id); // ejecutar con el ID correcto
+        await startRoute(); 
       }
     } catch (error) {
       console.error("Error al obtener los datos:", error);
@@ -46,11 +47,11 @@ export default function DeliveryPage() {
     }
   };
 
-  const startRoute = async (deliveryId) => {
+  const startRoute = async () => {
     setIsRouteLoading(true);
     try {
-      const response = await axios.post(API_URL + "/whatsapp/delivery/list/route/id", {
-        delivery: deliveryId,
+      const response = await axios.post(API_URL + "/whatsapp/delivery/list/order/id", {
+        delivery: idUser,
         id_owner: idOwner,
       }, {
         headers: {
@@ -91,14 +92,6 @@ export default function DeliveryPage() {
       products: client.products,
       files: client,
     });
-  };
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
   };
   const formatDate2 = (dateString) => {
     const date = new Date(dateString);
@@ -346,8 +339,9 @@ const styles = StyleSheet.create({
   },
   input: {
     padding: 10,
+    backgroundColor: "#FCFCFC",
+    borderColor: "#AFABAB",
     borderWidth: 1,
-    borderColor: "#ccc",
     borderRadius: 20,
     marginBottom: 10,
     color: "#000",

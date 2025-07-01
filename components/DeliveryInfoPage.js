@@ -12,13 +12,14 @@ import { AuthContext } from "../AuthContext";
 export default function DeliveryInfoPage() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { logout,idOwner,token,salesId } = useContext(AuthContext);
+  const { logout,idOwner,token,idUser } = useContext(AuthContext);
   const [profile, setProfile] = useState(null);
+
     const fetchProfile = async () => {
       try {
         const response = await axios.post(API_URL + "/whatsapp/delivery/id", {
             id_owner: idOwner,
-            _id: salesId,
+            id: idUser,
           }, {
             headers: {
               Authorization: `Bearer ${token}`
@@ -33,7 +34,7 @@ export default function DeliveryInfoPage() {
     };
   useEffect(() => {
     fetchProfile();
-  }, [fetchProfile]);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -51,7 +52,7 @@ export default function DeliveryInfoPage() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.profileContainer}>
-        <Image source={{ uri: profile?.identificationImage }} style={styles.identificationImage} />
+        <Image source={{ uri: profile?.identificationImage }} style={styles.profileImage} />
         <Text style={styles.userName}>{profile?.fullName+" "+profile?.lastName || "Nombre no disponible"}</Text>
       </View>
       <View style={styles.optionsContainer}>
@@ -59,7 +60,7 @@ export default function DeliveryInfoPage() {
           <Ionicons name="cash-outline" size={24} color="black" />
           <Text style={styles.optionText}>Cobros</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.option} onPress={() => navigation.navigate("AccountScreen")}>
+        <TouchableOpacity style={styles.option} onPress={() => navigation.navigate("AccountDeliveryScreen")}>
           <Ionicons name="person-circle-outline" size={24} color="black" />
           <Text style={styles.optionText}>Cuenta</Text>
         </TouchableOpacity>
