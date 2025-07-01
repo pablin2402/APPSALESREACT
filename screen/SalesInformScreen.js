@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import { useNavigation } from '@react-navigation/native';
 
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Platform } from "react-native";
+import { View, Text, TextInput, FlatList,ActivityIndicator, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { FontAwesome } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -11,11 +11,11 @@ import { API_URL } from "../config";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthContext } from "../AuthContext";
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function SalesInformScreen() {
   const navigation = useNavigation();
   const [salesData, setSalesData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -30,6 +30,8 @@ export default function SalesInformScreen() {
   const [itemsPerPage] = useState(10);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [loading, setLoading] = useState(true);
+
   const formatDate2 = (date) => {
     if (!date) return "Fecha";
     const d = new Date(date);
@@ -67,6 +69,8 @@ export default function SalesInformScreen() {
 
     } catch (error) {
     } finally {
+      setLoading(false);
+
     }
   };
   useEffect(() => {
@@ -89,6 +93,15 @@ export default function SalesInformScreen() {
     navigation.navigate("OrderDetailsScreen", { orderId: client._id, products: client.products, files: client });
   };
  
+  if (loading) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={[styles.container1, styles.horizontal]}>        
+          <ActivityIndicator size="large" color="#D3423E" />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <FlatList
@@ -246,6 +259,15 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     marginBottom: 15,
+  },
+  container1: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  horizontal: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
   },
   searchBox: {
     flexDirection: "row",

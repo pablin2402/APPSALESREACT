@@ -467,7 +467,7 @@ const MapSalesMan = () => {
                                 }}
                             >
                                 <Image
-                                    source={{ uri: item.profilePicture || "https://via.placeholder.com/150" }}
+                                    source={{ uri: item.identificationImage || "https://via.placeholder.com/150" }}
                                     style={styles.cardImage}
                                 />
 
@@ -489,7 +489,7 @@ const MapSalesMan = () => {
                                         }}
                                     >
                                         <Text style={{ color: "#FFF", fontWeight: "bold" }}>
-                                            {item.visitStatus ? "Visitado" : "Sin visitar"}
+                                            {item.visitStatus ? "VISITADO" : "SIN VISITAR"}
                                         </Text>
                                     </View>
                                 </View>

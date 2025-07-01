@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
 
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Dimensions, Modal, Image } from "react-native";
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Dimensions,Animated, Modal, Image } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import { useRoute } from "@react-navigation/native";
@@ -24,7 +24,9 @@ export default function CartFinalDetailsScreen() {
     const [formData, setFormData] = useState({ tipoPago: "", plazoCredito: "" });
     const currentDate = new Date();
     const { token, idOwner, idUser } = useContext(AuthContext);
-
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [fadeAnim] = useState(new Animated.Value(0));
+    
     const handleChange = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
         setIsPickerVisible(false);
@@ -39,7 +41,22 @@ export default function CartFinalDetailsScreen() {
     const [cart, setCart] = useState(cart1);
     const [client] = useState(client1);
 
-
+    const showModal = () => {
+        setShowSuccessModal(true);
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+    
+        setTimeout(() => {
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }).start(() => setShowSuccessModal(false));
+        }, 3000);
+      };
     const handleRemoveItem = (index) => {
         setCart(cart.filter((_, i) => i !== index));
     };
@@ -102,7 +119,6 @@ export default function CartFinalDetailsScreen() {
     }
     const fetchActivity = async (selectedClient, text) => {
         try {
-            console.log("ca")
             const userLocation = await getUserLocation();
             await axios.post(API_URL + "/whatsapp/salesman/activity", {
                 salesMan: idUser,
@@ -119,7 +135,6 @@ export default function CartFinalDetailsScreen() {
                     Authorization: `Bearer ${token}`
                 }
             });
-            console.log("hola")
         } catch (error) {
         } finally {
         }
@@ -139,7 +154,7 @@ export default function CartFinalDetailsScreen() {
             return;
         }
         try {
-            const orderResponse =  Promise.race([
+            const orderResponse = await Promise.race([
 
                  axios.post(API_URL + "/whatsapp/order", {
                     creationDate: currentDate,
@@ -177,7 +192,7 @@ export default function CartFinalDetailsScreen() {
                 new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000))
             ]);
             if (orderResponse.status === 200) {
-                alert("Orden guardada exitosamente.");
+                showModal();
                 fetchActivity(client1, "Pedido")
                 setCart([]);
                 navigation.navigate("Main", { screen: "Principal" });
@@ -313,7 +328,40 @@ export default function CartFinalDetailsScreen() {
                     <Text style={styles.continueButtonText}>Registrar</Text>
                 </TouchableOpacity>
             </View>
-
+            <Modal
+            transparent
+            animationType="fade"
+            visible={showSuccessModal}
+            >
+            <View style={{
+                flex: 1,
+                backgroundColor: "rgba(0,0,0,0.4)",
+                justifyContent: "center",
+                alignItems: "center",
+            }}>
+                <Animated.View
+                style={{
+                    backgroundColor: "white",
+                    padding: 25,
+                    borderRadius: 20,
+                    alignItems: "center",
+                    opacity: fadeAnim,
+                    width: 250
+                }}
+                >
+                <Ionicons name="checkmark-circle" size={64} color="#27AE60" />
+                <Text style={{
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    color: "#27AE60",
+                    marginTop: 10,
+                    textAlign: "center"
+                }}>
+                    ¡Orden registrada con éxito!
+                </Text>
+                </Animated.View>
+            </View>
+        </Modal>
 
         </View>
     );
@@ -344,13 +392,13 @@ const styles = StyleSheet.create({
         borderBottomColor: '#ddd',
     },
     clientName: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: "600",
         color: "#333",
         marginBottom: 20,
     },
     label: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: "500",
         color: "#333",
         marginBottom: 10,

@@ -116,7 +116,7 @@ export default function ClientDetailsScreen() {
       <View style={styles.profileContainer}>
         <Image
           source={{ uri: client.identificationImage || "https://via.placeholder.com/150" }}
-          style={styles.identificationImage}
+          style={styles.profileImage}
         />
         <Text style={styles.clientName}>{client.name} {client.lastName}</Text>
         <View style={styles.infoRow}>
@@ -167,7 +167,6 @@ export default function ClientDetailsScreen() {
 
         <TouchableOpacity style={styles.filterButton} onPress={filterData}>
           <FontAwesome name="filter" size={16} color="#D3423E" style={{ marginRight: 5 }} />
-          <Text style={styles.filterButtonText}>FILTRAR</Text>
         </TouchableOpacity>
       </View>
 
@@ -236,6 +235,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
+  cardImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 5,
+    marginRight: 10,
+    marginLeft: 10
+},
   profileImage: {
     width: 100,
     height: 100,

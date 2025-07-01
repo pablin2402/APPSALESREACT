@@ -1,31 +1,31 @@
 import React, { useEffect, useState, useContext } from "react";
-import { View, Text, StyleSheet, Image, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Image, ActivityIndicator, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import axios from "axios";
 import { API_URL } from "../config";
 import { AuthContext } from "../AuthContext";
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { token,idOwner,idUser } = useContext(AuthContext);
+  const { token, idOwner, idUser } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const response = await axios.post(API_URL + "/whatsapp/sales/id", {
-          id_owner: idOwner, 
-          _id: idUser, 
-        },{
+          id_owner: idOwner,
+          _id: idUser,
+        }, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
-
         setProfile(response.data);
       } catch (error) {
+        // manejar error si quieres
       } finally {
         setLoading(false);
       }
@@ -36,50 +36,73 @@ export default function AccountScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#D3423E" />
-      </View>
+      <SafeAreaProvider>
+        <SafeAreaView style={[styles.container1, styles.horizontal]}>        
+          <ActivityIndicator size="large" color="#D3423E" />
+        </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
+
   const displayName =
-  profile?.fullName && profile?.lastName
-    ? `${profile.fullName} ${profile.lastName}`
-    : "Nombre no disponible";
+    profile?.fullName && profile?.lastName
+      ? `${profile.fullName} ${profile.lastName}`
+      : "Nombre no disponible";
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.profileContainer}>
         <Image
           source={{ uri: profile?.identificationImage || "https://via.placeholder.com/100" }}
-          style={styles.identificationImage}
+          style={styles.profileImage}
         />
-<Text style={styles.profileName}>{displayName}</Text>
-
-
+        <Text style={styles.profileName}>{displayName}</Text>
       </View>
+
       <View style={styles.infoContainer}>
         <Text style={styles.label}>Correo Electrónico:</Text>
-        <Text style={styles.value}>{profile?.email || "Correo Electrónico no disponible"}</Text>
+        <TextInput
+          style={styles.readonlyInput}
+          value={profile?.email || "Correo Electrónico no disponible"}
+          editable={false}
+        />
       </View>
+
       <View style={styles.infoContainer}>
         <Text style={styles.label}>Dirección:</Text>
-        <Text style={styles.value}>{profile?.client_location?.direction || "Dirección no disponible"}</Text>
-      </View> 
-   
+        <TextInput
+          style={styles.readonlyInput}
+          value={profile?.client_location?.direction || "Dirección no disponible"}
+          editable={false}
+        />
+      </View>
+
       <View style={styles.infoContainer}>
         <Text style={styles.label}>Región:</Text>
-        <Text style={styles.value}>{profile?.region || "Region no disponible"}</Text>
+        <TextInput
+          style={styles.readonlyInput}
+          value={profile?.region || "Región no disponible"}
+          editable={false}
+        />
       </View>
+
       <View style={styles.infoContainer}>
         <Text style={styles.label}>Rol:</Text>
-        <Text style={styles.value}>
-          {profile?.role === "SALES" ? "Vendedor" : profile?.role || "Rol no disponible"}
-        </Text>
+        <TextInput
+          style={styles.readonlyInput}
+          value={profile?.role === "SALES" ? "Vendedor" : profile?.role || "Rol no disponible"}
+          editable={false}
+        />
       </View>
+
       <View style={styles.infoContainer}>
         <Text style={styles.label}>Teléfono:</Text>
-        <Text style={styles.value}>{profile?.phoneNumber || "Teléfono no disponible"}</Text>
-      </View> 
+        <TextInput
+          style={styles.readonlyInput}
+          value={profile?.phoneNumber || "Teléfono no disponible"}
+          editable={false}
+        />
+      </View>
     </View>
   );
 }
@@ -87,9 +110,18 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#E7E6E6",
     padding: 20,
     alignItems: "center",
+  },
+  container1: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  horizontal: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
   },
   loadingContainer: {
     flex: 1,
@@ -101,7 +133,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 50,
   },
-  
   profileImage: {
     width: 100,
     height: 100,
@@ -115,23 +146,21 @@ const styles = StyleSheet.create({
     color: "#333",
     marginTop: 10,
   },
-  profileEmail: {
-    fontSize: 16,
-    color: "#8696A0",
-  },
   infoContainer: {
     width: "100%",
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
   },
   label: {
     fontSize: 16,
-    color: "#8696A0",
+    color: "#333",
+    marginBottom: 4,
   },
-  value: {
-    fontSize: 18,
-    fontWeight: "bold",
+  readonlyInput: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    fontSize: 16,
     color: "#333",
   },
 });

@@ -1,11 +1,10 @@
 import React, { useEffect, useState, useRef, useContext } from "react";
-import { View, StyleSheet, Dimensions, Text, Image, TouchableOpacity, Platform, TextInput, Button } from "react-native";
-import MapView from "react-native-maps";
+import { View, StyleSheet, Dimensions, Text, Image, TouchableOpacity, Modal, Platform, TextInput, Button } from "react-native";
+import MapView, { Marker } from 'react-native-maps';
 import { useNavigation } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 const { width, height } = Dimensions.get("window");
-import { Marker } from "react-native-maps";
 import { GOOGLE_API_KEY } from "../config";
 
 import axios from "axios";
@@ -37,27 +36,29 @@ const MapScreenRoute = () => {
     const [detailsFilter] = useState("");
     const [showStartDatePicker, setShowStartDatePicker] = useState(false);
     const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+    const [selectedClient1, setSelectedClient1] = useState(null);
+    const [modalVisible, setModalVisible] = useState(false);
 
-    const { token,idOwner,idUser } = useContext(AuthContext);
+    const { token, idOwner, idUser } = useContext(AuthContext);
 
     useEffect(() => {
         getUserLocation()
     }, [])
     const fetchClients = async () => {
         try {
-            const response = await axios.post(API_URL + "/whatsapp/salesman/id", {
+            const response = await axios.post(API_URL + "/whatsapp/salesman/list/route", {
                 id_owner: idOwner,
                 salesMan: idUser,
                 startDate: startDate,
                 endDate: endDate,
-                details: detailsFilter,
-            },{
+                status: detailsFilter,
+                page: 1
+            }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
+                    Authorization: `Bearer ${token}`
                 }
-              });
-            setClients(response.data || []);
-            setFilteredData(response.data || []);
+            });
+            setClients(response.data.data || []);
         } catch (error) {
         } finally {
         }
@@ -119,64 +120,80 @@ const MapScreenRoute = () => {
         const year = date.getFullYear();
         return `${day}-${month}-${year}`;
     };
-
+    const allRoutePoints = clients.flatMap((client) =>
+        client.route
+            .filter((r) => r.client_location)
+            .map((r) => {
+                const lat = parseFloat(r.client_location.latitud?.$numberDouble || r.client_location.latitud);
+                const lng = parseFloat(r.client_location.longitud?.$numberDouble || r.client_location.longitud);
+                return { latitude: lat, longitude: lng };
+            })
+    );
     return (
         <View style={styles.container}>
             <MapView
                 ref={mapRef}
-                style={styles.map}
+                style={{ flex: 1 }}
                 initialRegion={{
                     latitude: -17.38156252481452,
                     longitude: -66.1613705009222,
                     latitudeDelta: 0.09,
-                    longitudeDelta: 0.04
+                    longitudeDelta: 0.04,
                 }}
                 showsUserLocation={true}
             >
-                {filteredData.map((client, index) => (
-                    <Marker
-                        key={index}
-                        coordinate={{
-                        latitude: client.latitude,
-                        longitude: client.longitude,
-                        }}
-                        title={`${client.clientName.name} ${client.clientName.lastName}`}
-                    >
-                        <Image
-                                source={require("../icons/tienda.png")} 
-                                style={{ width: 40, height: 40 }}
-                            />                        
-                    </Marker>                
-                ))}
-                {filteredData.length > 1 && (
+                {clients.map((client, i) =>
+                    client.route.map((routeItem, j) => {
+                        const lat = parseFloat(routeItem.client_location?.latitud?.$numberDouble || routeItem.client_location?.latitud);
+                        const lng = parseFloat(routeItem.client_location?.longitud?.$numberDouble || routeItem.client_location?.longitud);
+
+                        if (!lat || !lng) return null;
+
+                        return (
+                            <Marker
+                                key={`${i}-${j}`}
+                                coordinate={{ latitude: lat, longitude: lng }}
+                                title={`${routeItem.name} ${routeItem.lastName}`}
+                                onPress={() => {
+                                    setSelectedClient1(routeItem);
+                                    setModalVisible(true);
+                                }}
+                            >
+                                <Image
+                                    source={require("../icons/tienda.png")}
+                                    style={{ width: 40, height: 40 }}
+                                />
+                                {routeItem.visitStatus && (
+                                    <View
+                                        style={{
+                                            position: "absolute",
+                                            top: 0,
+                                            right: 0,
+                                            width: 12,
+                                            height: 12,
+                                            backgroundColor: "#27AE60",
+                                            borderRadius: 6,
+                                            borderWidth: 2,
+                                            borderColor: "#fff",
+                                        }}
+                                    />
+                                )}
+                            </Marker>
+                        );
+                    })
+                )}
+
+                {allRoutePoints.length > 1 && (
                     <MapViewDirections
-                        origin={{
-                            latitude: filteredData[0].latitude,
-                            longitude: filteredData[0].longitude,
-                        }}
-                        destination={{
-                            latitude: filteredData[filteredData.length - 1].latitude,
-                            longitude: filteredData[filteredData.length - 1].longitude,
-                        }}
-                        waypoints={filteredData.slice(1, -1).map(point => ({
-                            latitude: point.latitude,
-                            longitude: point.longitude,
-                        }))}
+                        origin={allRoutePoints[0]}
+                        destination={allRoutePoints[allRoutePoints.length - 1]}
+                        waypoints={allRoutePoints.slice(1, -1)}
                         apikey={GOOGLE_API_KEY}
                         strokeColor="black"
                         strokeWidth={3}
                     />
                 )}
             </MapView>
-            <TextInput
-                placeholder="Buscar clientes"
-                value={searchTerm}
-                onChangeText={(text) => {
-                    setSearchTerm(text);
-                }}
-                style={styles.searchInput}
-                placeholderTextColor="#4A4A4A"
-            />
             <View style={styles.dateFilterContainer}>
                 {(!showStartDatePicker && !showEndDatePicker) && (
                     <TouchableOpacity onPress={() => setShowStartDatePicker(true)} style={styles.dateInput}>
@@ -188,7 +205,7 @@ const MapScreenRoute = () => {
                         value={startDate}
                         mode="date"
                         placeholderTextColor="#2E2B2B"
-                        themeVariant="light" 
+                        themeVariant="light"
                         display={Platform.OS === "ios" ? "spinner" : "default"}
                         onChange={(event, selectedDate) => {
                             setShowStartDatePicker(false);
@@ -208,7 +225,7 @@ const MapScreenRoute = () => {
                         value={endDate}
                         mode="date"
                         placeholderTextColor="#2E2B2B"
-                        themeVariant="light" 
+                        themeVariant="light"
                         display={Platform.OS === "ios" ? "spinner" : "default"}
                         onChange={(event, selectedDate) => {
                             setShowEndDatePicker(false);
@@ -222,6 +239,81 @@ const MapScreenRoute = () => {
                     </TouchableOpacity>
                 )}
             </View>
+            <Modal
+                visible={modalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setModalVisible(false)}
+            >
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={{
+                        width: '90%',
+                        backgroundColor: 'white',
+                        borderRadius: 10,
+                        padding: 20,
+                        maxHeight: '80%'
+                    }}>
+                        <Text style={{ fontWeight: 'bold', fontSize: 30, marginBottom: 20, textAlign: 'center' }}>
+                            {selectedClient1?.name} {selectedClient1?.lastName}
+                        </Text>
+
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                            <Text style={{ fontWeight: '600', fontSize: 18 }}>Sucursal:</Text>
+                            <Text style={{ fontSize: 18 }}>{selectedClient1?.client_location?.sucursalName}</Text>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                            <Text style={{ fontWeight: '600', fontSize: 18 }}>Dirección:</Text>
+                            <Text style={{ fontSize: 18, flex: 1, textAlign: 'right' }}>{selectedClient1?.client_location?.direction}</Text>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                            <Text style={{ fontWeight: '600', fontSize: 18 }}>Tiempo de visita:</Text>
+                            <Text style={{ fontSize: 18 }}>{selectedClient1?.visitTime}</Text>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <Text style={{ fontWeight: '600', fontSize: 18 }}>Estado:</Text>
+                            <Text
+                                style={{
+                                    backgroundColor: selectedClient1?.visitStatus ? '#16A34A' : '#DC2626',
+                                    color: 'white',
+                                    paddingHorizontal: 10,
+                                    paddingVertical: 4,
+                                    borderRadius: 9999,
+                                    fontSize: 12,
+                                    fontWeight: '500',
+                                }}
+                            >
+                                {selectedClient1?.visitStatus ? 'VISITADO' : 'SIN VISITAR'}
+                            </Text>
+                        </View>
+
+                        <Image
+                            source={{ uri: selectedClient1?.identificationImage }}
+                            style={{ width: "100%", height: 150, borderRadius: 8, marginBottom: 20 }}
+                            resizeMode="cover"
+                        />
+
+                        <TouchableOpacity
+                            style={{
+                                backgroundColor: '#D3423E',
+                                paddingVertical: 12,
+                                borderRadius: 20,
+                                alignItems: 'center',
+                                width: '100%',
+                            }}
+                            onPress={() => setModalVisible(false)}
+                        >
+                            <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+                                CERRAR
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+
         </View>
     );
 };
@@ -236,6 +328,7 @@ const styles = StyleSheet.create({
         position: "absolute"
 
     },
+
     cardList: {
         position: "absolute",
         bottom: 20,
@@ -287,7 +380,7 @@ const styles = StyleSheet.create({
     dateFilterContainer: {
         flexDirection: "row",
         position: "absolute",
-        top: 105,
+        top: 70,
         left: 25,
         right: 25,
         zIndex: 1,
@@ -311,6 +404,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
     },
+    buttonText: { color: "white", fontSize: 16, fontWeight: "bold" },
 
     cardImage: {
         width: 70,
@@ -366,6 +460,7 @@ const styles = StyleSheet.create({
         elevation: 5,
         alignItems: "center",
     },
+
     clientDetailName: {
         fontSize: 24,
         fontWeight: 'bold',

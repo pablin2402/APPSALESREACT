@@ -91,7 +91,6 @@ export default function DeliveryPage() {
       products: client.products,
       files: client,
     });
-    console.log(client)
   };
 
   const formatDate = (dateString) => {

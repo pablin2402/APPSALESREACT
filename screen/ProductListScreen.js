@@ -1,7 +1,7 @@
 import React, { useEffect, useContext, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 
-import { View, Text, TextInput, FlatList, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput,ActivityIndicator, FlatList, Image, TouchableOpacity, StyleSheet } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 
 import axios from "axios";
@@ -9,6 +9,7 @@ import { API_URL } from "../config";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthContext } from "../AuthContext";
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function ProductListScreen() {
   const navigation = useNavigation();
@@ -69,6 +70,16 @@ export default function ProductListScreen() {
   useEffect(() => {
     fetchProducts(page, searchTerm);
   }, [page, selectedCategory]);
+
+  if (loading) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={[styles.container1, styles.horizontal]}>        
+          <ActivityIndicator size="large" color="#D3423E" />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -138,14 +149,15 @@ export default function ProductListScreen() {
         }
         keyboardShouldPersistTaps="handled"
       />
-    {cart.length > 0 && (
-      <TouchableOpacity
-        onPress={goToCartDetails}
-        style={styles.floatingPayButton}
-      >
-        <Text style={styles.floatingPayButtonText}>Ver mi carrito</Text>
-      </TouchableOpacity>
-    )}
+      {cart.length > 0 && (
+        <TouchableOpacity
+          onPress={goToCartDetails}
+          style={[styles.floatingPayButton, { bottom: insets.bottom + 50 }]}
+        >
+          <Text style={styles.floatingPayButtonText}>Ver mi carrito</Text>
+        </TouchableOpacity>
+      )}
+
 
     </View>
   );
@@ -156,6 +168,15 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: "#E7E6E6",
     paddingHorizontal: 20,
+  },
+  container1: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  horizontal: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
   },
   floatingButton: {
     position: "absolute",
@@ -216,7 +237,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    
+
   },
   continueButton: {
     paddingVertical: 8,

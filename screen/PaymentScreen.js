@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useContext } from "react";
 
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Modal, Button, Platform } from "react-native";
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet,ActivityIndicator, Modal, Button, Platform } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { FontAwesome } from "@expo/vector-icons";
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 
 import axios from "axios";
 import { API_URL } from "../config";
@@ -30,6 +31,7 @@ export default function PaymentScreen() {
     const endPage = Math.min(totalPages, page + range);
     const pagesToShow = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
     const { token, idOwner, idUser } = useContext(AuthContext);
+    const [loading, setLoading] = useState(true);
 
     const fetchProducts = async (page) => {
         try {
@@ -55,6 +57,7 @@ export default function PaymentScreen() {
             setTotalPages(response.data.pagination.totalPages);
         } catch (error) {
         } finally {
+            setLoading(false);
         }
     };
     useEffect(() => {
@@ -80,7 +83,15 @@ export default function PaymentScreen() {
         const year = d.getFullYear();
         return `${day}-${month}-${year}`;
     };
-
+    if (loading) {
+        return (
+          <SafeAreaProvider>
+            <SafeAreaView style={[styles.container1, styles.horizontal]}>        
+              <ActivityIndicator size="large" color="#D3423E" />
+            </SafeAreaView>
+          </SafeAreaProvider>
+        );
+      }
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <FlatList
@@ -229,6 +240,15 @@ const styles = StyleSheet.create({
         backgroundColor: "#E7E6E6",
         paddingHorizontal: 20,
     },
+    container1: {
+        flex: 1,
+        justifyContent: 'center',
+      },
+      horizontal: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        padding: 10,
+      },
     pagination: {
         flexDirection: "row",
         justifyContent: "center",

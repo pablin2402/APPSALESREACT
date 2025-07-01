@@ -51,7 +51,7 @@ export default function SalesManInfoPage() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.profileContainer}>
-        <Image source={{ uri: profile?.identificationImage }} style={styles.identificationImage} />
+        <Image source={{ uri: profile?.identificationImage }} style={styles.profileImage} />
         <Text style={styles.userName}>{profile?.fullName+" "+profile?.lastName || "Nombre no disponible"}</Text>
       </View>
 

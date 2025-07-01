@@ -2,11 +2,12 @@ import React, { useEffect, useCallback, useState, useContext } from "react";
 import axios from "axios";
 import { API_URL } from "../config";
 import { useNavigation } from "@react-navigation/native";
-import { View, Text, TextInput, FlatList, TouchableOpacity, Image, StyleSheet } from "react-native";
+import { View, Text, TextInput, FlatList,ActivityIndicator, TouchableOpacity, Image, StyleSheet } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AuthContext } from "../AuthContext";
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function ClientScreen() {
     const navigation = useNavigation();
@@ -30,7 +31,7 @@ export default function ClientScreen() {
                 id_user: idOwner,
                 salesId: idUser,
                 page: pageNumber,
-                limit: 8,
+                limit: 10,
                 search: searchTerm
             };
             const response = await axios.post(API_URL + "/whatsapp/client/sales", client,  {
@@ -55,6 +56,15 @@ export default function ClientScreen() {
         navigation.navigate("ClientDetailsScreen", { client: client._id });
     };
     const insets = useSafeAreaInsets();
+    if (loading) {
+        return (
+          <SafeAreaProvider>
+            <SafeAreaView style={[styles.container1, styles.horizontal]}>        
+              <ActivityIndicator size="large" color="#D3423E" />
+            </SafeAreaView>
+          </SafeAreaProvider>
+        );
+      }
     return (
         <View style={[styles.container, { flex: 1, paddingTop: insets.top }]}>
             <FlatList
@@ -72,9 +82,10 @@ export default function ClientScreen() {
                                     themeVariant="light" 
                                 />
                             </View>
-                            <TouchableOpacity style={styles.searchButton} onPress={() => fetchOrders(1, searchTerm)}>
-                                <Text style={styles.searchButtonText}>FILTRAR</Text>
+                            <TouchableOpacity style={styles.filterButton} onPress={() => fetchOrders(1, searchTerm)}>
+                                <FontAwesome name="filter" size={16} color="#D3423E" style={{ marginRight: 5 }} />
                             </TouchableOpacity>
+                         
                         </View>
                     </View>
 
@@ -137,6 +148,15 @@ const styles = StyleSheet.create({
         backgroundColor: "#E7E6E6",
         paddingHorizontal: 20,
     },
+    container1: {
+        flex: 1,
+        justifyContent: 'center',
+      },
+      horizontal: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        padding: 10,
+      },
     input: {
         flex: 1,
         fontSize: 14,
@@ -190,7 +210,14 @@ const styles = StyleSheet.create({
         marginBottom: 15,
         
     },
-
+    filterButton: {
+        flexDirection: "row",
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        borderRadius: 8,
+        alignItems: "center",
+        justifyContent: "center",
+      },
     searchRow: {
         flexDirection: "row",
         alignItems: "center",
@@ -254,7 +281,6 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         paddingVertical: 10,
-        backgroundColor: "#f9f9f9",
         borderTopWidth: 1,
         borderColor: "#ddd",
     },

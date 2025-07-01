@@ -307,7 +307,7 @@ export default function SalesPrincipalPage() {
             return (
               <View key={index} style={styles.itemContainer}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.label}>{item.lyne+" - Objectivo: "+item.numberOfBoxes.toFixed(2)}</Text>
+                  <Text style={styles.label}>{item.lyne+" - Objetivo: "+item.numberOfBoxes.toFixed(2)}</Text>
                   <Text style={styles.percent}>{progress.toFixed(1)}%</Text>
                 </View>
                 <View style={styles.progressBackground}>
@@ -464,12 +464,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   label: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "500",
     color: "#444",
   },
   percent: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "500",
     color: "#444",
   },
