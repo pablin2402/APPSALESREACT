@@ -3,7 +3,6 @@ import axios from "axios";
 import { API_URL } from "../config";
 import { useNavigation } from "@react-navigation/native";
 import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView from "react-native-maps";
 import { Marker } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";

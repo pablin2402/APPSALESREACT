@@ -14,6 +14,8 @@ export default function SalesManInfoPage() {
   const insets = useSafeAreaInsets();
   const { logout,idOwner,idUser,token } = useContext(AuthContext);
   const [profile, setProfile] = useState(null);
+  const { setIsAuthenticated } = useContext(AuthContext);
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -37,17 +39,13 @@ export default function SalesManInfoPage() {
   }, []);
   const handleLogout = async () => {
     try {
-      await logout();
-
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Login" }],
-      });
-      
+      await logout(); // limpia tokens, etc.
+      setIsAuthenticated(false); // ← Esto redibuja tu navigator
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
     }
   };
+  
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.profileContainer}>

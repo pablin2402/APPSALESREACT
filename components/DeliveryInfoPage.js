@@ -12,6 +12,7 @@ import { AuthContext } from "../AuthContext";
 export default function DeliveryInfoPage() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { setIsAuthenticated } = useContext(AuthContext);
   const { logout,idOwner,token,idUser } = useContext(AuthContext);
   const [profile, setProfile] = useState(null);
 
@@ -38,17 +39,13 @@ export default function DeliveryInfoPage() {
 
   const handleLogout = async () => {
     try {
-      await logout();
-
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Login" }],
-      });
-      
+      await logout(); // limpia tokens, etc.
+      setIsAuthenticated(false); // ← Esto redibuja tu navigator
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
     }
   };
+  
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.profileContainer}>

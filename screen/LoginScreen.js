@@ -3,7 +3,6 @@ import { View, TextInput, Button, Text, StyleSheet, TouchableOpacity, Image } fr
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../config";
-import { useNavigation } from "@react-navigation/native";
 import { AuthContext } from "../AuthContext";
 import icon from "../images/LOGO.png";
 
@@ -11,7 +10,6 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const navigation = useNavigation();
   const { login } = useContext(AuthContext);
 
   const handleSubmit = async () => {
@@ -23,8 +21,6 @@ export default function LoginScreen() {
   
       if (response.status === 200) {
         const { token, usuarioDB } = response.data;
-  
-  
           await AsyncStorage.setItem("token", token);
           await AsyncStorage.setItem("id_owner", usuarioDB.id_owner);
           await AsyncStorage.setItem("id_user", usuarioDB.salesMan);

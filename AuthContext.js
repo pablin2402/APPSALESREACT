@@ -1,4 +1,3 @@
-// context/AuthContext.js
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -56,7 +55,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout, checkingAuth, token,idOwner,idUser,role,salesId }}>
+    <AuthContext.Provider value={{ isAuthenticated,setIsAuthenticated, login, logout, checkingAuth, token,idOwner,idUser,role,salesId }}>
       {children}
     </AuthContext.Provider>
   );

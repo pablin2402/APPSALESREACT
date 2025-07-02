@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from "react";
 
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet,ActivityIndicator, Modal, Button, Platform } from "react-native";
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet,ActivityIndicator, Platform } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { FontAwesome } from "@expo/vector-icons";
