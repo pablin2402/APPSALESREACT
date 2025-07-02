@@ -116,7 +116,7 @@ export default function OrderPickUp() {
           Authorization: `Bearer ${token}`,
         },
       });
-      if (response.status === 200) {
+      if (response.status === 200 || response.status === 201) {
         navigation.navigate("MapDelivery");
       }
     } catch (error) {

@@ -48,7 +48,10 @@ export default function LocationTracker() {
                         longitud: coords.longitude,
                         Timestamp: Date.now(),
                         salesManId: idUser,
-                        id_owner: idOwner
+                        id_owner: idOwner,
+                        longitudDestiny: null,
+                        latitudDestiny: null,
+                        deliveryInWay:false
                     };
 
                     await axios.post(API_URL + "/whatsapp/location/list", payload);
@@ -59,7 +62,10 @@ export default function LocationTracker() {
                         longitud: coords.longitude,
                         Timestamp: Date.now(),
                         salesManId: idUser,
-                        id_owner: idOwner
+                        id_owner: idOwner,
+                        longitudDestiny: null,
+                        latitudDestiny: null,
+                        deliveryInWay:false
                     };
 
                     await axios.post(API_URL + "/whatsapp/location/list", payload);
@@ -70,7 +76,10 @@ export default function LocationTracker() {
                         longitud: coords.longitude,
                         Timestamp: Date.now(),
                         salesManId: null,
-                        id_owner: idOwner
+                        id_owner: idOwner,
+                        longitudDestiny: null,
+                        latitudDestiny: null,
+                        deliveryInWay:false
                     };
 
                     await axios.post(API_URL + "/whatsapp/location/list", payload);

@@ -6,6 +6,27 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    progressBackground: {
+        height: 10,
+        backgroundColor: "#e0e0e0",
+        borderRadius: 5,
+        overflow: "hidden",
+        marginTop: 8,
+    },
+
+    progressBar: {
+        height: 10,
+        borderRadius: 5,
+    },
+
+    progressText: {
+        fontSize: 18,
+        fontWeight: "bold",
+        color: "#27AE60",
+        marginTop: 6,
+        textAlign: "right",
+    },
+
     clientDetailCard: {
         position: 'absolute',
         left: 0,
@@ -81,7 +102,7 @@ const styles = StyleSheet.create({
         fontSize: 18,
     },
 
-   
+
     loadingContainer: {
         flex: 1,
         justifyContent: "center",
@@ -131,6 +152,35 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
+    },
+    card1: {
+        width: width * 0.8,
+        minHeight: 100,
+        marginRight: 10,
+        borderRadius: 15,
+        overflow: "hidden",
+        backgroundColor: "#fff",
+        elevation: 5,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+    },
+    card2: {
+        width: 320,
+        height: 120,
+        backgroundColor: "#fff",
+        borderRadius: 15,
+        marginRight: 15,
+        elevation: 4,
+        flexDirection: "row",
+        padding: 12,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
     },
     cardImage: {
         width: 60,
@@ -241,6 +291,41 @@ const styles = StyleSheet.create({
     },
     buttonText: { color: "white", fontSize: 16, fontWeight: "bold" },
     buttonContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: 20 },
+    emptyScrollContainer: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+    },
+
+    emptyCard: {
+        width: 280,
+        height: 150,
+        borderRadius: 12,
+        backgroundColor: '#f8f8f8',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+
+    emptyCardTextTitle: {
+        fontSize: 17,
+        fontWeight: 'bold',
+        color: '#000',
+        marginBottom: 6,
+    },
+
+    emptyCardTextSubtitle: {
+        fontSize: 14,
+        color: '#aaa',
+        textAlign: 'center',
+    },
+
 });
 
 export default styles;

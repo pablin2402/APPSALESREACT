@@ -2,13 +2,15 @@ import React, { useEffect, useCallback, useState, useContext } from "react";
 import axios from "axios";
 import { API_URL } from "../config";
 import { useNavigation } from "@react-navigation/native";
-import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Image, StyleSheet } from "react-native";
 import MapView from "react-native-maps";
 import { Marker } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import { GOOGLE_API_KEY } from "../config";
 import { ScrollView } from "react-native";
 import { AuthContext } from "../AuthContext";
+import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function DeliveryPage() {
   const navigation = useNavigation();
@@ -22,7 +24,8 @@ export default function DeliveryPage() {
   const [isRouteLoading, setIsRouteLoading] = useState(true);
   const [routeLoaded, setRouteLoaded] = useState(false);
   const { token, idOwner, idUser } = useContext(AuthContext);
-  
+  const [loading, setLoading] = useState(true);
+
   const fetchProfile = async () => {
     try {
       const response = await axios.post(API_URL + "/whatsapp/delivery/id", {
@@ -37,7 +40,7 @@ export default function DeliveryPage() {
       if (response.status === 200) {
         setId(response.data._id);
         setProfile(response.data);
-        await startRoute(); 
+        await startRoute();
       }
     } catch (error) {
       console.error("Error al obtener los datos:", error);
@@ -45,6 +48,7 @@ export default function DeliveryPage() {
       setLoading(false);
     }
   };
+
 
   const startRoute = async () => {
     setIsRouteLoading(true);
@@ -59,8 +63,9 @@ export default function DeliveryPage() {
       });
 
       if (response.status === 200) {
-        setFilteredData(response.data);
         setRoute(response.data);
+        setSalesData(response.data);
+        setFilteredData(response.data);
         setRouteLoaded(true);
       }
     } catch (error) {
@@ -69,22 +74,25 @@ export default function DeliveryPage() {
       setIsRouteLoading(false);
     }
   };
+
   useEffect(() => {
     fetchProfile();
   }, []);
-
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredData(salesData);
     } else {
-      const filtered = salesData.filter((item) =>
-        item.id_client.name.toLowerCase().includes(searchTerm.toLowerCase())
-        || item.id_client.lastName.toLowerCase().includes(searchTerm.toLowerCase())
+      const filtered = salesData.map((ruta) => ({
+        ...ruta,
+        route: ruta.route.filter((item) =>
+          `${item.name} ${item.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      })).filter((ruta) => ruta.route.length > 0);
 
-      );
       setFilteredData(filtered);
     }
   }, [searchTerm, salesData]);
+
   const goToClientDetails = (client) => {
     navigation.navigate("OrderDetailsScreenDeliver", {
       orderId: client._id,
@@ -103,6 +111,15 @@ export default function DeliveryPage() {
 
     return `${dayOfWeek}, ${day} de ${month} del ${year}`;
   };
+  if (loading) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={[styles.container1, styles.horizontal]}>
+          <ActivityIndicator size="large" color="#D3423E" />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <View>
@@ -117,7 +134,6 @@ export default function DeliveryPage() {
             <Text style={styles.dateText}>No hay rutas disponibles</Text>
           )}
         </View>
-
         <MapView
           style={styles.map}
           initialRegion={{
@@ -168,62 +184,74 @@ export default function DeliveryPage() {
             />
           )}
         </MapView>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Buscar por Nombre, apellido..."
-          value={searchTerm}
-          onChangeText={setSearchTerm}
-          placeholderTextColor="#000"
-        />
-        {isRouteLoading ? (
-          <Text style={{ textAlign: "center", marginTop: 10 }}>Cargando órdenes...</Text>
-        ) : routeLoaded && route.length > 0 ? (
-          route.map((ruta, i) =>
-            ruta.route.map((item, index) => (
-              <TouchableOpacity key={`${i}-${index}`} style={styles.card} onPress={() => goToClientDetails(item)}>
-                <View style={styles.cardContent}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={styles.clientName}>
-                      {(item.name + " " + item.lastName).toUpperCase()}
-                    </Text>
-                    <Text style={styles.location}>Bs. {item.totalAmount || "No disponible"}</Text>
-                  </View>
-                  <Text style={styles.clientName2}>{item.client_location?.sucursalName}</Text>
-                  <Text style={styles.clientName2}>{"#" + item.receiveNumber}</Text>
-                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
-                    <View style={{ backgroundColor: item.payStatus === "Pagado" ? "#27AE60" : "#E74C3C", borderRadius: 20, paddingVertical: 2, paddingHorizontal: 8 }}>
-                      <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
-                        {item.payStatus === "Pagado" ? "PAGO COMPLETO" : "PAGO PENDIENTE"}
+        {routeLoaded && route.length > 0 ? (
+          <View>
+            <TextInput
+              style={styles.input}
+              placeholder="Buscar por nombre, apellido..."
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              placeholderTextColor="#999"
+            />
+            {filteredData.map((ruta, i) =>
+              ruta.route.map((item, index) => (
+                <TouchableOpacity
+                  key={`${i}-${index}`}
+                  style={styles.card}
+                  onPress={() => goToClientDetails(item)}
+                >
+                  <View style={styles.cardContent}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={styles.clientName}>
+                        {(item.name + " " + item.lastName).toUpperCase()}
                       </Text>
+                      <Text style={styles.location}>Bs. {item.totalAmount || "No disponible"}</Text>
                     </View>
-                    <View style={{
-                      backgroundColor:
-                        item.orderStatus === "deliver" ? "#F39C12" :
-                          item.orderStatus === "En Ruta" ? "#3498DB" :
-                            item.orderStatus === "Entregado" ? "#27AE60" :
-                              "#E74C3C",
-                      borderRadius: 20,
-                      paddingVertical: 2,
-                      paddingHorizontal: 8
-                    }}>
-                      <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
-                        {item.orderStatus === "deliver" ? "PEDIDO CREADO" :
-                          item.orderStatus === "En Ruta" ? "PEDIDO EN CAMINO" :
-                            item.orderStatus === "Entregado" ? "PEDIDO ENTREGADO" :
-                              item.orderStatus}
-                      </Text>
+                    <Text style={styles.clientName2}>{item.client_location?.sucursalName}</Text>
+                    <Text style={styles.clientName2}>{"#" + item.receiveNumber}</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+                      <View style={{
+                        backgroundColor: item.payStatus === "Pagado" ? "#27AE60" : "#E74C3C",
+                        borderRadius: 20,
+                        paddingVertical: 2,
+                        paddingHorizontal: 8
+                      }}>
+                        <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
+                          {item.payStatus === "Pagado" ? "PAGO COMPLETO" : "PAGO PENDIENTE"}
+                        </Text>
+                      </View>
+                      <View style={{
+                        backgroundColor:
+                          item.orderStatus === "deliver" ? "#F39C12" :
+                            item.orderStatus === "En Ruta" ? "#3498DB" :
+                              item.orderStatus === "Entregado" ? "#27AE60" :
+                                "#E74C3C",
+                        borderRadius: 20,
+                        paddingVertical: 2,
+                        paddingHorizontal: 8
+                      }}>
+                        <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
+                          {item.orderStatus === "deliver" ? "PEDIDO CREADO" :
+                            item.orderStatus === "En Ruta" ? "PEDIDO EN CAMINO" :
+                              item.orderStatus === "Entregado" ? "PEDIDO ENTREGADO" :
+                                item.orderStatus}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))
-          )
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
         ) : (
-          <Text style={{ textAlign: "center", marginTop: 10 }}>No se encontraron rutas disponibles.</Text>
+          <View style={styles.noRouteWrapper}>
+            <View style={styles.noRouteCard}>
+              <Ionicons name="map-outline" size={60} color="#ccc" style={{ marginBottom: 16 }} />
+              <Text style={styles.noRouteTitle}>No se encontraron rutas disponibles</Text>
+              <Text style={styles.noRouteMessage}>Parece que no tienes asignaciones para hoy.</Text>
+            </View>
+          </View>
         )}
-
-
       </ScrollView>
     </View>
   );
@@ -234,6 +262,51 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f9f9f9",
   },
+  noRouteWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 20,
+    marginBottom: 10,
+  },
+  container1: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  horizontal: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
+  },
+  noRouteCard: {
+    width: "100%",
+    height: 250,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+
+  noRouteTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+
+  noRouteMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+
   card: {
     flexDirection: "row",
     backgroundColor: "#fff",

@@ -53,7 +53,7 @@ export default function DeliveryInfoPage() {
         <Text style={styles.userName}>{profile?.fullName+" "+profile?.lastName || "Nombre no disponible"}</Text>
       </View>
       <View style={styles.optionsContainer}>
-        <TouchableOpacity style={styles.option} onPress={() => navigation.navigate("PaymentScreen")}>
+        <TouchableOpacity style={styles.option} onPress={() => navigation.navigate("DeliverPaymentScreen")}>
           <Ionicons name="cash-outline" size={24} color="black" />
           <Text style={styles.optionText}>Cobros</Text>
         </TouchableOpacity>

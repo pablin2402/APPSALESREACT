@@ -19,6 +19,9 @@ import CartFinalDetailsScreen from "../screen/CartFinalDetailsSreen";
 import SalesManActivityScreen from "../screen/SalesManActivityScreen";
 import MapScreenRoute from "../screen/MapScreenRoute";
 import AddPayment from "../screen/AddPayment";
+import AddPayDeliver from "../components/AddPayDeliver";
+import DeliverPaymentScreen from "../components/DeliverPaymentScreen";
+
 import OrderPickUp from "../components/OrderPickUp";
 import LocationTracker from "../components/LocationTracker";
 import PaymentScreen from "../screen/PaymentScreen";
@@ -154,6 +157,8 @@ function ProductStack() {
 }
 
 function BottomTabs() {
+    const { role } = useContext(AuthContext);
+
     return (
         <Tab.Navigator
             screenOptions={({ route }) => ({
@@ -171,17 +176,18 @@ function BottomTabs() {
                 tabBarStyle: { backgroundColor: "white", paddingBottom: 15, height: 80 },
             })}
         >
-            <Tab.Screen name="Principal" component={PrincipalScreen} options={{ headerShown: false }}
-            />
-            <Tab.Screen name="Order" component={ProductStack} options={{ headerShown: false }}
-            />
-            <Tab.Screen name="Map" component={MapScreen} options={{ headerShown: false }}
-            />
-            <Tab.Screen name="User" component={UserStack} options={{ headerShown: false }}
-            />
+            <Tab.Screen name="Principal" component={PrincipalScreen} options={{ headerShown: false }} />
+
+            {role !== "DELIVERY" && (
+                <Tab.Screen name="Order" component={ProductStack} options={{ headerShown: false }} />
+            )}
+
+            <Tab.Screen name="Map" component={MapScreen} options={{ headerShown: false }} />
+            <Tab.Screen name="User" component={UserStack} options={{ headerShown: false }} />
         </Tab.Navigator>
     );
 }
+
 
 export default function AppNavigator() {
     const { isAuthenticated, checkingAuth } = useContext(AuthContext);
@@ -194,7 +200,7 @@ export default function AppNavigator() {
             <Stack.Navigator screenOptions={{ headerShown: false }}>
                 {!isAuthenticated ? (
                     <Stack.Screen name="Login" component={LoginScreen} />
-                    
+
                 ) : (
                     <>
                         <Stack.Screen name="Main" component={BottomTabs} />
@@ -265,6 +271,18 @@ export default function AppNavigator() {
                                 headerStyle: { shadowColor: 'transparent', elevation: 0 },
                             })} />
                         <Stack.Screen
+                            name="DeliverPaymentScreen"
+                            component={DeliverPaymentScreen}
+                            options={({ navigation }) => ({
+                                headerLeft: () => (
+                                    <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                                        <Ionicons name="arrow-back" size={24} color="black" />
+                                    </TouchableOpacity>
+                                ),
+                                headerTitle: '',
+                                headerStyle: { shadowColor: 'transparent', elevation: 0 },
+                            })} />
+                        <Stack.Screen
                             name="SalesInformScreen"
                             component={SalesInformScreen}
                             options={({ navigation }) => ({
@@ -279,6 +297,19 @@ export default function AppNavigator() {
                         <Stack.Screen
                             name="AddPayment"
                             component={AddPayment}
+                            initialParams={{ client: null, order: null, debt: null }}
+                            options={({ navigation }) => ({
+                                headerLeft: () => (
+                                    <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                                        <Ionicons name="arrow-back" size={24} color="black" />
+                                    </TouchableOpacity>
+                                ),
+                                headerTitle: '',
+                                headerStyle: { shadowColor: 'transparent', elevation: 0 },
+                            })} />
+                        <Stack.Screen
+                            name="AddPayDeliver"
+                            component={AddPayDeliver}
                             initialParams={{ client: null, order: null, debt: null }}
                             options={({ navigation }) => ({
                                 headerLeft: () => (

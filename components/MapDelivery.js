@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useContext } from "react";
-import { View,Text, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from "react-native";
 import MapView from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -32,6 +32,7 @@ const MapDelivery = () => {
     const [duration, setDuration] = useState("");
     const [orderId, setOrderId] = useState("")
     const [filteredClients, setFilteredClients] = useState([]);
+    const [showRegisterButton, setShowRegisterButton] = useState(false);
 
     const [selectedClient, setSelectedClient] = useState(null);
     const [modality, setModal] = useState(false);
@@ -66,7 +67,7 @@ const MapDelivery = () => {
         try {
 
             const response = await axios.post(API_URL + "/whatsapp/delivery/list/route", {
-                salesMan: idUser,
+                delivery: idUser,
                 id_owner: idOwner,
                 startDate: dateInGMTMinus4,
                 status: "",
@@ -75,7 +76,6 @@ const MapDelivery = () => {
                     Authorization: `Bearer ${token}`
                 }
             });
-            //  console.log(response.data.data)
             setListRoute(response.data.data);
         } catch (error) {
         }
@@ -113,20 +113,19 @@ const MapDelivery = () => {
                     Authorization: `Bearer ${token}`
                 }
             });
-            if(res.status === 200){
-                console.log(orderId)
+            if (res.status === 200) {
                 await axios.post(API_URL + "/whatsapp/order/track", {
-                    orderId: orderId, 
+                    orderId: orderId,
                     eventType: messsageTrack,
                     triggeredBySalesman: "",
                     triggeredByDelivery: idUser,
                     triggeredByUser: "",
                     location: { lat: 0, lng: 0 }
-                  }, {
+                }, {
                     headers: {
-                      Authorization: `Bearer ${token}`
+                        Authorization: `Bearer ${token}`
                     }
-                  });
+                });
             }
         } catch (error) {
         }
@@ -166,7 +165,6 @@ const MapDelivery = () => {
             longitude: location.coords.longitude
         };
     }
-
     const handleTimerToggle = async (selectedClient2, text) => {
 
         const userLocation = await getUserLocation();
@@ -194,17 +192,15 @@ const MapDelivery = () => {
                     const stopTime = await stopTimer();
                     setShowRoute(true);
                     setShowClients(false);
-                    await uploadRoute(selectedClient2, null, stopTime, formatTime(timer), duration, distance,"ha llegado al destino");
+                    await uploadRoute(selectedClient2, null, stopTime, formatTime(timer), duration, distance, "ha llegado al destino");
                     await uploadProgressRoute();
                     await getRoutesById(routeId);
-                    setOrderId("")
-                    setModal(false);
                     setSelectedClient(null);
                     await AsyncStorage.removeItem("timer_start");
                 } else {
                     const startTime = await startTimer();
                     startMapping();
-                    await uploadRoute(selectedClient2, startTime, null, null, duration, distance,"está en camino al destino");
+                    await uploadRoute(selectedClient2, startTime, null, null, duration, distance, "está en camino al destino");
                 }
                 setIsTimerRunning(!isTimerRunning);
             } else {
@@ -284,8 +280,8 @@ const MapDelivery = () => {
     };
     const centerMapOnClient2 = (client) => {
         setSelectedClient(client);
-        setOrderId(client._id)
-        setModal(true);
+        //setOrderId(client._id)
+        // setModal(true);
         mapRef.current?.animateToRegion({
             latitude: client.client_location.latitud,
             longitude: client.client_location.longitud,
@@ -317,7 +313,7 @@ const MapDelivery = () => {
         return `${day}-${month}-${year}`;
     };
     const handlePay = (selectedClient) => {
-        navigation.navigate("OrderPickUp", { client: selectedClient});
+        navigation.navigate("OrderPickUp", { client: selectedClient });
     };
     return (
         <View style={styles.container}>
@@ -467,28 +463,54 @@ const MapDelivery = () => {
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.cardsContainer}
+                        contentContainerStyle={
+                            listRoute?.length === 0
+                                ? styles.emptyScrollContainer
+                                : styles.cardsContainer
+                        }
                     >
-                        {listRoute?.map((item, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={styles.card}
-                                onPress={() => {
-                                    setRouteId(item._id);
-                                    getRoutesById(item._id);
-                                    startMapping();
-                                }}
-                            >
-                                <View style={styles.cardInfo}>
-                                    <Text style={styles.cardTitle2}>{item.details}</Text>
-                                    <View style={styles.cardAddressContainer}>
-                                        <Text style={styles.cardAddress}>Fecha de Inicio: {formatDate(item.startDate)}</Text>
+                        {listRoute && listRoute.length > 0 ? (
+                            listRoute.map((item, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={styles.card1}
+                                    onPress={() => {
+                                        setRouteId(item._id);
+                                        getRoutesById(item._id);
+                                        startMapping();
+                                    }}
+                                >
+                                    <View style={styles.cardInfo}>
+                                        <Text style={styles.cardTitle2}>{item.details}</Text>
+                                        <View style={styles.cardAddressContainer}>
+                                            <Text style={styles.cardAddress}>
+                                                Fecha de Inicio: {formatDate(item.startDate)}
+                                            </Text>
+                                        </View>
+
+                                        <View style={styles.progressBackground}>
+                                            <View
+                                                style={[
+                                                    styles.progressBar,
+                                                    { width: `${item.progress || 0}%`, backgroundColor: '#27AE60' },
+                                                ]}
+                                            />
+                                        </View>
+                                        <Text style={styles.progressText}>{item.progress || 0}%</Text>
                                     </View>
-                                </View>
-                            </TouchableOpacity>
-                        ))}
+                                </TouchableOpacity>
+
+                            ))
+                        ) : (
+                            <View style={styles.emptyCard}>
+                                <Ionicons name="location-off-outline" size={40} color="#ccc" style={{ marginBottom: 10 }} />
+                                <Text style={styles.emptyCardTextTitle}>Sin rutas asignadas</Text>
+                                <Text style={styles.emptyCardTextSubtitle}>No hay rutas disponibles para hoy.</Text>
+                            </View>
+                        )}
                     </ScrollView>
                 </View>
+
             ) : showRoute && route?.length > 0 && !isTimerRunning && (
                 <View style={styles.cardsWrapper}>
                     <ScrollView
@@ -499,7 +521,7 @@ const MapDelivery = () => {
                         {route[0].route?.map((item, index) => (
                             <TouchableOpacity
                                 key={index}
-                                style={styles.card}
+                                style={styles.card2}
                                 onPress={() => {
                                     centerMapOnClient(item);
                                 }}
@@ -537,7 +559,7 @@ const MapDelivery = () => {
                 </View>
             )}
             {modality && selectedClient && (
-                <View style={[styles.clientDetailCard, { bottom: insets.bottom + 40 }]}>
+                <View style={[styles.clientDetailCard, { bottom: insets.bottom + 150 }]}>
                     <View style={styles.modalHandle} />
 
                     <Text style={styles.clientDetailName}>
@@ -572,18 +594,25 @@ const MapDelivery = () => {
                         <>
                             <TouchableOpacity
                                 style={styles.terminateButton}
-                                onPress={() => handlePay(selectedClient)}
-                                >
-                                <Text style={styles.terminateButtonText}>Registrar entrega</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.terminateButton}
-                                onPress={() => handleTimerToggle(selectedClient, "Termina la visita")}
+                                onPress={() => {
+                                    handleTimerToggle(selectedClient, "Termina la visita");
+                                    setShowRegisterButton(true);
+                                }}
                             >
                                 <Text style={styles.terminateButtonText}>Llegada al punto de entrega</Text>
                             </TouchableOpacity>
                         </>
-
+                    )}
+                    {showRegisterButton && (
+                        <TouchableOpacity
+                            style={styles.terminateButton}
+                            onPress={() => {
+                                handlePay(selectedClient);
+                                setShowRegisterButton(false);
+                            }}
+                        >
+                            <Text style={styles.terminateButtonText}>Registrar entrega</Text>
+                        </TouchableOpacity>
                     )}
                     <TouchableOpacity style={styles.secondaryButton} onPress={() => setModal(false)}>
                         <Text style={styles.secondaryButtonText}>Cerrar</Text>

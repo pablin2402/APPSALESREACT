@@ -93,21 +93,23 @@ export default function AddPayment() {
     try {
       const imageUrl = file ? await uploadImage() : "";
 
-      const formData = new FormData();
-      formData.append("saleImage", imageUrl);
-      formData.append("total", amount);
-      formData.append("note", note);
-      formData.append("orderId", order);
-      formData.append("numberOrden", "");
-      formData.append("paymentStatus", "paid");
-      formData.append("id_client", client);
-      formData.append("sales_id", idUser);
-      formData.append("id_owner", idOwner);
+      const jsonData = {
+        saleImage: imageUrl,
+        total: amount,
+        note: note,
+        orderId: order,
+        numberOrden: "",
+        paymentStatus: "paid",
+        id_client: client,
+        sales_id: idUser,
+        delivery_id: null,
+        id_owner: idOwner
+      };
+      
       const orderResponse = await Promise.race([
 
-        axios.post(API_URL + "/whatsapp/order/pay", formData, {
+        axios.post(API_URL + "/whatsapp/order/pay", jsonData, {
           headers: {
-            "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${token}`
           },
         }),

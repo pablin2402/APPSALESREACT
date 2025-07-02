@@ -10,8 +10,10 @@ import axios from "axios";
 import { API_URL } from "../config";
 import { useNavigation } from "@react-navigation/native";
 import { AuthContext } from "../AuthContext";
+import { Modal, Animated } from "react-native";
+import Ionicons from "react-native-vector-icons/Ionicons";
 
-export default function AddpayDeliver() {
+export default function AddPayDeliver() {
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [amount, setAmount] = useState('');
@@ -21,10 +23,31 @@ export default function AddpayDeliver() {
   const route = useRoute();
   const navigation = useNavigation();
   const { token, idOwner, idUser } = useContext(AuthContext);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [fadeAnim] = useState(new Animated.Value(0));
 
   const client = route.params?.client;
+  const order = route.params?.order;
+  const debt = route.params?.debt;
 
   const [file, setFile] = useState(null);
+
+  const showModal = () => {
+    setShowSuccessModal(true);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    setTimeout(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setShowSuccessModal(false));
+    }, 3000);
+  };
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -39,6 +62,17 @@ export default function AddpayDeliver() {
         type: result.assets[0].type,
       });
     }
+  };
+  const uploadImage = async () => {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const res = await axios.post(API_URL + "/whatsapp/upload/image", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return res.data.imageUrl;
   };
   const handleChange = (text) => {
     let numericValue = text.replace(/[^0-9.]/g, "");
@@ -55,68 +89,38 @@ export default function AddpayDeliver() {
       }
     }
   };
-  const uploadImage = async () => {
-    const formData = new FormData();
-    formData.append("image", file);
-
-    const res = await axios.post(API_URL + "/whatsapp/upload/image", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-    return res.data.imageUrl;
-  };
-  async function getUserLocation() {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-        alert("Permisos denegados");
-        return;
-    }
-    let location = await Location.getCurrentPositionAsync({});
-    const current = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude
-    };
-    setOrigin(prevOrigin => {
-        if (prevOrigin.latitude !== current.latitude || prevOrigin.longitude !== current.longitude) {
-            return current;
-        }
-        return prevOrigin;
-    });
-    return {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude
-    };
-}
   const handlePay = async () => {
     try {
       const imageUrl = file ? await uploadImage() : "";
-      const formData = new FormData();
-      const userLocation = await getUserLocation();
-      const latitudDelivery = userLocation.latitude;
-      const longitudDelivery = userLocation.longitude;
 
-      formData.append("saleImage", imageUrl);
-      formData.append("delivery", idUser);
-      formData.append("clientName", note);
-      formData.append("longitud", longitudDelivery);
-      formData.append("latitud", latitudDelivery);
-      formData.append("orderId", client._id);
-      formData.append("id_owner", idOwner);
-      console.log(formData);
+      const jsonData = {
+        saleImage: imageUrl,
+        total: amount,
+        note: note,
+        orderId: order,
+        numberOrden: "",
+        paymentStatus: "paid",
+        id_client: client,
+        sales_id: null,
+        delivery_id:idUser,
+        id_owner: idOwner
+      };
+      
       const orderResponse = await Promise.race([
-        axios.post(API_URL + "/delivery/order/image", formData, {
+
+        axios.post(API_URL + "/whatsapp/order/pay", jsonData, {
           headers: {
-            "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${token}`
           },
         }),
         new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000))
       ]);
       if (orderResponse.status === 200) {
+        showModal();
+        setAmount('');
         setNote('');
         setImageUri(null);
-        navigation.navigate("SalesInformScreen");
+        navigation.navigate("Main");
         const lat = 1;
         const lng = 1;
 
@@ -124,8 +128,8 @@ export default function AddpayDeliver() {
           await axios.post(API_URL + "/whatsapp/order/track", {
             orderId: order,
             eventType: "Pago Ingresado",
-            triggeredBySalesman: idUser,
-            triggeredByDelivery: "",
+            triggeredBySalesman: "",
+            triggeredByDelivery: idUser,
             triggeredByUser: "",
             location: { lat, lng }
           }, {
@@ -152,42 +156,43 @@ export default function AddpayDeliver() {
   };
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <Text style={styles.title}>Ingreso de pagos</Text>
-        <Text style={styles.debtLabel}>Saldo pendiente:</Text>
-        <Text style={styles.debtAmount}>Bs. {debt}</Text>
-        <Text style={styles.label}>Fecha de la transacción</Text>
-        <TouchableOpacity onPress={() => setShowPicker(true)} style={styles.input}>
-          <Text style={{ color: "#2E2B2B" }}>{moment(date).format('D MMM. YYYY')}</Text>
-        </TouchableOpacity>
-        {showPicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            placeholderTextColor="#2E2B2B"
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            themeVariant="light"
-            onChange={(event, selectedDate) => {
-              setShowPicker(false);
-              if (selectedDate) setDate(selectedDate);
-            }}
+      <View style={{ flex: 1 }}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <Text style={styles.title}>Ingreso de pagos</Text>
+          <Text style={styles.debtLabel}>Saldo pendiente:</Text>
+          <Text style={styles.debtAmount}>Bs. {debt}</Text>
+          <Text style={styles.label}>Fecha de la transacción</Text>
+          <TouchableOpacity onPress={() => setShowPicker(true)} style={styles.input}>
+            <Text style={{ color: "#2E2B2B" }}>{moment(date).format('D MMM. YYYY')}</Text>
+          </TouchableOpacity>
+          {showPicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              placeholderTextColor="#2E2B2B"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              themeVariant="light"
+              onChange={(event, selectedDate) => {
+                setShowPicker(false);
+                if (selectedDate) setDate(selectedDate);
+              }}
+            />
+          )}
+
+          <Text style={styles.label}>Monto del cargo</Text>
+          <TextInput
+            value={amount}
+            onChangeText={handleChange}
+            keyboardType="decimal-pad"
+            style={styles.input}
+            placeholder="0.00"
+            returnKeyType="done"
+            blurOnSubmit
+            onSubmitEditing={Keyboard.dismiss}
           />
-        )}
 
-        <Text style={styles.label}>Monto del cargo</Text>
-        <TextInput
-          value={amount}
-          onChangeText={handleChange}
-          keyboardType="decimal-pad"
-          style={styles.input}
-          placeholder="0.00"
-          returnKeyType="done"
-          blurOnSubmit
-          onSubmitEditing={Keyboard.dismiss}
-        />
-
-        <Text style={styles.label}>Adjunta aquí una imagen del comprobante de pago</Text>
-        <TouchableOpacity onPress={handlePickImage} style={styles.imageContainer}>
+          <Text style={styles.label}>Adjunta aquí una imagen del comprobante de pago</Text>
+          <TouchableOpacity onPress={handlePickImage} style={styles.imageContainer}>
             {imageUri ? (
               <Image source={{ uri: imageUri }} style={styles.image} />
             ) : (
@@ -195,48 +200,83 @@ export default function AddpayDeliver() {
             )}
           </TouchableOpacity>
 
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>
+              Asegúrate de que la imagen que cargues sea clara, visible y fácil de entender.
+            </Text>
+          </View>
 
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            Asegúrate de que la imagen que cargues sea clara, visible y fácil de entender.
-          </Text>
-        </View>
-
-        <Text style={styles.label}>Descripción (opcional)</Text>
-        <TextInput
-          value={note}
-          onChangeText={setNote}
-          placeholder="Escribe aquí..."
-          style={styles.textArea}
-          multiline
-          numberOfLines={4}
-          returnKeyType="done"
-          onSubmitEditing={() => Keyboard.dismiss()}
-          blurOnSubmit
-        />
-        <View style={{
-          position: 'absolute',
-          bottom: insets.bottom + 20,
-          left: 20,
-          right: 20,
-        }}
-        >
-         <TouchableOpacity
-          onPress={handlePay}
-          disabled={!amount || !file || !client || !order || parseFloat(amount) <= 0 || parseFloat(amount) > parseFloat(debt)}
-          style={{
-            backgroundColor: !amount || !file || !client || !order || parseFloat(amount) <= 0 || parseFloat(amount) > parseFloat(debt)
-              ? "#ccc"
-              : "#D3423E",
-            paddingVertical: 15,
-            borderRadius: 25,
-            alignItems: "center",
+          <Text style={styles.label}>Persona que hizo el pago</Text>
+          <TextInput
+            value={note}
+            onChangeText={setNote}
+            placeholder="Escribe aquí..."
+            style={styles.textArea}
+            multiline
+            numberOfLines={4}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
+            blurOnSubmit
+          />
+          <View style={{
+            position: 'absolute',
+            bottom: insets.bottom + 20,
+            left: 20,
+            right: 20,
           }}
-        >
-          <Text style={{ color: "white", fontWeight: "bold", fontSize: 18 }}>Pagar</Text>
-        </TouchableOpacity>
+          >
+            <TouchableOpacity
+              onPress={handlePay}
+              disabled={!amount || !file || !client || !order || parseFloat(amount) <= 0 || parseFloat(amount) > parseFloat(debt)}
+              style={{
+                backgroundColor: !amount || !file || !client || !order || parseFloat(amount) <= 0 || parseFloat(amount) > parseFloat(debt)
+                  ? "#ccc"
+                  : "#D3423E",
+                paddingVertical: 15,
+                borderRadius: 25,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "white", fontWeight: "bold", fontSize: 18 }}>Pagar</Text>
+            </TouchableOpacity>
 
+          </View>
         </View>
+
+        <Modal
+          transparent
+          animationType="fade"
+          visible={showSuccessModal}
+        >
+          <View style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}>
+            <Animated.View
+              style={{
+                backgroundColor: "white",
+                padding: 25,
+                borderRadius: 20,
+                alignItems: "center",
+                opacity: fadeAnim,
+                width: 250
+              }}
+            >
+              <Ionicons name="checkmark-circle" size={64} color="#27AE60" />
+              <Text style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                color: "#27AE60",
+                marginTop: 10,
+                textAlign: "center"
+              }}>
+                ¡Pago registrado con éxito!
+              </Text>
+            </Animated.View>
+          </View>
+        </Modal>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -245,7 +285,7 @@ export default function AddpayDeliver() {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#E7E6E6",
     flex: 1,
   },
   title: {
@@ -271,12 +311,15 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'black',
+    borderColor: "#B0B0B0",
+    backgroundColor: "#fff",
+
   },
-  
+
   imageContainer: {
     borderStyle: 'dashed',
-    borderColor: 'black',
+    borderColor: "#B0B0B0",
+    backgroundColor: "#fff",
     borderWidth: 1,
     padding: 15,
     alignItems: 'center',
@@ -299,13 +342,15 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 12,
-    color: '#444',
+    borderColor: "#B0B0B0",
   },
   textArea: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'black',    
+    borderColor: "#B0B0B0",
     padding: 12,
+    textColor: '#2E2B2B',
+    backgroundColor: "#fff",
     marginTop: 5,
     textAlignVertical: 'top',
   },
