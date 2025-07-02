@@ -20,7 +20,7 @@ import SalesManActivityScreen from "../screen/SalesManActivityScreen";
 import MapScreenRoute from "../screen/MapScreenRoute";
 import AddPayment from "../screen/AddPayment";
 import OrderPickUp from "../components/OrderPickUp";
-
+import LocationTracker from "../components/LocationTracker";
 import PaymentScreen from "../screen/PaymentScreen";
 import LoginScreen from "../screen/LoginScreen";
 import MapDelivery from "../components/MapDelivery";
@@ -190,9 +190,11 @@ export default function AppNavigator() {
     return (
         <TimerProvider>
             <TimerBanner />
+            {isAuthenticated && <LocationTracker />}
             <Stack.Navigator screenOptions={{ headerShown: false }}>
                 {!isAuthenticated ? (
                     <Stack.Screen name="Login" component={LoginScreen} />
+                    
                 ) : (
                     <>
                         <Stack.Screen name="Main" component={BottomTabs} />
