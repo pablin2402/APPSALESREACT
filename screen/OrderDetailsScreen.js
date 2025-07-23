@@ -162,6 +162,13 @@ export default function OrderDetailsScreen() {
           <FlatList
             data={productsList}
             keyExtractor={(item) => item.nombre}
+            ListEmptyComponent={
+              <View style={{ paddingVertical: 50, alignItems: "center" }}>
+                <Text style={{ fontSize: 18, fontWeight: "bold", color: "#2E2B2B" }}>
+                  No se encuentran productos
+                </Text>
+              </View>
+            }
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.card}>
                 <View style={styles.cardContent}>
@@ -204,9 +211,16 @@ export default function OrderDetailsScreen() {
 
       {activeTab === "payments" && (
         <View style={{ flex: 1 }}>
-          <FlatList
-            data={paymentsData}
-            keyExtractor={(item) => item._id}
+         <FlatList
+  data={paymentsData}
+  keyExtractor={(item) => item._id}
+  ListEmptyComponent={
+    <View style={{ paddingVertical: 50, alignItems: "center" }}>
+      <Text style={{ fontSize: 18, fontWeight: "bold", color: "#2E2B2B" }}>
+        No se encuentran pagos
+      </Text>
+    </View>
+  }
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.card}>
                 <View style={styles.cardContent}>
@@ -288,7 +302,7 @@ export default function OrderDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E7E6E6",
+    backgroundColor: "#fff",
     padding: 16,
   },
   rowText: {
@@ -305,10 +319,15 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "white",
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 20,
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#B0B0B0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+    marginVertical: 5,
+    marginHorizontal: 2,
   },
   cardContent: {
     flexDirection: "column",

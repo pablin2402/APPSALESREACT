@@ -12,7 +12,9 @@ module.exports = function(api) {
                 "allowUndefined": true
             }
 
-            ]
+            ],
+            "react-native-reanimated/plugin"
+
         ]
     }
 }

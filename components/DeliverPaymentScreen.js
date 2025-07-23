@@ -64,7 +64,6 @@ export default function DeliverPaymentScreen() {
                     Authorization: `Bearer ${token}`
                 }
             });
-            console.log(response.data.data)
             setSalesData(response.data.data || []);
             setTotalPages(response.data.pagination.totalPages);
         } catch (error) {
@@ -249,7 +248,7 @@ export default function DeliverPaymentScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#E7E6E6",
+        backgroundColor: "#fff",
         paddingHorizontal: 20,
     },
     container1: {

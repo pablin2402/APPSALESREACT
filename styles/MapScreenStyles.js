@@ -6,6 +6,22 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    dateFilterContainer: {
+        flexDirection: "row",
+        position: "absolute",
+        top: 70,
+        left: 25,
+        right: 25,
+        zIndex: 1,
+        backgroundColor: "#fff",
+        padding: 10,
+        borderRadius: 8,
+        fontSize: 16,
+        elevation: 5,
+        justifyContent: "space-between",
+        marginBottom: 5,
+        marginTop: 5,
+    },
     progressBackground: {
         height: 10,
         backgroundColor: "#e0e0e0",
@@ -129,6 +145,35 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         zIndex: 2,
     },
+    dateInput: {
+        flex: 1,
+        backgroundColor: "white",
+        padding: 10,
+        borderRadius: 10,
+        marginVertical: 5,
+        marginRight: 5,
+        borderWidth: 1,
+        borderColor: "#ddd",
+        backgroundColor: "#fff",
+    },
+    filterButton: {
+        flexDirection: "row",
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        borderRadius: 8,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    dateInput2: {
+        flex: 1,
+        backgroundColor: "white",
+        padding: 10,
+        borderRadius: 10,
+        marginVertical: 5,
+        borderWidth: 1,
+        borderColor: "#ddd",
+        backgroundColor: "#fff",
+    },
     searchInput: {
         position: "absolute",
         top: 60,
@@ -143,7 +188,7 @@ const styles = StyleSheet.create({
     },
     card: {
         width: width * 0.7,
-        height: 80,
+        height: 100,
         marginRight: 10,
         borderRadius: 15,
         overflow: "hidden",
@@ -190,14 +235,15 @@ const styles = StyleSheet.create({
         marginLeft: 10
     },
     cardInfo: {
-        padding: 5,
+        padding: 7,
         flex: 1,
     },
     cardTitle: {
         fontSize: 18,
         fontWeight: "bold",
         color: "black",
-        marginBottom: 6
+        marginTop:4,
+        marginBottom: 4
     },
     cardTitle2: {
         fontSize: 20,
@@ -229,6 +275,52 @@ const styles = StyleSheet.create({
     locationIcon: {
         marginRight: 5,
     },
+    clientInfoContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    avatarContainer: {
+        marginRight: 12,
+    },
+    avatar: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+    },
+    avatarPlaceholder: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#eee',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarInitials: {
+        fontSize: 22,
+        color: '#555',
+        fontWeight: 'bold',
+    },
+    nameContainer: {
+        flex: 1,
+    },
+    clientDetailName: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#333',
+    },  
+    visitButton: {
+        backgroundColor: '#E53935',
+        paddingVertical: 12,
+        borderRadius: 12,
+        marginBottom: 10,
+    },
+    closeButton: {
+        backgroundColor: '#757575',
+        paddingVertical: 12,
+        borderRadius: 12,
+    },
+
     loadingContainer: {
         ...StyleSheet.absoluteFillObject,
         justifyContent: "center",
@@ -251,15 +343,14 @@ const styles = StyleSheet.create({
     },
     redButton: {
         color: "white",
-        padding: 10,
-        borderRadius: 10,
-        width: "70%",
-        alignItems: "center",
-        marginVertical: 5,
+        paddingVertical: 12,
+        borderRadius: 12,
+        marginBottom: 10,
     },
     buttonText2: {
         color: "#D3423E",
         fontSize: 16,
+    fontWeight: '600',
         fontWeight: "bold",
     },
     timerContainer: {
@@ -297,7 +388,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 16,
     },
-
+    buttonContent: {
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: 24,
+    },  
     emptyCard: {
         width: 280,
         height: 150,

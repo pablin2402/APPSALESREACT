@@ -25,7 +25,7 @@ export default function AccountScreen() {
         });
         setProfile(response.data);
       } catch (error) {
-        // manejar error si quieres
+      
       } finally {
         setLoading(false);
       }
@@ -110,7 +110,7 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E7E6E6",
+    backgroundColor: "#fff",
     padding: 20,
     alignItems: "center",
   },
@@ -156,11 +156,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   readonlyInput: {
-    backgroundColor: "#fff",
+    backgroundColor: "#f5f5f5",
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 15,
     fontSize: 16,
     color: "#333",
+    borderRadius: 20,
   },
 });

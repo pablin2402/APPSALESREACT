@@ -72,17 +72,15 @@ export default function ClientOrderDetailsScreen() {
                             <Ionicons name="search" size={20} color="#D3423E" style={styles.searchIcon} />
                             <TextInput
                                 style={styles.input}
-                                placeholder="Buscar por Nombre, apellido, teléfono..."
+                                placeholder="Buscar por nombre, apellido..."
                                 value={searchTerm}
                                 onChangeText={setSearchTerm}
                                 placeholderTextColor="#000"
                                 themeVariant="light" 
-
+                                returnKeyType="search"
+                                onSubmitEditing={() => fetchOrders(1, searchTerm)}
                             />
                         </View>
-                        <TouchableOpacity style={styles.searchButton} onPress={() => fetchOrders(1, searchTerm)}>
-                            <Text style={styles.searchButtonText}>Buscar</Text>
-                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -141,31 +139,33 @@ export default function ClientOrderDetailsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#f9f9f9",
-        paddingHorizontal: 20,
+        backgroundColor: "#fff",
+        paddingHorizontal: 16,
     },
     input: {
         flex: 1,
-        fontSize: 14,
-        width: "20%",
-        padding: 5,
-        color: "#000",
-
+        fontSize: 14, 
+        color: "#f5f5f5",
+        backgroundColor: "#f5f5f5",
     },
     card: {
         flexDirection: "row",
+        padding: 12,
         backgroundColor: "#fff",
-        padding: 10,
-        marginBottom: 10,
-        borderRadius: 10,
+        borderRadius: 12,
+        marginBottom: 12,
+        alignItems: "center",
+        marginHorizontal: 8, 
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      
         elevation: 3,
-        borderColor: "#ccc",
-        color: "#000",
-        borderColor: "#ddd",
-        elevation: 3,
-        borderWidth: 1,
-        marginVertical: 5,
-    },
+      },
+      
+    
+    
     image: {
         width: 80,
         height: 80,
@@ -204,16 +204,14 @@ const styles = StyleSheet.create({
     searchBox: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#fff",
-        borderRadius: 10,
+        backgroundColor: "#f5f5f5",
+        borderRadius: 20,
         paddingHorizontal: 10,
         height: 40,
         elevation: 3,
-        borderWidth: 1,
-        borderColor: "#ddd",
         flex: 1,
         marginRight: 10,
-
+        marginHorizontal: 8,
     },
     searchIcon: {
         marginRight: 10,

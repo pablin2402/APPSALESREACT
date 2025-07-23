@@ -2,12 +2,13 @@ import React, { useEffect, useCallback, useState, useContext } from "react";
 import axios from "axios";
 import { API_URL } from "../config";
 import { useNavigation } from "@react-navigation/native";
-import { View, Text, TextInput, FlatList,ActivityIndicator, TouchableOpacity, Image, StyleSheet } from "react-native";
+import { View, Text, TextInput, FlatList,Dimensions, ActivityIndicator, TouchableOpacity, Image, StyleSheet } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AuthContext } from "../AuthContext";
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import Svg, { Path } from "react-native-svg";
 
 export default function ClientScreen() {
     const navigation = useNavigation();
@@ -22,7 +23,8 @@ export default function ClientScreen() {
     const startPage = Math.max(1, page - range);
     const endPage = Math.min(totalPages, page + range);
     const pagesToShow = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-    const { token,idOwner,idUser } = useContext(AuthContext);
+    const { token, idOwner, idUser } = useContext(AuthContext);
+    const { width } = Dimensions.get("window");
 
     const fetchOrders = useCallback(async (pageNumber, searchTerm) => {
         setLoading(true);
@@ -34,11 +36,11 @@ export default function ClientScreen() {
                 limit: 10,
                 search: searchTerm
             };
-            const response = await axios.post(API_URL + "/whatsapp/client/sales", client,  {
+            const response = await axios.post(API_URL + "/whatsapp/client/sales", client, {
                 headers: {
-                  Authorization: `Bearer ${token}`
+                    Authorization: `Bearer ${token}`
                 }
-              });
+            });
             setSalesData(response.data.data);
             setTotalPages(response.data.totalPages);
         } catch (error) {
@@ -58,15 +60,29 @@ export default function ClientScreen() {
     const insets = useSafeAreaInsets();
     if (loading) {
         return (
-          <SafeAreaProvider>
-            <SafeAreaView style={[styles.container1, styles.horizontal]}>        
-              <ActivityIndicator size="large" color="#D3423E" />
-            </SafeAreaView>
-          </SafeAreaProvider>
+            <SafeAreaProvider>
+                <SafeAreaView style={[styles.container1, styles.horizontal]}>
+                    <ActivityIndicator size="large" color="#D3423E" />
+                </SafeAreaView>
+            </SafeAreaProvider>
         );
-      }
+    }
     return (
         <View style={[styles.container, { flex: 1, paddingTop: insets.top }]}>
+             <View style={styles.svgContainer}>
+                <Svg height={200} width={width} style={styles.wave}>
+                <Path
+                    d={`
+                    M0,0 
+                    L0,70 
+                    C${width * 0.45},190 ${width * 0.35},20 ${width},170 
+                    L${width},0 
+                    Z
+                    `}
+                    fill="#D3423E"
+                />
+                </Svg>
+            </View>
             <FlatList
                 ListHeaderComponent={
                     <View style={styles.searchContainer}>
@@ -75,17 +91,14 @@ export default function ClientScreen() {
                                 <Ionicons name="search" size={20} color="#D3423E" style={styles.searchIcon} />
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Buscar por Nombre, apellido, teléfono..."
+                                    placeholder="Buscar por nombre, apellido..."
                                     value={searchTerm}
                                     onChangeText={setSearchTerm}
                                     placeholderTextColor="#000"
-                                    themeVariant="light" 
+                                    returnKeyType="search"
+                                    onSubmitEditing={() => fetchOrders(1, searchTerm)}
                                 />
                             </View>
-                            <TouchableOpacity style={styles.filterButton} onPress={() => fetchOrders(1, searchTerm)}>
-                                <FontAwesome name="filter" size={16} color="#D3423E" style={{ marginRight: 5 }} />
-                            </TouchableOpacity>
-                         
                         </View>
                     </View>
 
@@ -121,11 +134,11 @@ export default function ClientScreen() {
 
                     {pagesToShow.map((num) => (
                         <TouchableOpacity
-                        key={num}
-                        onPress={() => setPage(num)}
-                        style={[styles.pageButton, page === num && styles.activePage]}
+                            key={num}
+                            onPress={() => setPage(num)}
+                            style={[styles.pageButton, page === num && styles.activePage]}
                         >
-                        <Text style={page === num ? styles.activePageText : styles.pageText}>{num}</Text>
+                            <Text style={page === num ? styles.activePageText : styles.pageText}>{num}</Text>
                         </TouchableOpacity>
                     ))}
                     <TouchableOpacity
@@ -145,44 +158,47 @@ export default function ClientScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#E7E6E6",
+        backgroundColor: "#fff",
         paddingHorizontal: 20,
+    },
+    svgContainer: {
+        position: "absolute",
+        top: 0,
+        left: 0,
     },
     container1: {
         flex: 1,
         justifyContent: 'center',
-      },
-      horizontal: {
+    },
+    horizontal: {
         flexDirection: 'row',
         justifyContent: 'space-around',
         padding: 10,
-      },
+    },
     input: {
         flex: 1,
-        fontSize: 14,
-        width: "20%",
-        padding: 5,
-        color: "#000",
-        borderRadius: 25,
-        
+        fontSize: 14, 
+        color: "#f5f5f5",
+        backgroundColor: "#f5f5f5",
     },
     card: {
         flexDirection: "row",
+        padding: 12,
         backgroundColor: "#fff",
-        padding: 10,
-        marginBottom: 10,
-        borderRadius: 25,
+        borderRadius: 12,
+        marginBottom: 12,
+        alignItems: "center",
+        marginHorizontal: 8, 
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
         elevation: 3,
-        borderColor: "#AFABAB",
-        borderWidth: 1,        
-        color: "#000",
-        elevation: 3,
-        marginVertical: 5,
-    },
+      },
     image: {
-        width: 80,
-        height: 80,
-        borderRadius: 50,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
     },
     cardContent: {
         flex: 1,
@@ -197,27 +213,18 @@ const styles = StyleSheet.create({
     locationContainer: {
         flexDirection: "row",
         alignItems: "center",
-        marginTop: 5,
+        marginTop: 4,
     },
     icon: {
         marginRight: 5,
     },
     location: {
         fontSize: 14,
-        color: "#000",
+        color: "#4A4A4A",
     },
     searchContainer: {
         marginBottom: 15,
-        
     },
-    filterButton: {
-        flexDirection: "row",
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        borderRadius: 8,
-        alignItems: "center",
-        justifyContent: "center",
-      },
     searchRow: {
         flexDirection: "row",
         alignItems: "center",
@@ -225,28 +232,17 @@ const styles = StyleSheet.create({
     searchBox: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#fff",
-        borderRadius: 10,
+        backgroundColor: "#f5f5f5",
+        borderRadius: 20,
         paddingHorizontal: 10,
         height: 40,
         elevation: 3,
-        borderColor: "#AFABAB",
-        borderWidth: 1,
         flex: 1,
         marginRight: 10,
-
+        marginHorizontal: 8,
     },
     searchIcon: {
         marginRight: 10,
-    },
-    searchContainer: {
-        marginBottom: 15,
-    },
-    pagination: {
-        flexDirection: "row",
-        justifyContent: "center",
-        alignItems: "center",
-        marginTop: 10,
     },
     pageButton: {
         padding: 10,
@@ -269,9 +265,7 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         justifyContent: "center",
         alignItems: "center",
-        elevation: 3,
     },
-
     searchButtonText: {
         color: "white",
         fontWeight: "bold",
@@ -283,7 +277,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         borderTopWidth: 1,
         borderColor: "#ddd",
+        paddingBottom: 20, 
     },
-
-
 });
+

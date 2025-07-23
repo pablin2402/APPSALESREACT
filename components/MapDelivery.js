@@ -70,6 +70,7 @@ const MapDelivery = () => {
                 delivery: idUser,
                 id_owner: idOwner,
                 startDate: dateInGMTMinus4,
+                excludeComplete: true,
                 status: "",
             }, {
                 headers: {
@@ -94,14 +95,15 @@ const MapDelivery = () => {
         } catch (error) {
         }
     };
-    const uploadRoute = async (value, visitStartTime, visitEndTime, visitTime, tripTime1, distanceTrip1, messsageTrack) => {
+    const uploadRoute = async (value, visitStartTime, visitEndTime, visitTime, tripTime1, distanceTrip1, messsageTrack, status, status1) => {
         try {
             const res = await axios.put(API_URL + "/whatsapp/route/delivery/id", {
                 status: "En progreso",
                 id_owner: idOwner,
                 _id: routeId,
                 routeId: value._id,
-                visitStatus: true,
+                visitStatus: status1,
+                visitStatus1: status,
                 visitTime: visitTime,
                 orderTaken: false,
                 visitStartTime: visitStartTime,
@@ -192,7 +194,7 @@ const MapDelivery = () => {
                     const stopTime = await stopTimer();
                     setShowRoute(true);
                     setShowClients(false);
-                    await uploadRoute(selectedClient2, null, stopTime, formatTime(timer), duration, distance, "ha llegado al destino");
+                    await uploadRoute(selectedClient2, null, stopTime, formatTime(timer), duration, distance, "ha llegado al destino", "LLego al destino", true);
                     await uploadProgressRoute();
                     await getRoutesById(routeId);
                     setSelectedClient(null);
@@ -200,7 +202,7 @@ const MapDelivery = () => {
                 } else {
                     const startTime = await startTimer();
                     startMapping();
-                    await uploadRoute(selectedClient2, startTime, null, null, duration, distance, "está en camino al destino");
+                    await uploadRoute(selectedClient2, startTime, null, null, duration, distance, "está en camino al destino", "En camino", false);
                 }
                 setIsTimerRunning(!isTimerRunning);
             } else {
@@ -210,8 +212,6 @@ const MapDelivery = () => {
             console.error("Error al calcular distancia:", error);
             return null;
         }
-
-
     };
     const showRoutesList = () => {
         setShowRoutes(true);
@@ -313,7 +313,7 @@ const MapDelivery = () => {
         return `${day}-${month}-${year}`;
     };
     const handlePay = (selectedClient) => {
-        navigation.navigate("OrderPickUp", { client: selectedClient });
+        navigation.navigate("OrderPickUp", { client: selectedClient, route: routeId });
     };
     return (
         <View style={styles.container}>
@@ -499,7 +499,6 @@ const MapDelivery = () => {
                                         <Text style={styles.progressText}>{item.progress || 0}%</Text>
                                     </View>
                                 </TouchableOpacity>
-
                             ))
                         ) : (
                             <View style={styles.emptyCard}>
@@ -510,7 +509,6 @@ const MapDelivery = () => {
                         )}
                     </ScrollView>
                 </View>
-
             ) : showRoute && route?.length > 0 && !isTimerRunning && (
                 <View style={styles.cardsWrapper}>
                     <ScrollView
@@ -539,7 +537,12 @@ const MapDelivery = () => {
                                     </View>
                                     <View
                                         style={{
-                                            backgroundColor: item.visitStatus ? "#27AE60" : "#E74C3C",
+                                            backgroundColor:
+                                                item.visitStatus1 === "LLego al destino"
+                                                    ? "#27AE60" // verde
+                                                    : item.visitStatus1 === "En camino"
+                                                        ? "#F1C40F" // amarillo
+                                                        : "#E74C3C", // rojo
                                             borderRadius: 20,
                                             paddingVertical: 2,
                                             paddingHorizontal: 8,
@@ -549,9 +552,15 @@ const MapDelivery = () => {
                                         }}
                                     >
                                         <Text style={{ color: "#FFF", fontWeight: "bold" }}>
-                                            {item.visitStatus ? "Visitado" : "Sin visitar"}
+                                            {item.visitStatus1 === "LLego al destino"
+                                                ? "Llegada al destino"
+                                                : item.visitStatus1 === "En camino"
+                                                    ? "En camino"
+                                                    : "Sin visitar"}
                                         </Text>
                                     </View>
+
+
                                 </View>
                             </TouchableOpacity>
                         ))}
@@ -607,7 +616,7 @@ const MapDelivery = () => {
                         <TouchableOpacity
                             style={styles.terminateButton}
                             onPress={() => {
-                                handlePay(selectedClient);
+                                handlePay(selectedClient,route);
                                 setShowRegisterButton(false);
                             }}
                         >

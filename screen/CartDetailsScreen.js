@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Dimens
 import { Ionicons, AntDesign } from "@expo/vector-icons";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
+
 
 export default function CartDetailsScreen() {
   const route = useRoute();
@@ -10,6 +12,7 @@ export default function CartDetailsScreen() {
   const cart1 = route.params?.carts || [];
   const [cart, setCart] = useState(cart1);
   const insets = useSafeAreaInsets();
+  const { width } = Dimensions.get("window");
 
   const handleQuantityChange = (index, delta) => {
     const newCart = [...cart];
@@ -46,6 +49,23 @@ export default function CartDetailsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.svgContainer}>
+      <Svg height={200} width={width} style={styles.wave}>
+  <Path
+    d={`
+      M0,0 
+      L0,80 
+      C${width * 0.55},160 ${width * 0.75},20 ${width},150 
+      L${width},0 
+      Z
+    `}
+    fill="#D3423E"
+  />
+</Svg>
+
+ 
+      
+      </View>
       <Text style={styles.title}>Tu carrito</Text>
       <ScrollView style={styles.cartList}>
         {cart.map((item, index) => (
@@ -111,14 +131,20 @@ const { width } = Dimensions.get("window");
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E7E6E6",
+    backgroundColor: "#fff",
     paddingHorizontal: 16,
+  },
+  svgContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
   },
   title: {
     fontSize: 18,
     fontWeight: "bold",
     marginVertical: 10,
     textAlign: "center",
+    color:"#fff"
   },
   cartList: {
     flex: 1,
@@ -130,12 +156,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginVertical: 8,
     marginHorizontal: 10,
-    borderWidth: 1,
-    borderColor: "#eee",
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 2,
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
     elevation: 1,
   },
 

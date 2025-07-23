@@ -50,7 +50,8 @@ const MapSalesMan = () => {
 
     const localTime = new Date();
     const [routeId, setRouteId] = useState("");
-    const { token,idOwner,idUser } = useContext(AuthContext);
+    const { token, idOwner, idUser } = useContext(AuthContext);
+    const [loadingButton, setLoadingButton] = useState(false);
 
     function getStartOfDayInUTCMinus4(date) {
         const utcDate = new Date(date);
@@ -69,8 +70,9 @@ const MapSalesMan = () => {
                 startDate: dateInGMTMinus4
             }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }});
+                    Authorization: `Bearer ${token}`
+                }
+            });
             setListRoute(response.data);
         } catch (error) {
         }
@@ -82,8 +84,9 @@ const MapSalesMan = () => {
                 id_owner: idOwner,
             }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }});
+                    Authorization: `Bearer ${token}`
+                }
+            });
             setRoute(response.data);
         } catch (error) {
         }
@@ -102,20 +105,22 @@ const MapSalesMan = () => {
                 visitEndTime: visitEndTime,
             }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }});
+                    Authorization: `Bearer ${token}`
+                }
+            });
         } catch (error) {
         }
     };
     const uploadProgressRoute = async () => {
         try {
             await axios.put(API_URL + "/whatsapp/route/progress/id", {
-                id_owner:idOwner,
+                id_owner: idOwner,
                 _id: routeId,
             }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }});
+                    Authorization: `Bearer ${token}`
+                }
+            });
         } catch (error) {
         }
     };
@@ -147,7 +152,7 @@ const MapSalesMan = () => {
             const formattedTime = formatTime(timer);
             const totalSeconds = timer;
             await axios.post(API_URL + "/whatsapp/salesman/activity", {
-                salesMan:idUser,
+                salesMan: idUser,
                 details: text,
                 latitude: userLocation.latitude,
                 longitude: userLocation.longitude,
@@ -158,33 +163,42 @@ const MapSalesMan = () => {
                 visitDurationSeconds: totalSeconds,
             }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }});
+                    Authorization: `Bearer ${token}`
+                }
+            });
         } catch (error) {
         } finally {
         }
     };
     const handleTimerToggle = async (selectedClient2, text) => {
-        if (isTimerRunning) {
-            setTimer(0);
-            const stopTime = await stopTimer();
-            setShowRoute(true);
-            setShowClients(false);
-            await uploadRoute(selectedClient2, null, stopTime, formatTime(timer));
-            await uploadProgressRoute();
-            await getRoutesById(routeId);
-            await fetchActivity(selectedClient2, text);
-            setModal(false);
-            setSelectedClient(null);
-            await AsyncStorage.removeItem("timer_start");
-        } else {
-            const startTime = await startTimer();
-            startMapping();
-            await uploadRoute(selectedClient2, startTime, null, null);
-            fetchActivity(selectedClient2, text);
+        setLoadingButton(true);
+        try {
+            if (isTimerRunning) {
+                setTimer(0);
+                const stopTime = await stopTimer();
+                setShowRoute(true);
+                setShowClients(false);
+                await uploadRoute(selectedClient2, null, stopTime, formatTime(timer));
+                await uploadProgressRoute();
+                await getRoutesById(routeId);
+                await fetchActivity(selectedClient2, text);
+                setModal(false);
+                setSelectedClient(null);
+                await AsyncStorage.removeItem("timer_start");
+            } else {
+                const startTime = await startTimer();
+                startMapping();
+                await uploadRoute(selectedClient2, startTime, null, null);
+                await fetchActivity(selectedClient2, text);
+            }
+            setIsTimerRunning(!isTimerRunning);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoadingButton(false);
         }
-        setIsTimerRunning(!isTimerRunning);
     };
+
     const showRoutesList = () => {
         setShowRoutes(true);
         startRouteToday();
@@ -197,11 +211,12 @@ const MapSalesMan = () => {
         try {
             const response = await axios.post(API_URL + "/whatsapp/maps/list/sales/id", {
                 id_owner: idOwner,
-                sales_id:idUser
+                sales_id: idUser
             }, {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }});
+                    Authorization: `Bearer ${token}`
+                }
+            });
             setClients(response.data.users);
             setFilteredClients(response.data.users);
             setLoading(false);
@@ -248,7 +263,7 @@ const MapSalesMan = () => {
     };
     const centerMapOnClient2 = (client) => {
         setSelectedClient(client);
-        setModal(true);
+        //setModal(true);
         mapRef.current?.animateToRegion({
             latitude: client.client_location.latitud,
             longitude: client.client_location.longitud,
@@ -397,7 +412,7 @@ const MapSalesMan = () => {
                     </TouchableOpacity>
                 </View>
             )}
-            {showClients && !showRoute && !showRoutes && !isTimerRunning ? (
+            {showClients && !showRoute && !showRoutes ? (
                 <View style={styles.cardsWrapper}>
                     <ScrollView
                         horizontal
@@ -429,26 +444,51 @@ const MapSalesMan = () => {
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.cardsContainer}
+                        contentContainerStyle={
+                            listRoute?.length === 0
+                                ? styles.emptyScrollContainer
+                                : styles.cardsContainer
+                        }
                     >
-                        {listRoute?.map((item, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={styles.card}
-                                onPress={() => {
-                                    setRouteId(item._id);
-                                    getRoutesById(item._id);
-                                    startMapping();
-                                }}
-                            >
-                                <View style={styles.cardInfo}>
-                                    <Text style={styles.cardTitle2}>{item.details}</Text>
-                                    <View style={styles.cardAddressContainer}>
-                                        <Text style={styles.cardAddress}>Fecha de Inicio {formatDate(item.startDate)}</Text>
+                        {listRoute && listRoute.length > 0 ? (
+                            listRoute.map((item, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={styles.card1}
+                                    onPress={() => {
+                                        setRouteId(item._id);
+                                        getRoutesById(item._id);
+                                        startMapping();
+                                    }}
+                                >
+                                    <View style={styles.cardInfo}>
+                                        <Text style={styles.cardTitle2}>{item.details}</Text>
+                                        <View style={styles.cardAddressContainer}>
+                                            <Text style={styles.cardAddress}>
+                                                Fecha de Inicio: {formatDate(item.startDate)}
+                                            </Text>
+                                        </View>
+
+                                        <View style={styles.progressBackground}>
+                                            <View
+                                                style={[
+                                                    styles.progressBar,
+                                                    { width: `${item.progress || 0}%`, backgroundColor: '#27AE60' },
+                                                ]}
+                                            />
+                                        </View>
+                                        <Text style={styles.progressText}>{item.progress || 0}%</Text>
                                     </View>
-                                </View>
-                            </TouchableOpacity>
-                        ))}
+                                </TouchableOpacity>
+
+                            ))
+                        ) : (
+                            <View style={styles.emptyCard}>
+                                <Ionicons name="location-off-outline" size={40} color="#ccc" style={{ marginBottom: 10 }} />
+                                <Text style={styles.emptyCardTextTitle}>Sin rutas asignadas</Text>
+                                <Text style={styles.emptyCardTextSubtitle}>No hay rutas disponibles para hoy.</Text>
+                            </View>
+                        )}
                     </ScrollView>
                 </View>
             ) : showRoute && route?.length > 0 && !isTimerRunning && (
@@ -500,31 +540,74 @@ const MapSalesMan = () => {
             )}
             {modality && selectedClient && (
                 <View style={[styles.clientDetailCard, { bottom: insets.bottom + 200 }]}>
-                    {!selectedClient.name ? (
-                        <Text style={styles.clientDetailName}>{selectedClient.nombre}</Text>
-                    ) : (
-                        <Text style={styles.clientDetailName}>{selectedClient.name} {selectedClient.lastName}</Text>
-                    )}
-                    {!isTimerRunning && !selectedClient.visitStatus && (
-                        <TouchableOpacity style={styles.redButton} onPress={() => handleTimerToggle(selectedClient, "Visita al cliente")}>
-                            <Text style={styles.buttonText2}>Iniciar visita</Text>
-                        </TouchableOpacity>
-                    )}
+                    <View style={styles.clientInfoContainer}>
+                        <View style={styles.avatarContainer}>
+                            {selectedClient.avatarUrl ? (
+                                <Image source={{ uri: selectedClient.avatarUrl }} style={styles.avatar} />
+                            ) : (
+                                <View style={styles.avatarPlaceholder}>
+                                    <Text style={styles.avatarInitials}>
+                                        {selectedClient.name
+                                            ? `${selectedClient.name[0]}${selectedClient.lastName[0]}`
+                                            : selectedClient.nombre[0]}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
 
-                    {isTimerRunning && (
-                        <TouchableOpacity style={styles.redButton} onPress={() => handleTimerToggle(selectedClient, "Termina la visita")}>
-                            <Text style={styles.buttonText2}>Terminar visita</Text>
-                        </TouchableOpacity>
-                    )}
+                        <View style={styles.nameContainer}>
+                            <Text style={styles.clientDetailName}>
+                                {selectedClient.name
+                                    ? `${selectedClient.name} ${selectedClient.lastName}`
+                                    : selectedClient.nombre}
+                            </Text>
+                        </View>
+                    </View>
 
-                    <TouchableOpacity style={styles.redButton} onPress={() => navigate()}>
-                        <Text style={styles.buttonText2}>Registrar Pedido</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.redButton} onPress={() => setModal(false)}>
-                        <Text style={styles.buttonText2}>Cerrar</Text>
-                    </TouchableOpacity>
+                    <View style={styles.buttonsContainer}>
+    {!isTimerRunning && !selectedClient.visitStatus && (
+        <TouchableOpacity
+            style={styles.redButton}
+            onPress={() => handleTimerToggle(selectedClient, "Visita al cliente")}
+            disabled={loadingButton}
+        >
+            <View style={styles.buttonContent}>
+                {loadingButton ? (
+                    <ActivityIndicator color="#E53935" size="small" />
+                ) : (
+                    <Text style={styles.buttonText2}>Iniciar visita</Text>
+                )}
+            </View>
+        </TouchableOpacity>
+    )}
+
+    {isTimerRunning && (
+        <TouchableOpacity
+            style={styles.redButton}
+            onPress={() => handleTimerToggle(selectedClient, "Termina la visita")}
+            disabled={loadingButton}
+        >
+            <View style={styles.buttonContent}>
+                {loadingButton ? (
+                    <ActivityIndicator color="#E53935" size="small" />
+                ) : (
+                    <Text style={styles.buttonText2}>Finalizar pedido</Text>
+                )}
+            </View>
+        </TouchableOpacity>
+    )}
+
+    <TouchableOpacity style={styles.redButton} onPress={() => setModal(false)}>
+        <View style={styles.buttonContent}>
+            <Text style={styles.buttonText2}>Cerrar</Text>
+        </View>
+    </TouchableOpacity>
+</View>
+
+
                 </View>
             )}
+
             {loading && (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#D3423E" />

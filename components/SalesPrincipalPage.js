@@ -9,6 +9,7 @@ import MapViewDirections from "react-native-maps-directions";
 import { GOOGLE_API_KEY } from "../config";
 import { ScrollView } from "react-native";
 import { AuthContext } from "../AuthContext";
+import Ionicons from "react-native-vector-icons/Ionicons";
 
 export default function SalesPrincipalPage() {
   const navigation = useNavigation();
@@ -20,7 +21,7 @@ export default function SalesPrincipalPage() {
   const [profile, setProfile] = useState(null);
   const [objectiveData, setObjectiveData] = useState([]);
 
-  const { token, idOwner, idUser,role } = useContext(AuthContext);
+  const { token, idOwner, idUser } = useContext(AuthContext);
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -40,10 +41,8 @@ export default function SalesPrincipalPage() {
         setLoading(false);
       }
     };
-
     fetchProfile();
   }, []);
-
   function getStartOfDayInUTCMinus4(date) {
     const utcDate = new Date(date);
     utcDate.setHours(utcDate.getHours() - 4);
@@ -53,7 +52,7 @@ export default function SalesPrincipalPage() {
     try {
       const response = await axios.post(API_URL + "/whatsapp/order/status", {
         salesId: idUser,
-        orderStatus: "",
+        orderStatus: "aproved",
         id_owner: idOwner,
       }, {
         headers: {
@@ -87,7 +86,7 @@ export default function SalesPrincipalPage() {
     const now = new Date();
     const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
     const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
-  
+
     try {
       const response = await axios.post(API_URL + "/whatsapp/sales/objective/list", {
         region: "TOTAL CBB",
@@ -103,7 +102,7 @@ export default function SalesPrincipalPage() {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
     fetchOrders();
     fetchObjectiveDataRegion();
@@ -230,13 +229,19 @@ export default function SalesPrincipalPage() {
             Pedidos a entregar   #{totalPedidos}
           </Text>
         </View>
-        <TextInput
-          style={styles.input}
-          placeholder="Buscar por Nombre, apellido..."
-          value={searchTerm}
-          onChangeText={setSearchTerm}
-          placeholderTextColor="#000"
-        />
+
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={20} color="#D3423E" style={styles.searchIcon} />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Buscar por nombre, apellido..."
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+            placeholderTextColor="#000"
+          />
+        </View>
+
         {filteredData.map((item, index) => (
           <TouchableOpacity key={index} style={styles.card} onPress={() => goToClientDetails(item)}>
             <View style={styles.cardContent}>
@@ -251,24 +256,24 @@ export default function SalesPrincipalPage() {
               <Text style={styles.clientName2}>{"#" + item.receiveNumber}</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
-                <View
-                style={{
-                  backgroundColor: item.payStatus === "Pagado" ? "#27AE60" : "#E74C3C",
-                  borderRadius: 20,
-                  paddingVertical: 2,
-                  paddingHorizontal: 8,
-                }}
-              >
-                <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
-                  {item.payStatus === "Pagado" ? "PAGO COMPLETO" : "PAGO PENDIENTE"}
-                </Text>
-              </View>
+                  <View
+                    style={{
+                      backgroundColor: item.payStatus === "Pagado" ? "#27AE60" : "#E74C3C",
+                      borderRadius: 20,
+                      paddingVertical: 2,
+                      paddingHorizontal: 8,
+                    }}
+                  >
+                    <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
+                      {item.payStatus === "Pagado" ? "PAGO COMPLETO" : "PAGO PENDIENTE"}
+                    </Text>
+                  </View>
                 </View>
 
                 <View
                   style={{
                     backgroundColor:
-                      item.orderStatus === "deliver"
+                      item.orderStatus === "aproved"
                         ? "#F39C12"
                         : item.orderStatus === "En Ruta"
                           ? "#3498DB"
@@ -280,9 +285,9 @@ export default function SalesPrincipalPage() {
                     paddingHorizontal: 8,
                   }}
                 >
-                <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
-                {item.orderStatus === "deliver"
-                      ? "PEDIDO CREADO"
+                  <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
+                    {item.orderStatus === "aproved"
+                      ? "PEDIDO APROBADO"
                       : item.orderStatus === "En Ruta"
                         ? "PEDIDO EN CAMINO"
                         : item.orderStatus === "Entregado"
@@ -307,7 +312,7 @@ export default function SalesPrincipalPage() {
             return (
               <View key={index} style={styles.itemContainer}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.label}>{item.lyne+" - Objetivo: "+item.numberOfBoxes.toFixed(2)}</Text>
+                  <Text style={styles.label}>{item.lyne + " - Objetivo: " + item.numberOfBoxes.toFixed(2)}</Text>
                   <Text style={styles.percent}>{progress.toFixed(1)}%</Text>
                 </View>
                 <View style={styles.progressBackground}>
@@ -333,26 +338,36 @@ export default function SalesPrincipalPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E7E6E6",
+    backgroundColor: "#fff",
   },
   card: {
     flexDirection: "row",
     backgroundColor: "#fff",
     padding: 10,
+    marginTop: 10,
     marginBottom: 10,
     borderRadius: 25,
-    elevation: 3,
-    borderColor: "#AFABAB",
-    borderWidth: 1,
     color: "#000",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
     elevation: 3,
     marginVertical: 5,
+  },
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    height: 40,
+    flex: 1,
   },
   card1: {
     backgroundColor: "#fff",
     padding: 10,
-    borderColor: "#AFABAB",
-    borderWidth: 1,
+
     borderRadius: 16,
     marginVertical: 5,
     shadowColor: "#000",
@@ -439,13 +454,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   input: {
-    padding: 10,
-    backgroundColor: "#FCFCFC",
-    borderColor: "#AFABAB",
-    borderWidth: 1,
-    borderRadius: 20,
-    marginBottom: 10,
-    color: "#000",
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    color: "#2E2B2B",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 10,
   },
 
   title: {

@@ -1,7 +1,7 @@
 import React, { useEffect, useContext, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 
-import { View, Text, TextInput,ActivityIndicator, FlatList, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput, ActivityIndicator, Dimensions, FlatList, Image, TouchableOpacity, StyleSheet } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 
 import axios from "axios";
@@ -10,6 +10,7 @@ import { API_URL } from "../config";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthContext } from "../AuthContext";
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import Svg, { Path } from "react-native-svg";
 
 export default function ProductListScreen() {
   const navigation = useNavigation();
@@ -29,6 +30,7 @@ export default function ProductListScreen() {
   const insets = useSafeAreaInsets();
 
   const { token, idOwner } = useContext(AuthContext);
+  const { width } = Dimensions.get("window");
 
   const goToCartDetails = () => {
     navigation.navigate("CartDetailsScreen", { carts: cart });
@@ -74,7 +76,7 @@ export default function ProductListScreen() {
   if (loading) {
     return (
       <SafeAreaProvider>
-        <SafeAreaView style={[styles.container1, styles.horizontal]}>        
+        <SafeAreaView style={[styles.container1, styles.horizontal]}>
           <ActivityIndicator size="large" color="#D3423E" />
         </SafeAreaView>
       </SafeAreaProvider>
@@ -83,6 +85,20 @@ export default function ProductListScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.svgContainer}>
+        <Svg height={200} width={width} style={styles.wave}>
+          <Path
+            d={`
+            M0,0 
+            L0,80 
+            C${width * 0.55},160 ${width * 0.75},20 ${width},150 
+            L${width},0 
+            Z
+          `}
+            fill="#D3423E"
+          />
+        </Svg>
+      </View>
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#D3423E" style={styles.searchIcon} />
         <TextInput
@@ -91,11 +107,9 @@ export default function ProductListScreen() {
           onChangeText={setSearchTerm}
           style={[styles.input, { color: '#000000' }]}
           placeholderTextColor="#4A4A4A"
+          returnKeyType="search"
           onSubmitEditing={() => fetchProducts(1, searchTerm)}
         />
-        <TouchableOpacity style={styles.continueButton} onPress={() => fetchProducts(1, searchTerm)}>
-          <Text style={styles.continueText}>FILTRAR</Text>
-        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -166,7 +180,7 @@ export default function ProductListScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 10,
-    backgroundColor: "#E7E6E6",
+    backgroundColor: "#fff",
     paddingHorizontal: 20,
   },
   container1: {
@@ -209,6 +223,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
+  svgContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+  },
   floatingPayButton: {
     position: "absolute",
     bottom: 20,
@@ -236,8 +255,8 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 16,
-
+    fontSize: 14,
+    color: "#2E2B2B",
   },
   continueButton: {
     paddingVertical: 8,
@@ -250,7 +269,7 @@ const styles = StyleSheet.create({
   continueText: {
     color: "#D3423E",
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: 12,
   },
   row: {
     justifyContent: "space-between",
@@ -258,17 +277,11 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#f5f5f5",
     borderRadius: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 1,
-    padding: 10,
-    borderColor: "#AFABAB",
-    borderWidth: 1,
-    width: "100%",
-    justifyContent: "space-between",
+    paddingHorizontal: 10,
+    height: 40,
+    marginBottom: 10,
   },
   card: {
     flex: 1,
@@ -277,8 +290,11 @@ const styles = StyleSheet.create({
     padding: 10,
     marginVertical: 8,
     marginHorizontal: 5,
-    borderColor: "#AFABAB",
-    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
     alignItems: "center",
     minHeight: 180,
     justifyContent: "space-between"

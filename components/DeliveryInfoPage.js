@@ -39,8 +39,8 @@ export default function DeliveryInfoPage() {
 
   const handleLogout = async () => {
     try {
-      await logout(); // limpia tokens, etc.
-      setIsAuthenticated(false); // ← Esto redibuja tu navigator
+      await logout(); 
+      setIsAuthenticated(false); 
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
     }
@@ -61,9 +61,9 @@ export default function DeliveryInfoPage() {
           <Ionicons name="person-circle-outline" size={24} color="black" />
           <Text style={styles.optionText}>Cuenta</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.option} onPress={() => navigation.navigate("MapScreenRoute")}>
+        <TouchableOpacity style={styles.option} onPress={() => navigation.navigate("MapScreenDelivery")}>
           <Ionicons name="map-outline" size={24} color="black" />
-          <Text style={styles.optionText}>Mi Ruta</Text>
+          <Text style={styles.optionText}>Mi ruta</Text>
         </TouchableOpacity>
       </View>
 

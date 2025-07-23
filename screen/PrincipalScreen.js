@@ -22,6 +22,6 @@ export default function PrincipalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E7E6E6",
+    backgroundColor: "#fff",
   }
 });

@@ -222,7 +222,7 @@ export default function DeliveryPage() {
                       </View>
                       <View style={{
                         backgroundColor:
-                          item.orderStatus === "deliver" ? "#F39C12" :
+                          item.orderStatus === "aproved" ? "#F39C12" :
                             item.orderStatus === "En Ruta" ? "#3498DB" :
                               item.orderStatus === "Entregado" ? "#27AE60" :
                                 "#E74C3C",
@@ -231,7 +231,7 @@ export default function DeliveryPage() {
                         paddingHorizontal: 8
                       }}>
                         <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
-                          {item.orderStatus === "deliver" ? "PEDIDO CREADO" :
+                          {item.orderStatus === "aproved" ? "PEDIDO APROBADO" :
                             item.orderStatus === "En Ruta" ? "PEDIDO EN CAMINO" :
                               item.orderStatus === "Entregado" ? "PEDIDO ENTREGADO" :
                                 item.orderStatus}

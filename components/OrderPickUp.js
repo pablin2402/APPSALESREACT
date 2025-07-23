@@ -17,7 +17,6 @@ import * as Location from "expo-location";
 export default function OrderPickUp() {
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
-  const [amount, setAmount] = useState('');
   const [imageUri, setImageUri] = useState(null);
   const [note, setNote] = useState('');
   const insets = useSafeAreaInsets();
@@ -29,6 +28,7 @@ export default function OrderPickUp() {
   const [origin, setOrigin] = useState({ latitude: 0, longitude: 0 });
 
   const client = route.params?.client;
+  const routes = route.params?.route;
 
   const [file, setFile] = useState(null);
 
@@ -96,6 +96,35 @@ export default function OrderPickUp() {
       longitude: location.coords.longitude
     };
   }
+  const uploadRoute = async () => {
+    try {
+        const res = await axios.put(API_URL + "/whatsapp/route/delivery/id", {
+            id_owner: idOwner,
+            _id: routes,
+            routeId:client._id,
+            visitStatus1: "Pedido entregado",
+        }, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+        if (res.status === 200) {
+            await axios.post(API_URL + "/whatsapp/order/track", {
+                orderId: client._id,
+                eventType: "Pedido Entregado",
+                triggeredBySalesman: "",
+                triggeredByDelivery: idUser,
+                triggeredByUser: "",
+                location: { lat: 0, lng: 0 }
+            }, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+        }
+    } catch (error) {
+    }
+};
   const handlePay = async () => {
     try {
       const imageUrl = file ? await uploadImage() : "";
@@ -117,6 +146,8 @@ export default function OrderPickUp() {
         },
       });
       if (response.status === 200 || response.status === 201) {
+        showModal();
+        uploadRoute();
         navigation.navigate("MapDelivery");
       }
     } catch (error) {
@@ -238,7 +269,7 @@ export default function OrderPickUp() {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: "#E7E6E6",
+    backgroundColor: "#fff",
     flex: 1,
   },
   title: {

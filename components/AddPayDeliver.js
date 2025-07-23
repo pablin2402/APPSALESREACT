@@ -285,7 +285,7 @@ export default function AddPayDeliver() {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: "#E7E6E6",
+    backgroundColor: "#fff",
     flex: 1,
   },
   title: {
