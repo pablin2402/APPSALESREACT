@@ -71,17 +71,17 @@ export default function ClientScreen() {
         <View style={[styles.container, { flex: 1, paddingTop: insets.top }]}>
              <View style={styles.svgContainer}>
                 <Svg height={200} width={width} style={styles.wave}>
-                <Path
-                    d={`
-                    M0,0 
-                    L0,70 
-                    C${width * 0.45},190 ${width * 0.35},20 ${width},170 
-                    L${width},0 
-                    Z
-                    `}
-                    fill="#D3423E"
-                />
-                </Svg>
+                    <Path
+                        d={`
+                        M0,0 
+                        L0,120 
+                        C${width * 0.6},200 ${width * 0.6},50 ${width},200 
+                        L${width},0 
+                        Z
+                        `}
+                        fill="#D3423E"
+                    />
+                    </Svg>
             </View>
             <FlatList
                 ListHeaderComponent={
@@ -240,6 +240,8 @@ const styles = StyleSheet.create({
         flex: 1,
         marginRight: 10,
         marginHorizontal: 8,
+        marginBottom: 20,
+        marginTop:20
     },
     searchIcon: {
         marginRight: 10,

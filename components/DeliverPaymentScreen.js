@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useContext } from "react";
 
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet,ActivityIndicator, Platform } from "react-native";
+import { View, Text, TextInput, FlatList, TouchableOpacity,Dimensions, StyleSheet,ActivityIndicator, Platform } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { FontAwesome } from "@expo/vector-icons";
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import Svg, { Path } from "react-native-svg";
 
 import axios from "axios";
 import { API_URL } from "../config";
@@ -23,9 +24,11 @@ export default function DeliverPaymentScreen() {
     const [showEndDatePicker, setShowEndDatePicker] = useState(false);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [showFilters, setShowFilters] = useState(false);
 
     const insets = useSafeAreaInsets();
     const range = 2;
+    const { width } = Dimensions.get("window");
 
     const startPage = Math.max(1, page - range);
     const endPage = Math.min(totalPages, page + range);
@@ -105,6 +108,20 @@ export default function DeliverPaymentScreen() {
       }
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
+              <View style={styles.svgContainer}>
+        <Svg height={200} width={width} style={styles.wave}>
+          <Path
+            d={`
+              M0,0 
+              L0,120 
+              C${width * 0.6},200 ${width * 0.6},50 ${width},200 
+              L${width},0 
+              Z
+            `}
+            fill="#D3423E"
+          />
+        </Svg>
+      </View>
             <FlatList
                 ListHeaderComponent={
                     <View style={styles.searchContainer}>
@@ -119,7 +136,16 @@ export default function DeliverPaymentScreen() {
                                 style={styles.input}
                                 placeholderTextColor="#4A4A4A"
                             />
+                              <TouchableOpacity onPress={() => setShowFilters(!showFilters)}>
+                                    <Ionicons
+                                    name={showFilters ? "chevron-up" : "options"}
+                                    size={22}
+                                    color="#D3423E"
+                                    style={{ marginLeft: 8 }}
+                                    />
+                                </TouchableOpacity>
                         </View>
+                        {showFilters && (
                         <View style={styles.dateFilterContainer}>
                             {(!showStartDatePicker && !showEndDatePicker) && (
                                 <TouchableOpacity onPress={() => setShowStartDatePicker(true)} style={styles.dateInput}>
@@ -172,6 +198,7 @@ export default function DeliverPaymentScreen() {
                                 </TouchableOpacity>
                             )}
                         </View>
+                          )}
                     </View>
                 }
                 data={salesData}
@@ -260,6 +287,11 @@ const styles = StyleSheet.create({
         justifyContent: 'space-around',
         padding: 10,
       },
+      svgContainer: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+      },
     pagination: {
         flexDirection: "row",
         justifyContent: "center",
@@ -303,25 +335,27 @@ const styles = StyleSheet.create({
     searchBox: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#fff",
+        backgroundColor: "#f5f5f5",
         borderRadius: 20,
-        paddingHorizontal: 10,
-        height: 40,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: "#B0B0B0",
-    },
+        paddingHorizontal: 12,
+        height: 45,
+        marginBottom: 20,
+        marginTop: 20,
+        marginHorizontal: 2,
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowOffset: { width: 0, height: 1 },
+        shadowRadius: 3,
+        elevation: 2,
+      },
+    
     searchIcon: {
         marginRight: 10,
     },
     input: {
         flex: 1,
         fontSize: 14,
-        width: "20%",
-        padding: 5,
-        color: "#333",
-        borderRadius: 20,
-
+        color: "#2E2B2B",
     },
     card: {
         backgroundColor: "white",
@@ -363,27 +397,20 @@ const styles = StyleSheet.create({
     },
     dateInput: {
         flex: 1,
-        backgroundColor: "white",
+        backgroundColor: "#f5f5f5",
         padding: 10,
-        borderRadius: 10,
-        marginVertical: 5,
+        borderRadius: 20,
         marginRight: 5,
-        borderColor: "#AFABAB",
-        borderWidth: 1,
-        color: "black",
-        backgroundColor: "#fff",
-    },
-    dateInput2: {
+        alignItems: "center",
+      },
+      dateInput2: {
         flex: 1,
-        backgroundColor: "white",
+        backgroundColor: "#f5f5f5",
         padding: 10,
-        color: "black",
-        borderRadius: 10,
-        marginVertical: 5,
-        borderColor: "#AFABAB",
-        borderWidth: 1,
-        backgroundColor: "#fff",
-    },
+        borderRadius: 20,
+        marginLeft: 5,
+        alignItems: "center",
+      },
     selectorButton: {
         padding: 10,
         borderRadius: 10,

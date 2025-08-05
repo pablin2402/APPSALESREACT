@@ -155,11 +155,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   readonlyInput: {
-    backgroundColor: "#fff",
+    backgroundColor: "#f5f5f5",
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 15,
     fontSize: 16,
     color: "#333",
+    borderRadius: 20,
   },
 });

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from "react";
 
-import { View, Text, TextInput, FlatList,Dimensions, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from "react-native";
+import { View, Text, TextInput, FlatList, Dimensions, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { FontAwesome } from "@expo/vector-icons";
@@ -108,18 +108,18 @@ export default function PaymentScreen() {
     }
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-             <View style={styles.svgContainer}>
+            <View style={styles.svgContainer}>
                 <Svg height={200} width={width} style={styles.wave}>
-                <Path
-                    d={`
-                    M0,0 
-                    L0,100 
-                    C${width * 0.55},190 ${width * 0.55},20 ${width},200 
-                    L${width},0 
-                    Z
-                    `}
-                    fill="#D3423E"
-                />
+                    <Path
+                        d={`
+                        M0,0 
+                        L0,120 
+                        C${width * 0.6},300 ${width * 0.6},50 ${width},200 
+                        L${width},0 
+                        Z
+                        `}
+                        fill="#D3423E"
+                    />
                 </Svg>
             </View>
             <FlatList
@@ -195,7 +195,7 @@ export default function PaymentScreen() {
 
                                     {(!showStartDatePicker && !showEndDatePicker) && (
                                         <TouchableOpacity style={styles.filterButton} onPress={() => fetchProducts()}>
-                                            <FontAwesome name="filter" size={20} color="#D3423E" style={{ marginRight: 5 }} />
+                                            <FontAwesome name="filter" size={20} color="#2E2B2B" style={{ marginRight: 5 }} />
                                         </TouchableOpacity>
                                     )}
                                 </View>
@@ -229,7 +229,7 @@ export default function PaymentScreen() {
                                             marginVertical: 4,
                                         }}
                                     >
-                                        <Text style={{ color: "#FFF", fontWeight: "bold" }}>
+                                        <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "bold" }}>
                                             {item.paymentStatus === 'paid' && 'PAGO INGRESADO'}
                                             {item.paymentStatus === 'confirmado' && 'PAGO APROBADO'}
                                         </Text>
@@ -325,16 +325,16 @@ const styles = StyleSheet.create({
         fontSize: 18,
     },
     clientName: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: "bold",
     },
     clientName2: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: "normal",
     },
     rowText: {
         fontWeight: "bold",
-        fontSize: 16
+        fontSize: 12
     },
     searchBox: {
         flexDirection: "row",
@@ -343,14 +343,15 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         paddingHorizontal: 12,
         height: 45,
-        marginBottom: 10,
+        marginBottom: 20,
+        marginTop: 20,
         marginHorizontal: 2,
         shadowColor: "#000",
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: 1 },
         shadowRadius: 3,
         elevation: 2,
-      },
+    },
     searchIcon: {
         marginRight: 10,
     },
@@ -391,7 +392,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     clientName: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: "bold",
     },
     details: {

@@ -122,12 +122,12 @@ export default function SalesInformScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.svgContainer}>
-        <Svg height={200} width={width} style={styles.wave}>
+        <Svg height={300} width={width} style={styles.wave}>
           <Path
             d={`
               M0,0 
-              L0,100 
-              C${width * 0.55},190 ${width * 0.55},20 ${width},200 
+              L0,120 
+              C${width * 0.6},350 ${width * 0.6},50 ${width},200 
               L${width},0 
               Z
             `}
@@ -374,7 +374,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 12,
     height: 45,
-    marginBottom: 10,
+    marginBottom: 20,
+    marginTop: 20,
     marginHorizontal: 2,
     shadowColor: "#000",
     shadowOpacity: 0.1,
@@ -422,9 +423,13 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   radioGroup: {
+    padding: 10,
+    borderRadius: 20,
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginVertical: 10,
+    backgroundColor: "#f5f5f5",
+
   },
   radioOption: {
     flexDirection: 'row',
@@ -478,6 +483,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 4,
     color: "#4A4A4A",
+    fontSize: 12,
   },
   location: {
     fontSize: 16,

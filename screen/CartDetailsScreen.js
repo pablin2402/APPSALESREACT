@@ -49,22 +49,19 @@ export default function CartDetailsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.svgContainer}>
-      <Svg height={200} width={width} style={styles.wave}>
-  <Path
-    d={`
-      M0,0 
-      L0,80 
-      C${width * 0.55},160 ${width * 0.75},20 ${width},150 
-      L${width},0 
-      Z
-    `}
-    fill="#D3423E"
-  />
-</Svg>
-
- 
-      
+ <View style={styles.svgContainer}>
+        <Svg height={200} width={width} style={styles.wave}>
+          <Path
+            d={`
+              M0,0 
+              L0,120 
+              C${width * 0.6},200 ${width * 0.6},50 ${width},200 
+              L${width},0 
+              Z
+            `}
+            fill="#D3423E"
+          />
+        </Svg>
       </View>
       <Text style={styles.title}>Tu carrito</Text>
       <ScrollView style={styles.cartList}>
@@ -140,11 +137,13 @@ const styles = StyleSheet.create({
     left: 0,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
     marginVertical: 10,
     textAlign: "center",
-    color:"#fff"
+    color:"#fff",
+    marginBottom: 20,
+    marginTop: 20,
   },
   cartList: {
     flex: 1,
@@ -185,13 +184,13 @@ const styles = StyleSheet.create({
   },
 
   name: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "bold",
     flexShrink: 1,
     color: "#333",
   },
   price: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#555",
     marginBottom: 6,
   },
@@ -243,7 +242,7 @@ const styles = StyleSheet.create({
   },
   total: {
     fontWeight: "bold",
-    fontSize: 14,
+    fontSize: 13,
     color: "#333",
     marginBottom: 5,
   },
@@ -259,7 +258,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   totalText: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "bold",
     color: "#333",
     textAlign: "right",

@@ -118,7 +118,18 @@ function UserStack() {
                     headerTitle: '',
                     headerStyle: { shadowColor: 'transparent', elevation: 0 },
                 })} />
-
+<Stack.Screen
+                            name="MapScreenDelivery"
+                            component={MapScreenDelivery}
+                            options={({ navigation }) => ({
+                                headerLeft: () => (
+                                    <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                                        <Ionicons name="arrow-back" size={24} color="black" />
+                                    </TouchableOpacity>
+                                ),
+                                headerTitle: '',
+                                headerStyle: { shadowColor: 'transparent', elevation: 0 },
+                            })} />
             <Stack.Screen
                 name="MapScreenRoute"
                 component={MapScreenRoute}
@@ -283,18 +294,7 @@ export default function AppNavigator() {
                                 headerTitle: '',
                                 headerStyle: { shadowColor: 'transparent', elevation: 0 },
                             })} />
-                        <Stack.Screen
-                            name="MapScreenDelivery"
-                            component={MapScreenDelivery}
-                            options={({ navigation }) => ({
-                                headerLeft: () => (
-                                    <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
-                                        <Ionicons name="arrow-back" size={24} color="black" />
-                                    </TouchableOpacity>
-                                ),
-                                headerTitle: '',
-                                headerStyle: { shadowColor: 'transparent', elevation: 0 },
-                            })} />
+                        
                         <Stack.Screen
                             name="SalesInformScreen"
                             component={SalesInformScreen}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useContext } from "react";
 import { View, StyleSheet, Dimensions, Text, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from "react-native";
-import MapView from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
@@ -10,7 +10,6 @@ import { GOOGLE_API_KEY } from "../config";
 
 import MapViewDirections from "react-native-maps-directions";
 import * as Location from "expo-location";
-import { Marker } from "react-native-maps";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -48,11 +47,34 @@ const MapSalesMan = () => {
     const [route, setRoute] = useState(null);
     const [listRoute, setListRoute] = useState(null);
 
-    const localTime = new Date();
+    const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
     const [routeId, setRouteId] = useState("");
     const { token, idOwner, idUser } = useContext(AuthContext);
     const [loadingButton, setLoadingButton] = useState(false);
+    const requestLocationPermission = async () => {
+        if (Platform.OS === "android") {
+            const granted = await PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+                {
+                    title: "Permiso de ubicación",
+                    message: "Esta app necesita acceso a tu ubicación",
+                    buttonNeutral: "Pregúntame luego",
+                    buttonNegative: "Cancelar",
+                    buttonPositive: "OK",
+                }
+            );
+            setLocationPermissionGranted(granted === PermissionsAndroid.RESULTS.GRANTED);
+        } else {
+            setLocationPermissionGranted(true);
+        }
+    };
+    useEffect(() => {
+        console.log("SalesPrincipalPage - locationPermissionGranted:", locationPermissionGranted);
+    }, [locationPermissionGranted]);
 
+    useEffect(() => {
+        requestLocationPermission();
+    }, []);
     function getStartOfDayInUTCMinus4(date) {
         const utcDate = new Date(date);
         utcDate.setHours(utcDate.getHours() - 4);
@@ -300,6 +322,7 @@ const MapSalesMan = () => {
     return (
         <View style={styles.container}>
             <MapView
+                provider={PROVIDER_GOOGLE}
                 ref={mapRef}
                 style={styles.map}
                 initialRegion={{
@@ -524,7 +547,7 @@ const MapSalesMan = () => {
                                             paddingVertical: 2,
                                             paddingHorizontal: 8,
                                             alignSelf: "flex-start",
-                                            marginTop: 4,
+                                            marginBotton: 10,
                                             marginVertical: 4,
                                         }}
                                     >
@@ -565,44 +588,44 @@ const MapSalesMan = () => {
                     </View>
 
                     <View style={styles.buttonsContainer}>
-    {!isTimerRunning && !selectedClient.visitStatus && (
-        <TouchableOpacity
-            style={styles.redButton}
-            onPress={() => handleTimerToggle(selectedClient, "Visita al cliente")}
-            disabled={loadingButton}
-        >
-            <View style={styles.buttonContent}>
-                {loadingButton ? (
-                    <ActivityIndicator color="#E53935" size="small" />
-                ) : (
-                    <Text style={styles.buttonText2}>Iniciar visita</Text>
-                )}
-            </View>
-        </TouchableOpacity>
-    )}
+                        {!isTimerRunning && !selectedClient.visitStatus && (
+                            <TouchableOpacity
+                                style={styles.redButton}
+                                onPress={() => handleTimerToggle(selectedClient, "Visita al cliente")}
+                                disabled={loadingButton}
+                            >
+                                <View style={styles.buttonContent}>
+                                    {loadingButton ? (
+                                        <ActivityIndicator color="#E53935" size="small" />
+                                    ) : (
+                                        <Text style={styles.buttonText2}>Iniciar visita</Text>
+                                    )}
+                                </View>
+                            </TouchableOpacity>
+                        )}
 
-    {isTimerRunning && (
-        <TouchableOpacity
-            style={styles.redButton}
-            onPress={() => handleTimerToggle(selectedClient, "Termina la visita")}
-            disabled={loadingButton}
-        >
-            <View style={styles.buttonContent}>
-                {loadingButton ? (
-                    <ActivityIndicator color="#E53935" size="small" />
-                ) : (
-                    <Text style={styles.buttonText2}>Finalizar pedido</Text>
-                )}
-            </View>
-        </TouchableOpacity>
-    )}
+                        {isTimerRunning && (
+                            <TouchableOpacity
+                                style={styles.redButton}
+                                onPress={() => handleTimerToggle(selectedClient, "Termina la visita")}
+                                disabled={loadingButton}
+                            >
+                                <View style={styles.buttonContent}>
+                                    {loadingButton ? (
+                                        <ActivityIndicator color="#E53935" size="small" />
+                                    ) : (
+                                        <Text style={styles.buttonText2}>Finalizar pedido</Text>
+                                    )}
+                                </View>
+                            </TouchableOpacity>
+                        )}
 
-    <TouchableOpacity style={styles.redButton} onPress={() => setModal(false)}>
-        <View style={styles.buttonContent}>
-            <Text style={styles.buttonText2}>Cerrar</Text>
-        </View>
-    </TouchableOpacity>
-</View>
+                        <TouchableOpacity style={styles.redButton} onPress={() => setModal(false)}>
+                            <View style={styles.buttonContent}>
+                                <Text style={styles.buttonText2}>Cerrar</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
 
 
                 </View>

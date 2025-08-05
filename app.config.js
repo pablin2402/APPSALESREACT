@@ -17,7 +17,11 @@ export default () => ({
     android: {
       edgeToEdge: true,
       package: "com.tesis.cellphoneapp",
-      permissions: []
+      permissions: [],
+      statusBar: {
+        backgroundColor: "#D3423E",
+        translucent: true
+      }
     },
     extra: {
         eas: {

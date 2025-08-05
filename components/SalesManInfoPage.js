@@ -48,7 +48,7 @@ export default function SalesManInfoPage() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <View style={styles.profileContainer}>
         <Image source={{ uri: profile?.identificationImage }} style={styles.profileImage} />
         <Text style={styles.userName}>
@@ -92,7 +92,8 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    marginBottom: 12,
+    marginTop: 30,
+    marginBottom: 30,
   },
   userName: {
     fontSize: 20,

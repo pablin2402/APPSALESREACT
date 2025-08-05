@@ -553,10 +553,10 @@ const MapDelivery = () => {
                                     >
                                         <Text style={{ color: "#FFF", fontWeight: "bold" }}>
                                             {item.visitStatus1 === "LLego al destino"
-                                                ? "Llegada al destino"
+                                                ? "LLEGADA AL DESTINO"
                                                 : item.visitStatus1 === "En camino"
-                                                    ? "En camino"
-                                                    : "Sin visitar"}
+                                                    ? "EN CAMINO"
+                                                    : "SIN VISITAR"}
                                         </Text>
                                     </View>
 

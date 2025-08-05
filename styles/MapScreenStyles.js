@@ -188,7 +188,9 @@ const styles = StyleSheet.create({
     },
     card: {
         width: width * 0.7,
-        height: 100,
+        height: 130,
+        marginTop:10,
+        marginBotton:10,
         marginRight: 10,
         borderRadius: 15,
         overflow: "hidden",
@@ -228,8 +230,8 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
     },
     cardImage: {
-        width: 60,
-        height: 60,
+        width: 70,
+        height: 70,
         borderRadius: 5,
         marginRight: 10,
         marginLeft: 10
@@ -242,8 +244,8 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: "bold",
         color: "black",
-        marginTop:4,
-        marginBottom: 4
+        marginTop:10,
+        marginBottom: 10
     },
     cardTitle2: {
         fontSize: 20,
@@ -256,7 +258,6 @@ const styles = StyleSheet.create({
     cardAddressContainer: {
         flexDirection: "row",
         alignItems: "center",
-        marginTop: 5,
     },
     cardAddress: {
         color: "gray",

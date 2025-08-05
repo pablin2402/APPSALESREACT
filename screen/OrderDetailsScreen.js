@@ -212,15 +212,15 @@ export default function OrderDetailsScreen() {
       {activeTab === "payments" && (
         <View style={{ flex: 1 }}>
          <FlatList
-  data={paymentsData}
-  keyExtractor={(item) => item._id}
-  ListEmptyComponent={
-    <View style={{ paddingVertical: 50, alignItems: "center" }}>
-      <Text style={{ fontSize: 18, fontWeight: "bold", color: "#2E2B2B" }}>
-        No se encuentran pagos
-      </Text>
-    </View>
-  }
+            data={paymentsData}
+            keyExtractor={(item) => item._id}
+            ListEmptyComponent={
+              <View style={{ paddingVertical: 50, alignItems: "center" }}>
+                <Text style={{ fontSize: 18, fontWeight: "bold", color: "#2E2B2B" }}>
+                  No se encuentran pagos
+                </Text>
+              </View>
+            }
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.card}>
                 <View style={styles.cardContent}>
@@ -357,21 +357,21 @@ const styles = StyleSheet.create({
     color: "white",
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
     color: "#1F2937",
     marginBottom: 8,
     textAlign: "left",
   },
   subtitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
     color: "#1F2937",
     marginBottom: 8,
     textAlign: "left",
   },
   highlight: {
-    fontSize: 20,
+    fontSize: 18,
     color: "#1F2937",
   },
   row: {

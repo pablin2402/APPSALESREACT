@@ -1,126 +1,137 @@
 import React, { useEffect, useCallback, useState, useContext } from "react";
 import axios from "axios";
-import { API_URL } from "../config";
+import { API_URL, GOOGLE_API_KEY } from "../config";
 import { useNavigation } from "@react-navigation/native";
-import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet } from "react-native";
-import MapView from "react-native-maps";
-import { Marker } from "react-native-maps";
+import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
-import { GOOGLE_API_KEY } from "../config";
 import { ScrollView } from "react-native";
 import { AuthContext } from "../AuthContext";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { PermissionsAndroid, Platform } from "react-native";
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+
+const { height } = Dimensions.get("window");
 
 export default function SalesPrincipalPage() {
   const navigation = useNavigation();
+  const { token, idOwner, idUser } = useContext(AuthContext);
+
   const [filteredData, setFilteredData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [salesData, setSalesData] = useState([]);
   const [route, setRoute] = useState(null);
-  const today = new Date();
   const [profile, setProfile] = useState(null);
   const [objectiveData, setObjectiveData] = useState([]);
+  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
+  const [loading, setLoading] = useState(true); // Nuevo estado global de carga
 
-  const { token, idOwner, idUser } = useContext(AuthContext);
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await axios.post(API_URL + "/whatsapp/sales/id", {
-          id_owner: idOwner,
-          _id: idUser,
-        }, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
+  const today = new Date();
 
-        setProfile(response.data);
-      } catch (error) {
-        console.error("Error al obtener los datos:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
-  }, []);
-  function getStartOfDayInUTCMinus4(date) {
-    const utcDate = new Date(date);
-    utcDate.setHours(utcDate.getHours() - 4);
-    return utcDate.toISOString();
-  }
-  const fetchOrders = useCallback(async () => {
-    try {
-      const response = await axios.post(API_URL + "/whatsapp/order/status", {
-        salesId: idUser,
-        orderStatus: "aproved",
-        id_owner: idOwner,
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
+  const requestLocationPermission = async () => {
+    if (Platform.OS === "android") {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: "Permiso de ubicación",
+          message: "Esta app necesita acceso a tu ubicación",
+          buttonNeutral: "Pregúntame luego",
+          buttonNegative: "Cancelar",
+          buttonPositive: "OK",
         }
-      });
-
-      setSalesData(response.data);
-      setFilteredData(response.data);
-    } catch (error) {
+      );
+      setLocationPermissionGranted(granted === PermissionsAndroid.RESULTS.GRANTED);
+    } else {
+      setLocationPermissionGranted(true);
     }
-  }, []);
-  const startRoute = async () => {
-    try {
+  };
 
-      const response = await axios.post(API_URL + "/whatsapp/salesman/route/id", {
+  useEffect(() => {
+    requestLocationPermission();
+  }, []);
+
+  const fetchProfile = async () => {
+    const response = await axios.post(
+      API_URL + "/whatsapp/sales/id",
+      { id_owner: idOwner, _id: idUser },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setProfile(response.data);
+  };
+
+  const fetchOrders = async () => {
+    const response = await axios.post(
+      API_URL + "/whatsapp/order/status",
+      { salesId: idUser, orderStatus: "aproved", id_owner: idOwner },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setSalesData(response.data);
+    setFilteredData(response.data);
+  };
+
+  const startRoute = async () => {
+    const response = await axios.post(
+      API_URL + "/whatsapp/salesman/route/id",
+      {
         salesMan: idUser,
         status: "Por iniciar",
         id_owner: idOwner,
         startDate: getStartOfDayInUTCMinus4(today),
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      setRoute(response.data);
-    } catch (error) {
-    }
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setRoute(response.data);
   };
+
   const fetchObjectiveDataRegion = async () => {
     const now = new Date();
-    const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+      .toISOString()
+      .split("T")[0];
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      .toISOString()
+      .split("T")[0];
 
-    try {
-      const response = await axios.post(API_URL + "/whatsapp/sales/objective/list", {
-        region: "TOTAL CBB",
-        startDate,
-        endDate,
-        salesManId: idUser
-      });
-      const data = response.data;
-      setObjectiveData(data);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-    } finally {
-      setLoading(false);
-    }
+    const response = await axios.post(API_URL + "/whatsapp/sales/objective/list", {
+      region: "TOTAL CBB",
+      startDate,
+      endDate,
+      salesManId: idUser,
+    });
+    setObjectiveData(response.data);
   };
 
   useEffect(() => {
-    fetchOrders();
-    fetchObjectiveDataRegion();
-    startRoute();
-  }, [fetchOrders]);
+    const loadData = async () => {
+      try {
+        await Promise.all([fetchProfile(), fetchOrders(), startRoute(), fetchObjectiveDataRegion()]);
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+      } finally {
+        setLoading(false); 
+      }
+    };
+    loadData();
+  }, []);
 
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredData(salesData);
     } else {
       const filtered = salesData.filter((item) =>
-        item.id_client.name.toLowerCase().includes(searchTerm.toLowerCase())
-        || item.id_client.lastName.toLowerCase().includes(searchTerm.toLowerCase())
-
+        item.id_client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.id_client.lastName.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredData(filtered);
     }
   }, [searchTerm, salesData]);
+
+  function getStartOfDayInUTCMinus4(date) {
+    const utcDate = new Date(date);
+    utcDate.setHours(utcDate.getHours() - 4);
+    return utcDate.toISOString();
+  }
+
   const goToClientDetails = (client) => {
     navigation.navigate("OrderDetailsScreen", {
       orderId: client._id,
@@ -132,6 +143,7 @@ export default function SalesPrincipalPage() {
   const navigate = () => {
     navigation.navigate("Map", { screen: "MapScreen" });
   };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const day = date.getDate().toString().padStart(2, "0");
@@ -139,31 +151,38 @@ export default function SalesPrincipalPage() {
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
   };
+
   const formatDate2 = (dateString) => {
     const date = new Date(dateString);
     const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-    const dayOfWeek = daysOfWeek[date.getDay()];
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-
-    return `${dayOfWeek}, ${day} de ${month} del ${year}`;
+    return `${daysOfWeek[date.getDay()]}, ${date.getDate()} de ${months[date.getMonth()]} del ${date.getFullYear()}`;
   };
+
   const totalPedidos = filteredData.length;
+
   const getRandomColor = () => {
-    const colors = [
-      "#FF6B6B", "#4ECDC4", "#F7B801", "#A29BFE",
-      "#FF8C94", "#6A0572", "#00B8A9", "#F6416C"
-    ];
+    const colors = ["#FF6B6B", "#4ECDC4", "#F7B801", "#A29BFE", "#FF8C94", "#6A0572", "#00B8A9", "#F6416C"];
     return colors[Math.floor(Math.random() * colors.length)];
   };
+
+  if (loading) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={[styles.container1, styles.horizontal]}>
+          <ActivityIndicator size="large" color="#D3423E" />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <View>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.headerText}>Hola {profile?.fullName + " " + profile?.lastName || "Nombre no disponible"}</Text>
+          <Text style={styles.headerText}>
+            Hola {profile?.fullName + " " + profile?.lastName || "Nombre no disponible"}
+          </Text>
           {route && route.length > 0 ? (
             <View style={styles.headerRow}>
               <Text style={styles.dateText}>Ruta de Hoy {formatDate2(today)}</Text>
@@ -176,63 +195,60 @@ export default function SalesPrincipalPage() {
           )}
         </View>
 
-        <MapView
-          style={styles.map}
-          initialRegion={{
-            latitude: -17.38156252481452,
-            longitude: -66.1613705009222,
-            latitudeDelta: 0.04,
-            longitudeDelta: 0.04,
-          }}
-          showsUserLocation={true}
-        >
-          {route?.length > 0 &&
-            route[0].route?.map((point, index) => (
-              <Marker
-                key={index}
-                coordinate={{
+        {locationPermissionGranted && (
+          <MapView
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            initialRegion={{
+              latitude: -17.38156252481452,
+              longitude: -66.1613705009222,
+              latitudeDelta: 0.04,
+              longitudeDelta: 0.04,
+            }}
+            showsUserLocation={true}
+          >
+            {route?.length > 0 &&
+              route[0].route?.map((point, index) => (
+                <Marker
+                  key={index}
+                  coordinate={{
+                    latitude: parseFloat(point.client_location.latitud),
+                    longitude: parseFloat(point.client_location.longitud),
+                  }}
+                  title={`${point.name}`}
+                >
+                  <Image source={require("../icons/tienda.png")} style={{ width: 40, height: 40 }} />
+                </Marker>
+              ))}
+
+            {route?.length > 0 && route[0].route?.length > 1 && (
+              <MapViewDirections
+                origin={{
+                  latitude: parseFloat(route[0].route[0].client_location.latitud || "0"),
+                  longitude: parseFloat(route[0].route[0].client_location.longitud || "0"),
+                }}
+                destination={{
+                  latitude: parseFloat(route[0].route[route[0].route.length - 1].client_location.latitud),
+                  longitude: parseFloat(route[0].route[route[0].route.length - 1].client_location.longitud),
+                }}
+                waypoints={route[0].route.slice(1, -1).map(point => ({
                   latitude: parseFloat(point.client_location.latitud),
                   longitude: parseFloat(point.client_location.longitud),
-                }}
-                title={`${point.name}`}
-              >
-                <Image
-                  source={require("../icons/tienda.png")}
-                  style={{ width: 40, height: 40 }}
-                />
-              </Marker>
-            ))}
-
-          {route?.length > 0 && route[0].route?.length > 1 && (
-            <MapViewDirections
-              origin={{
-                latitude: parseFloat(route[0].route[0].client_location.latitud),
-                longitude: parseFloat(route[0].route[0].client_location.longitud),
-              }}
-              destination={{
-                latitude: parseFloat(route[0].route[route[0].route.length - 1].client_location.latitud),
-                longitude: parseFloat(route[0].route[route[0].route.length - 1].client_location.longitud),
-              }}
-              waypoints={route[0].route.slice(1, -1).map(point => ({
-                latitude: parseFloat(point.client_location.latitud),
-                longitude: parseFloat(point.client_location.longitud),
-              }))}
-              apikey={GOOGLE_API_KEY}
-              strokeColor="black"
-              strokeWidth={3}
-            />
-          )}
-        </MapView>
+                }))}
+                apikey={GOOGLE_API_KEY}
+                strokeColor="black"
+                strokeWidth={3}
+              />
+            )}
+          </MapView>
+        )}
 
         <View style={styles.header}>
-          <Text style={styles.headerText}>
-            Pedidos a entregar   #{totalPedidos}
-          </Text>
+          <Text style={styles.headerText}>Pedidos a entregar   #{totalPedidos}</Text>
         </View>
 
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color="#D3423E" style={styles.searchIcon} />
-
           <TextInput
             style={styles.input}
             placeholder="Buscar por nombre, apellido..."
@@ -246,28 +262,25 @@ export default function SalesPrincipalPage() {
           <TouchableOpacity key={index} style={styles.card} onPress={() => goToClientDetails(item)}>
             <View style={styles.cardContent}>
               <Text style={styles.rowText}>{formatDate(item.creationDate)}</Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={styles.clientName}>
-                  {(item.id_client.name + " " + item.id_client.lastName).toUpperCase()}
-                </Text>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={styles.clientName}>{(item.id_client.name + " " + item.id_client.lastName).toUpperCase()}</Text>
                 <Text style={styles.location}>Bs. {item.totalAmount || "No disponible"}</Text>
               </View>
               <Text style={styles.clientName2}>{item.id_client.company}</Text>
               <Text style={styles.clientName2}>{"#" + item.receiveNumber}</Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
-                  <View
-                    style={{
-                      backgroundColor: item.payStatus === "Pagado" ? "#27AE60" : "#E74C3C",
-                      borderRadius: 20,
-                      paddingVertical: 2,
-                      paddingHorizontal: 8,
-                    }}
-                  >
-                    <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
-                      {item.payStatus === "Pagado" ? "PAGO COMPLETO" : "PAGO PENDIENTE"}
-                    </Text>
-                  </View>
+
+              <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 8 }}>
+                <View
+                  style={{
+                    backgroundColor: item.payStatus === "Pagado" ? "#27AE60" : "#E74C3C",
+                    borderRadius: 20,
+                    paddingVertical: 2,
+                    paddingHorizontal: 8,
+                  }}
+                >
+                  <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
+                    {item.payStatus === "Pagado" ? "PAGO COMPLETO" : "PAGO PENDIENTE"}
+                  </Text>
                 </View>
 
                 <View
@@ -276,10 +289,10 @@ export default function SalesPrincipalPage() {
                       item.orderStatus === "aproved"
                         ? "#F39C12"
                         : item.orderStatus === "En Ruta"
-                          ? "#3498DB"
-                          : item.orderStatus === "Entregado"
-                            ? "#27AE60"
-                            : "#E74C3C",
+                        ? "#3498DB"
+                        : item.orderStatus === "Entregado"
+                        ? "#27AE60"
+                        : "#E74C3C",
                     borderRadius: 20,
                     paddingVertical: 2,
                     paddingHorizontal: 8,
@@ -289,20 +302,19 @@ export default function SalesPrincipalPage() {
                     {item.orderStatus === "aproved"
                       ? "PEDIDO APROBADO"
                       : item.orderStatus === "En Ruta"
-                        ? "PEDIDO EN CAMINO"
-                        : item.orderStatus === "Entregado"
-                          ? "PEDIDO ENTREGADO"
-                          : item.orderStatus}
+                      ? "PEDIDO EN CAMINO"
+                      : item.orderStatus === "Entregado"
+                      ? "PEDIDO ENTREGADO"
+                      : item.orderStatus}
                   </Text>
                 </View>
               </View>
             </View>
           </TouchableOpacity>
         ))}
+
         <View style={styles.header}>
-          <Text style={styles.headerText}>
-            Objetivos del mes
-          </Text>
+          <Text style={styles.headerText}>Objetivos del mes</Text>
         </View>
         <View style={styles.card1}>
           {objectiveData.map((item, index) => {
@@ -319,10 +331,7 @@ export default function SalesPrincipalPage() {
                   <View
                     style={[
                       styles.progressBar,
-                      {
-                        width: `${Math.min(progress, 100)}%`,
-                        backgroundColor: color,
-                      },
+                      { width: `${Math.min(progress, 100)}%`, backgroundColor: color },
                     ]}
                   />
                 </View>
@@ -334,7 +343,6 @@ export default function SalesPrincipalPage() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -360,6 +368,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#f5f5f5",
     borderRadius: 20,
+    marginTop:10,
+    marginBottom:10,
     paddingHorizontal: 10,
     height: 40,
     flex: 1,
@@ -371,7 +381,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginVertical: 5,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 3,
@@ -405,7 +415,7 @@ const styles = StyleSheet.create({
   },
   map: {
     width: "100%",
-    height: "20%",
+    height: height * 0.25,
     borderRadius: 25,
     marginBottom: 10,
   },

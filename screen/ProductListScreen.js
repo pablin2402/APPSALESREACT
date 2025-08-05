@@ -89,12 +89,12 @@ export default function ProductListScreen() {
         <Svg height={200} width={width} style={styles.wave}>
           <Path
             d={`
-            M0,0 
-            L0,80 
-            C${width * 0.55},160 ${width * 0.75},20 ${width},150 
-            L${width},0 
-            Z
-          `}
+              M0,0 
+              L0,120 
+              C${width * 0.6},200 ${width * 0.6},50 ${width},200 
+              L${width},0 
+              Z
+            `}
             fill="#D3423E"
           />
         </Svg>
@@ -281,7 +281,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 10,
     height: 40,
-    marginBottom: 10,
+    marginBottom: 20,
+    marginTop:20
   },
   card: {
     flex: 1,
