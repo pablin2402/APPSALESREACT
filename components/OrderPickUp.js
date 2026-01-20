@@ -98,26 +98,48 @@ export default function OrderPickUp() {
 
   const uploadRoute = async () => {
     try {
-      await axios.put(API_URL + "/whatsapp/route/delivery/id", {
-        id_owner: idOwner,
-        _id: routes,
-        routeId: client._id,
-        visitStatus1: "Pedido entregado",
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      await axios.post(API_URL + "/whatsapp/order/track", {
-        orderId: client._id,
-        eventType: "Pedido Entregado",
-        triggeredBySalesman: "",
-        triggeredByDelivery: idUser,
-        triggeredByUser: "",
-        location: { lat: 0, lng: 0 }
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-    } catch (error) { }
+      const headers = { Authorization: `Bearer ${token}` };
+      await axios.put(
+        API_URL + "/whatsapp/route/delivery/id",
+        {
+          id_owner: idOwner,
+          _id: routes,
+          routeId: client._id,
+          visitStatus1: "Pedido entregado",
+        },
+        { headers, timeout: 15000 }
+      );
+  
+      await axios.post(
+        API_URL + "/whatsapp/order/track",
+        {
+          orderId: client._id,
+          eventType: "Pedido Entregado",
+          triggeredBySalesman: "",
+          triggeredByDelivery: salesId,
+          triggeredByUser: "",
+          location: { lat: 0, lng: 0 },
+        },
+        { headers, timeout: 15000 }
+      );
+  
+      await axios.put(
+        API_URL + "/whatsapp/order/status/confirm/id",
+        {
+          _id: client._id,
+          id_owner: idOwner,
+          orderStatus: "deliver",
+        },
+        { headers, timeout: 15000 }
+      );
+  
+    } catch (error) {
+      console.log("UPLOAD ROUTE ERROR:", error?.response?.status);
+      console.log("DATA:", error?.response?.data);
+      console.log("MSG:", error?.message);
+    }
   };
+  
 
   const handlePay = async () => {
     if (isSaving) return;

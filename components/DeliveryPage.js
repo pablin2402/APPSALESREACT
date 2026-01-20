@@ -48,8 +48,6 @@ export default function DeliveryPage() {
       setLoading(false);
     }
   };
-
-
   const startRoute = async () => {
     setIsRouteLoading(true);
     try {
@@ -61,7 +59,6 @@ export default function DeliveryPage() {
           Authorization: `Bearer ${token}`
         }
       });
-
       if (response.status === 200) {
         setRoute(response.data);
         setSalesData(response.data);

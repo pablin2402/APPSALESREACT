@@ -31,7 +31,6 @@ const MapScreenDelivery = () => {
 
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date());
-    const [detailsFilter] = useState("");
     const [showStartDatePicker, setShowStartDatePicker] = useState(false);
     const [showEndDatePicker, setShowEndDatePicker] = useState(false);
     const [selectedClient1, setSelectedClient1] = useState(null);
@@ -42,6 +41,7 @@ const MapScreenDelivery = () => {
 
     const getRoutesById = async (value) => {
         try {
+            console.log(value,idOwner)
             const response = await axios.post(
                 API_URL + "/whatsapp/delivery/list/route/id",
                 {
