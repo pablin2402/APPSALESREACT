@@ -49,7 +49,7 @@ const MapSalesMan = () => {
 
     const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
     const [routeId, setRouteId] = useState("");
-    const { token, idOwner, idUser } = useContext(AuthContext);
+    const { token, idOwner, salesId } = useContext(AuthContext);
     const [loadingButton, setLoadingButton] = useState(false);
     const requestLocationPermission = async () => {
         if (Platform.OS === "android") {
@@ -68,28 +68,18 @@ const MapSalesMan = () => {
             setLocationPermissionGranted(true);
         }
     };
-    useEffect(() => {
-        console.log("SalesPrincipalPage - locationPermissionGranted:", locationPermissionGranted);
-    }, [locationPermissionGranted]);
+    
 
     useEffect(() => {
         requestLocationPermission();
     }, []);
-    function getStartOfDayInUTCMinus4(date) {
-        const utcDate = new Date(date);
-        utcDate.setHours(utcDate.getHours() - 4);
-        return utcDate.toISOString();
-    };
-    const today = new Date();
-
     const startRouteToday = async () => {
-        const dateInGMTMinus4 = getStartOfDayInUTCMinus4(today);
         try {
 
             const response = await axios.post(API_URL + "/whatsapp/salesman/route/id", {
-                salesMan: idUser,
+                salesMan: salesId,
                 id_owner: idOwner,
-                startDate: dateInGMTMinus4
+                status: "Por iniciar"
             }, {
                 headers: {
                     Authorization: `Bearer ${token}`
@@ -174,7 +164,7 @@ const MapSalesMan = () => {
             const formattedTime = formatTime(timer);
             const totalSeconds = timer;
             await axios.post(API_URL + "/whatsapp/salesman/activity", {
-                salesMan: idUser,
+                salesMan: salesId,
                 details: text,
                 latitude: userLocation.latitude,
                 longitude: userLocation.longitude,
@@ -233,7 +223,7 @@ const MapSalesMan = () => {
         try {
             const response = await axios.post(API_URL + "/whatsapp/maps/list/sales/id", {
                 id_owner: idOwner,
-                sales_id: idUser
+                sales_id: salesId
             }, {
                 headers: {
                     Authorization: `Bearer ${token}`
@@ -507,7 +497,7 @@ const MapSalesMan = () => {
                             ))
                         ) : (
                             <View style={styles.emptyCard}>
-                                <Ionicons name="location-off-outline" size={40} color="#ccc" style={{ marginBottom: 10 }} />
+                                <Ionicons name="location-off" size={40} color="#ccc" style={{ marginBottom: 10 }} />
                                 <Text style={styles.emptyCardTextTitle}>Sin rutas asignadas</Text>
                                 <Text style={styles.emptyCardTextSubtitle}>No hay rutas disponibles para hoy.</Text>
                             </View>

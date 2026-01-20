@@ -20,7 +20,7 @@ export default function SalesInformScreen() {
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  const { token, idOwner, idUser } = useContext(AuthContext);
+  const { token, idOwner, salesId } = useContext(AuthContext);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedStatus, setSelectedStatus] = useState("");
@@ -59,7 +59,7 @@ export default function SalesInformScreen() {
     try {
       const payload = {
         id_owner: idOwner,
-        salesId: idUser,
+        salesId: salesId,
         page: page,
         limit: itemsPerPage
       };

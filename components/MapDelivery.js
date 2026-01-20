@@ -53,7 +53,7 @@ const MapDelivery = () => {
 
     const localTime = new Date();
     const [routeId, setRouteId] = useState("");
-    const { token, idOwner, idUser } = useContext(AuthContext);
+    const { token, idOwner, salesId } = useContext(AuthContext);
 
     function getStartOfDayInUTCMinus4(date) {
         const utcDate = new Date(date);
@@ -67,7 +67,7 @@ const MapDelivery = () => {
         try {
 
             const response = await axios.post(API_URL + "/whatsapp/delivery/list/route", {
-                delivery: idUser,
+                delivery: salesId,
                 id_owner: idOwner,
                 startDate: dateInGMTMinus4,
                 excludeComplete: true,
@@ -502,7 +502,7 @@ const MapDelivery = () => {
                             ))
                         ) : (
                             <View style={styles.emptyCard}>
-                                <Ionicons name="location-off-outline" size={40} color="#ccc" style={{ marginBottom: 10 }} />
+                                <Ionicons name="location-off" size={40} color="#ccc" style={{ marginBottom: 10 }} />
                                 <Text style={styles.emptyCardTextTitle}>Sin rutas asignadas</Text>
                                 <Text style={styles.emptyCardTextSubtitle}>No hay rutas disponibles para hoy.</Text>
                             </View>

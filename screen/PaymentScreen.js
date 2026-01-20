@@ -33,7 +33,7 @@ export default function PaymentScreen() {
     const startPage = Math.max(1, page - range);
     const endPage = Math.min(totalPages, page + range);
     const pagesToShow = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-    const { token, idOwner, idUser } = useContext(AuthContext);
+    const { token, idOwner, salesId } = useContext(AuthContext);
     const [loading, setLoading] = useState(true);
     function utcToLocalDateString(utcDateStr, timeZone = 'America/La_Paz') {
         const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -49,7 +49,7 @@ export default function PaymentScreen() {
         try {
             const payload = {
                 id_owner: idOwner,
-                sales_id: idUser,
+                sales_id: salesId,
                 limit: 8,
                 page: page,
                 clientName: searchTerm

@@ -19,11 +19,11 @@ export default function OrderPickUp() {
   const [showPicker, setShowPicker] = useState(false);
   const [imageUri, setImageUri] = useState(null);
   const [note, setNote] = useState('');
-  const [isSaving, setIsSaving] = useState(false); // NUEVO
+  const [isSaving, setIsSaving] = useState(false); 
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const navigation = useNavigation();
-  const { token, idOwner, idUser } = useContext(AuthContext);
+  const { token, idOwner, salesId } = useContext(AuthContext);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [origin, setOrigin] = useState({ latitude: 0, longitude: 0 });
@@ -51,7 +51,7 @@ export default function OrderPickUp() {
   };
 
   const handlePickImage = async () => {
-    if (isSaving) return; // Evita acción durante guardado
+    if (isSaving) return; 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
@@ -127,7 +127,7 @@ export default function OrderPickUp() {
       const userLocation = await getUserLocation();
       const payload = {
         image: imageUrl,
-        delivery: idUser,
+        delivery: salesId,
         clientName: note,
         longitud: userLocation.longitude,
         latitud: userLocation.latitude,
@@ -172,7 +172,6 @@ export default function OrderPickUp() {
               }}
             />
           )}
-
           <Text style={styles.label}>Adjunta aquí una imagen del comprobante de pago</Text>
           <TouchableOpacity
             onPress={handlePickImage}
@@ -228,7 +227,6 @@ export default function OrderPickUp() {
           </View>
         </View>
 
-        {/* Modal de éxito */}
         <Modal transparent animationType="fade" visible={showSuccessModal}>
           <View style={styles.modalOverlay}>
             <Animated.View style={[styles.modalContent, { opacity: fadeAnim }]}>

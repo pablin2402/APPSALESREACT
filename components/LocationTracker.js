@@ -9,7 +9,7 @@ LogBox.ignoreLogs(['new NativeEventEmitter']);
 
 export default function LocationTracker() {
     const { user } = useContext(AuthContext);
-    const { token, idOwner, idUser, role } = useContext(AuthContext);
+    const { token, idOwner, idUser, role,salesId } = useContext(AuthContext);
 
     useEffect(() => {
         let interval;
@@ -47,28 +47,36 @@ export default function LocationTracker() {
                         latitud: coords.latitude,
                         longitud: coords.longitude,
                         Timestamp: Date.now(),
-                        salesManId: idUser,
+                        salesManId: salesId,
                         id_owner: idOwner,
                         longitudDestiny: null,
                         latitudDestiny: null,
                         deliveryInWay:false
                     };
 
-                    await axios.post(API_URL + "/whatsapp/location/list", payload);
+                    await axios.post(API_URL + "/whatsapp/location/list", payload,{
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
                 } else if (role === "ADMIN") {
                     const payload = {
                         delivery: null,
                         latitud: coords.latitude,
                         longitud: coords.longitude,
                         Timestamp: Date.now(),
-                        salesManId: idUser,
+                        salesManId: salesId,
                         id_owner: idOwner,
                         longitudDestiny: null,
                         latitudDestiny: null,
                         deliveryInWay:false
                     };
 
-                    await axios.post(API_URL + "/whatsapp/location/list", payload);
+                    await axios.post(API_URL + "/whatsapp/location/list", payload,{
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
                 } else if (role === "DELIVERY") {
                     const payload = {
                         delivery: idUser,
@@ -82,7 +90,11 @@ export default function LocationTracker() {
                         deliveryInWay:false
                     };
 
-                    await axios.post(API_URL + "/whatsapp/location/list", payload);
+                    await axios.post(API_URL + "/whatsapp/location/list", payload,{
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
                 }
 
             } catch (error) {

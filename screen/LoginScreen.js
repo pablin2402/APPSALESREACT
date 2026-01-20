@@ -15,18 +15,18 @@ export default function LoginScreen() {
   const handleSubmit = async () => {
     try {
       const response = await axios.post(API_URL + "/whatsapp/login", {
-        email,
-        password,
+        "email":email,
+        "password":password,
       });
   
       if (response.status === 200) {
         const { token, usuarioDB } = response.data;
           await AsyncStorage.setItem("token", token);
           await AsyncStorage.setItem("id_owner", usuarioDB.id_owner);
-          await AsyncStorage.setItem("id_user", usuarioDB.salesMan);
-         // await AsyncStorage.setItem("role", usuarioDB.role);
-          await AsyncStorage.setItem("sales_id", usuarioDB._id);
-          await login(token, usuarioDB.id_owner, usuarioDB.salesMan, usuarioDB.role, usuarioDB._id);
+          await AsyncStorage.setItem("id_user", usuarioDB._id);
+          await AsyncStorage.setItem("role", usuarioDB.role);
+          await AsyncStorage.setItem("sales_id", usuarioDB.salesMan);
+          await login(token, usuarioDB.id_owner, usuarioDB._id, usuarioDB.role,usuarioDB.salesMan);
         }
       
     } catch (err) {

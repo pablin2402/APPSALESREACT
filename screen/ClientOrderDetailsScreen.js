@@ -28,14 +28,14 @@ export default function ClientOrderDetailsScreen() {
     const startPage = Math.max(1, page - range);
     const endPage = Math.min(totalPages, page + range);
     const pagesToShow = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-    const { token,idOwner,idUser } = useContext(AuthContext);
+    const { token,idOwner,salesId } = useContext(AuthContext);
 
     const fetchOrders = useCallback(async (pageNumber, searchTerm) => {
         setLoading(true);
         try {
             const client = {
                 id_user: idOwner,
-                salesId: idUser,
+                salesId: salesId,
                 page: pageNumber,
                 limit: 8,
                 search: searchTerm

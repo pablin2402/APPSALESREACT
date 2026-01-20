@@ -23,7 +23,7 @@ export default function CartFinalDetailsScreen() {
     const [pickerType, setPickerType] = useState("");
     const [formData, setFormData] = useState({ tipoPago: "", plazoCredito: "" });
     const currentDate = new Date();
-    const { token, idOwner, idUser } = useContext(AuthContext);
+    const { token, idOwner, salesId } = useContext(AuthContext);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [fadeAnim] = useState(new Animated.Value(0));
     
@@ -121,7 +121,7 @@ export default function CartFinalDetailsScreen() {
         try {
             const userLocation = await getUserLocation();
             await axios.post(API_URL + "/whatsapp/salesman/activity", {
-                salesMan: idUser,
+                salesMan: salesId,
                 details: text,
                 latitude: userLocation.latitude,
                 longitude: userLocation.longitude,
@@ -181,7 +181,7 @@ export default function CartFinalDetailsScreen() {
                     accountStatus: formData.tipoPago,
                     dueDate: calcularFechaPago(currentDate, formData.tipoPago),
                     id_client: client1._id || "No seleccionado",
-                    salesId: idUser,
+                    salesId: salesId,
                     region: "TOTAL CBB"
 
                 }, {
@@ -206,7 +206,7 @@ export default function CartFinalDetailsScreen() {
                     await axios.post(API_URL + "/whatsapp/order/track", {
                         orderId: clientId,
                         eventType: "Orden Creada",
-                        triggeredBySalesman: idUser,
+                        triggeredBySalesman: salesId,
                         triggeredByDelivery: "",
                         triggeredByUser: "",
                         location: { lat, lng }

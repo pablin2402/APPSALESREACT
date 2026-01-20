@@ -23,14 +23,14 @@ export default function DeliveryPage() {
   const [id, setId] = useState([]);
   const [isRouteLoading, setIsRouteLoading] = useState(true);
   const [routeLoaded, setRouteLoaded] = useState(false);
-  const { token, idOwner, idUser } = useContext(AuthContext);
+  const { token, idOwner, salesId} = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async () => {
     try {
       const response = await axios.post(API_URL + "/whatsapp/delivery/id", {
         id_owner: idOwner,
-        id: idUser,
+        _id: salesId,
       }, {
         headers: {
           Authorization: `Bearer ${token}`
@@ -54,7 +54,7 @@ export default function DeliveryPage() {
     setIsRouteLoading(true);
     try {
       const response = await axios.post(API_URL + "/whatsapp/delivery/list/order/id", {
-        delivery: idUser,
+        delivery: salesId,
         id_owner: idOwner,
       }, {
         headers: {

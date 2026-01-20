@@ -28,14 +28,14 @@ export default function SalesManActivityScreen() {
     const [showEndDatePicker, setShowEndDatePicker] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const insets = useSafeAreaInsets();
-    const { token, idOwner, idUser } = useContext(AuthContext);
+    const { token, idOwner, salesId } = useContext(AuthContext);
     const [isPickerVisible, setIsPickerVisible] = useState(false);
 
     const fetchOrders = useCallback(async () => {
         try {
             const payload = {
                 id_owner: idOwner,
-                salesMan: idUser,
+                salesMan: salesId,
                 details: detailsFilter,
             };
 

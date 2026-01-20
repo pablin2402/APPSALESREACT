@@ -37,7 +37,7 @@ const MapScreenRoute = () => {
     const [selectedClient1, setSelectedClient1] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
 
-    const { token, idOwner, idUser } = useContext(AuthContext);
+    const { token, idOwner, salesId } = useContext(AuthContext);
 
     useEffect(() => {
         getUserLocation()
@@ -46,7 +46,7 @@ const MapScreenRoute = () => {
         try {
             const response = await axios.post(API_URL + "/whatsapp/salesman/list/route", {
                 id_owner: idOwner,
-                salesMan: idUser,
+                salesMan: salesId,
                 startDate: startDate,
                 endDate: endDate,
                 status: detailsFilter,

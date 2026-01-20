@@ -15,7 +15,7 @@ const { height } = Dimensions.get("window");
 
 export default function SalesPrincipalPage() {
   const navigation = useNavigation();
-  const { token, idOwner, idUser } = useContext(AuthContext);
+  const { token, idOwner, salesId } = useContext(AuthContext);
 
   const [filteredData, setFilteredData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,7 +24,7 @@ export default function SalesPrincipalPage() {
   const [profile, setProfile] = useState(null);
   const [objectiveData, setObjectiveData] = useState([]);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
-  const [loading, setLoading] = useState(true); // Nuevo estado global de carga
+  const [loading, setLoading] = useState(true); 
 
   const today = new Date();
 
@@ -53,7 +53,7 @@ export default function SalesPrincipalPage() {
   const fetchProfile = async () => {
     const response = await axios.post(
       API_URL + "/whatsapp/sales/id",
-      { id_owner: idOwner, _id: idUser },
+      { id_owner: idOwner, _id: salesId },
       { headers: { Authorization: `Bearer ${token}` } }
     );
     setProfile(response.data);
@@ -62,7 +62,7 @@ export default function SalesPrincipalPage() {
   const fetchOrders = async () => {
     const response = await axios.post(
       API_URL + "/whatsapp/order/status",
-      { salesId: idUser, orderStatus: "aproved", id_owner: idOwner },
+      { salesId: salesId, orderStatus: "aproved", id_owner: idOwner },
       { headers: { Authorization: `Bearer ${token}` } }
     );
     setSalesData(response.data);
@@ -73,7 +73,7 @@ export default function SalesPrincipalPage() {
     const response = await axios.post(
       API_URL + "/whatsapp/salesman/route/id",
       {
-        salesMan: idUser,
+        salesMan: salesId,
         status: "Por iniciar",
         id_owner: idOwner,
         startDate: getStartOfDayInUTCMinus4(today),
@@ -96,8 +96,12 @@ export default function SalesPrincipalPage() {
       region: "TOTAL CBB",
       startDate,
       endDate,
-      salesManId: idUser,
-    });
+      salesManId: salesId,
+    },{
+      headers: {
+          Authorization: `Bearer ${token}`
+      }
+  });
     setObjectiveData(response.data);
   };
 

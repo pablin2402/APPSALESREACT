@@ -10,7 +10,7 @@ import { AuthContext } from "../AuthContext";
 export default function SalesManInfoPage() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { logout, idOwner, idUser, token } = useContext(AuthContext);
+  const { logout, idOwner, salesId, token } = useContext(AuthContext);
   const [profile, setProfile] = useState(null);
   const { setIsAuthenticated } = useContext(AuthContext);
 
@@ -21,7 +21,7 @@ export default function SalesManInfoPage() {
           API_URL + "/whatsapp/sales/id",
           {
             id_owner: idOwner,
-            _id: idUser,
+            _id: salesId,
           },
           {
             headers: {

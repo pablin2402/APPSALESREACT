@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useRef, useContext } from "react";
-import { View, ScrollView, Dimensions, Text, Image, TouchableOpacity, Modal, Platform, TextInput, Button } from "react-native";
+import { View, ScrollView, Text, Image, TouchableOpacity, Modal, Platform, TextInput, Button } from "react-native";
 import MapView, { Marker } from 'react-native-maps';
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 
-const { width, height } = Dimensions.get("window");
 import { GOOGLE_API_KEY } from "../config";
 
 import axios from "axios";
@@ -39,7 +38,7 @@ const MapScreenDelivery = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [showRoute, setShowRoute] = useState(false);
 
-    const { token, idOwner, idUser } = useContext(AuthContext);
+    const { token, idOwner, salesId } = useContext(AuthContext);
 
     const getRoutesById = async (value) => {
         try {
@@ -81,7 +80,7 @@ const MapScreenDelivery = () => {
                 id_owner: idOwner,
                 startDate: startDate,
                 endDate: endDate,
-                delivery: idUser,
+                delivery: salesId,
                 page: 1,
                 excludeComplete: false,
                 status: "Finalizado",

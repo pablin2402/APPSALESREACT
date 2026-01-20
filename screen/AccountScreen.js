@@ -10,14 +10,14 @@ export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { token, idOwner, idUser } = useContext(AuthContext);
+  const { token, idOwner, salesId } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const response = await axios.post(API_URL + "/whatsapp/sales/id", {
           id_owner: idOwner,
-          _id: idUser,
+          _id: salesId,
         }, {
           headers: {
             Authorization: `Bearer ${token}`

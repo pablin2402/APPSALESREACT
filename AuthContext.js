@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
       const storedIdOwner = await AsyncStorage.getItem('id_owner');
       const storedUser = await AsyncStorage.getItem('id_user');
       const storesRole = await AsyncStorage.getItem('role');
-      const sales = await AsyncStorage.getItem('sales_id');
+      const sales = await AsyncStorage.getItem('id_sales');
 
       
       setIsAuthenticated(!!storedToken);
@@ -32,24 +32,22 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = async (newToken, idOwner1, idUser1,role,sales) => {
+  const login = async (newToken, idOwner1, id,role, salesMan) => {
     await AsyncStorage.setItem('token', newToken);
     await AsyncStorage.setItem('id_owner', idOwner1);
-    await AsyncStorage.setItem('id_user', idUser1);
+    await AsyncStorage.setItem('id_user', id);
     await AsyncStorage.setItem('role', role);
-    await AsyncStorage.setItem('sales_id', sales);
-
+    await AsyncStorage.setItem('id_sales', salesMan);
     setToken(newToken);
     setIdOwner(idOwner1);
-    setIdUser(idUser1);
+    setIdUser(id);
     setRole(role);
-    setSalesId(sales);
-
+    setSalesId(salesMan);
     setIsAuthenticated(true);
   };
 
   const logout = async () => {
-    await AsyncStorage.multiRemove(['token', 'id_user', 'id_owner','role','sales_id']);
+    await AsyncStorage.multiRemove(['token', 'id_owner','id_sales','role','id_user']);
     setToken(null);
     setIsAuthenticated(false);
   };

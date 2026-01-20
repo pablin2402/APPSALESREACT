@@ -23,7 +23,7 @@ export default function ClientScreen() {
     const startPage = Math.max(1, page - range);
     const endPage = Math.min(totalPages, page + range);
     const pagesToShow = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-    const { token, idOwner, idUser } = useContext(AuthContext);
+    const { token, salesId, idOwner } = useContext(AuthContext);
     const { width } = Dimensions.get("window");
 
     const fetchOrders = useCallback(async (pageNumber, searchTerm) => {
@@ -31,7 +31,7 @@ export default function ClientScreen() {
         try {
             const client = {
                 id_user: idOwner,
-                salesId: idUser,
+                salesId: salesId,
                 page: pageNumber,
                 limit: 10,
                 search: searchTerm
@@ -90,14 +90,15 @@ export default function ClientScreen() {
                             <View style={styles.searchBox}>
                                 <Ionicons name="search" size={20} color="#D3423E" style={styles.searchIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: "#000" }]}
                                     placeholder="Buscar por nombre, apellido..."
                                     value={searchTerm}
                                     onChangeText={setSearchTerm}
-                                    placeholderTextColor="#000"
+                                    placeholderTextColor="#999"
                                     returnKeyType="search"
                                     onSubmitEditing={() => fetchOrders(1, searchTerm)}
-                                />
+                                    />
+
                             </View>
                         </View>
                     </View>

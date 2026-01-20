@@ -10,7 +10,7 @@ import { AuthContext } from "../AuthContext";
 export default function DeliveryInfoPage() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { setIsAuthenticated, logout, idOwner, token, idUser } = useContext(AuthContext);
+  const { setIsAuthenticated, logout, idOwner, token, salesId } = useContext(AuthContext);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,7 +18,7 @@ export default function DeliveryInfoPage() {
     try {
       const response = await axios.post(API_URL + "/whatsapp/delivery/id", {
         id_owner: idOwner,
-        id: idUser,
+        _id: salesId,
       }, {
         headers: {
           Authorization: `Bearer ${token}`
