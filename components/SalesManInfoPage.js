@@ -101,14 +101,16 @@ export default function SalesManInfoPage() {
       ? `${profile.fullName[0]}${profile.lastName[0]}`.toUpperCase()
       : "?";
 
- {loading && (
-         <View style={styles.loadingContainer}>
-           <View style={styles.loadingCard}>
-             <ActivityIndicator size="large" color={COLORS.brand} />
-             <Text style={styles.loadingText}>Cargando...</Text>
-           </View>
-         </View>
-       )}
+  {
+    loading && (
+      <View style={styles.loadingContainer}>
+        <View style={styles.loadingCard}>
+          <ActivityIndicator size="large" color={COLORS.brand} />
+          <Text style={styles.loadingText}>Cargando...</Text>
+        </View>
+      </View>
+    )
+  }
 
   return (
     <SafeAreaProvider>
@@ -168,7 +170,6 @@ export default function SalesManInfoPage() {
               </View>
             )}
           </View>
-
           <Text style={styles.sectionTitle}>Operaciones</Text>
           <View style={styles.menuCard}>
             <MenuItem
@@ -197,7 +198,6 @@ export default function SalesManInfoPage() {
               isLast
             />
           </View>
-
           <Text style={styles.sectionTitle}>Análisis</Text>
           <View style={styles.menuCard}>
             <MenuItem
@@ -210,7 +210,6 @@ export default function SalesManInfoPage() {
               isLast
             />
           </View>
-
           <Text style={styles.sectionTitle}>Cuenta</Text>
           <View style={styles.menuCard}>
             <MenuItem
@@ -222,7 +221,6 @@ export default function SalesManInfoPage() {
               isLast
             />
           </View>
-
           <TouchableOpacity
             style={styles.logoutBtn}
             onPress={handleLogout}
@@ -239,7 +237,6 @@ export default function SalesManInfoPage() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
           </TouchableOpacity>
-
           <Text style={styles.versionText}>Versión 1.0.0</Text>
         </ScrollView>
       </View>

@@ -491,6 +491,16 @@ const MapSalesMan = () => {
             </Text>
           </View>
 
+                            {showClients && (
+                                <TouchableOpacity
+                                    style={styles.routesBtn}
+                                    onPress={showRoutesList}
+                                    activeOpacity={0.85}
+                                >
+                                    <Ionicons name="cube" size={16} color="#fff" />
+                                    <Text style={styles.routesBtnText}>Mis rutas</Text>
+                                </TouchableOpacity>
+                            )}
           {isTimerRunning && (
             <View style={styles.timerBadge}>
               <View style={styles.timerDot} />
@@ -531,9 +541,6 @@ const MapSalesMan = () => {
         <View style={styles.cardsWrapper}>
           <View style={styles.cardsHeaderRow}>
             <Text style={styles.cardsHeaderTitle}>Cerca de ti</Text>
-            <TouchableOpacity onPress={() => showRoutesList()}>
-              <Text style={styles.cardsHeaderLink}>Ver rutas →</Text>
-            </TouchableOpacity>
           </View>
 
           <ScrollView
@@ -1054,6 +1061,17 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 4,
   },
+      routesBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        backgroundColor: COLORS.brand,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+    },
+    routesBtnText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+
   markerText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   markerArrow: {
     width: 0,
@@ -1098,7 +1116,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   cardsHeaderLink: {
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: "700",
     color: COLORS.brand,
   },
