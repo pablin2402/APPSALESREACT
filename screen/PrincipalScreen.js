@@ -56,35 +56,16 @@ export default function PrincipalScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-        {(role === "SALES" || role === "ADMIN") ? (
-          checkingPermission ? (
-            <View style={{ margin: 20, alignItems: "center" }}>
-              <ActivityIndicator size="large" color="#D63E3E" />
-              <Text style={{ marginTop: 10, fontSize: 16 }}>
-                Comprobando permisos de ubicación...
-              </Text>
-            </View>
-          ) : hasLocationPermission ? (
-            <SalesPrincipalPage />
-          ) : (
-            <View style={{ margin: 20, alignItems: "center" }}>
-              <Text style={{ fontSize: 16, color: "red" }}>
-                No se concedió el permiso de ubicación.
-              </Text>
-            </View>
-          )
-        ) : null}
+    <>
+          {(role === "SALES" || role === "ADMIN") && <DeliveryPage />}
         {role === "DELIVERY" && <DeliveryPage />}
-      </ScrollView>
-    </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#f9fafb",
   },
 });

@@ -1,17 +1,73 @@
-import React, { useEffect, useCallback, useState, useContext } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import axios from "axios";
 import { API_URL, GOOGLE_API_KEY } from "../config";
 import { useNavigation } from "@react-navigation/native";
-import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  ActivityIndicator,
+  ScrollView,
+  Image,
+  StatusBar,
+  Platform,
+  PermissionsAndroid,
+} from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
-import { ScrollView } from "react-native";
 import { AuthContext } from "../AuthContext";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { PermissionsAndroid, Platform } from "react-native";
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 
-const { height } = Dimensions.get("window");
+const { height, width } = Dimensions.get("window");
+
+const COLORS = {
+  brand: "#D3423E",
+  brandDark: "#bb3330",
+  brandLight: "#ff6b6b",
+  bg: "#ffffff",
+  card: "#ffffff",
+  border: "#b4b8c3",
+  borderLight: "#d9dce2e3",
+  text: "#111827",
+  textMid: "#6b7280",
+  textLight: "#9ca3af",
+  success: "#16a34a",
+  successBg: "#dcfce7",
+  warning: "#d97706",
+  warningBg: "#fef3c7",
+  info: "#2563eb",
+  infoBg: "#eff6ff",
+  danger: "#D3423E",
+  dangerBg: "#fee2e2",
+};
+
+const getProgressColor = (pct) => {
+  if (pct >= 100) return COLORS.success;
+  if (pct >= 70) return COLORS.warning;
+  return COLORS.brand;
+};
+
+const MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
+  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
+  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
+  { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#e5f3e5" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+  { featureType: "road.arterial", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#ffd6d4" }] },
+  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#D3423E" }] },
+  { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
+];
 
 export default function SalesPrincipalPage() {
   const navigation = useNavigation();
@@ -24,7 +80,7 @@ export default function SalesPrincipalPage() {
   const [profile, setProfile] = useState(null);
   const [objectiveData, setObjectiveData] = useState([]);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
 
   const today = new Date();
 
@@ -91,425 +147,770 @@ export default function SalesPrincipalPage() {
     const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
       .toISOString()
       .split("T")[0];
-
-    const response = await axios.post(API_URL + "/whatsapp/sales/objective/list", {
-      region: "TOTAL CBB",
-      startDate,
-      endDate,
-      salesManId: salesId,
-    },{
-      headers: {
-          Authorization: `Bearer ${token}`
-      }
-  });
+    const response = await axios.post(
+      API_URL + "/whatsapp/sales/objective/list",
+      { region: "TOTAL CBB", startDate, endDate, salesManId: salesId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
     setObjectiveData(response.data);
   };
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        await Promise.all([fetchProfile(), fetchOrders(), startRoute(), fetchObjectiveDataRegion()]);
+        await Promise.all([
+          fetchProfile(),
+          fetchOrders(),
+          startRoute(),
+          fetchObjectiveDataRegion(),
+        ]);
       } catch (error) {
         console.error("Error cargando datos:", error);
       } finally {
-        setLoading(false); 
+        setLoading(false);
       }
     };
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredData(salesData);
     } else {
-      const filtered = salesData.filter((item) =>
-        item.id_client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.id_client.lastName.toLowerCase().includes(searchTerm.toLowerCase())
+      const t = searchTerm.toLowerCase();
+      setFilteredData(
+        salesData.filter(
+          (i) =>
+            i.id_client.name.toLowerCase().includes(t) ||
+            i.id_client.lastName.toLowerCase().includes(t)
+        )
       );
-      setFilteredData(filtered);
     }
   }, [searchTerm, salesData]);
 
   function getStartOfDayInUTCMinus4(date) {
-    const utcDate = new Date(date);
-    utcDate.setHours(utcDate.getHours() - 4);
-    return utcDate.toISOString();
+    const d = new Date(date);
+    d.setHours(d.getHours() - 4);
+    return d.toISOString();
   }
 
-  const goToClientDetails = (client) => {
+  const goToClientDetails = (client) =>
     navigation.navigate("OrderDetailsScreen", {
       orderId: client._id,
       products: client.products,
       files: client,
     });
+
+  const navigate = () => navigation.navigate("Map", { screen: "MapScreen" });
+
+  const formatDate = (s) => {
+    const d = new Date(s);
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
   };
 
-  const navigate = () => {
-    navigation.navigate("Map", { screen: "MapScreen" });
-  };
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  const formatDate2 = (dateString) => {
-    const date = new Date(dateString);
-    const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-    return `${daysOfWeek[date.getDay()]}, ${date.getDate()} de ${months[date.getMonth()]} del ${date.getFullYear()}`;
+  const formatDateLong = (s) => {
+    const d = new Date(s);
+    const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    return `${days[d.getDay()]}, ${d.getDate()} de ${months[d.getMonth()]}`;
   };
 
   const totalPedidos = filteredData.length;
+  const stopsRuta = route?.[0]?.route?.length || 0;
+  const promedioObjetivo =
+    objectiveData.length > 0
+      ? objectiveData.reduce(
+        (s, i) => s + ((i.caja / i.numberOfBoxes) * 100 || 0),
+        0
+      ) / objectiveData.length
+      : 0;
 
-  const getRandomColor = () => {
-    const colors = ["#FF6B6B", "#4ECDC4", "#F7B801", "#A29BFE", "#FF8C94", "#6A0572", "#00B8A9", "#F6416C"];
-    return colors[Math.floor(Math.random() * colors.length)];
+  const getOrderStatusStyle = (status) => {
+    switch (status) {
+      case "aproved":
+        return { bg: COLORS.warningBg, text: COLORS.warning, label: "APROBADO" };
+      case "En Ruta":
+        return { bg: COLORS.infoBg, text: COLORS.info, label: "EN RUTA" };
+      case "Entregado":
+        return { bg: COLORS.successBg, text: COLORS.success, label: "ENTREGADO" };
+      default:
+        return { bg: COLORS.dangerBg, text: COLORS.danger, label: (status || "").toUpperCase() };
+    }
   };
 
   if (loading) {
     return (
       <SafeAreaProvider>
-        <SafeAreaView style={[styles.container1, styles.horizontal]}>
-          <ActivityIndicator size="large" color="#D3423E" />
+        <SafeAreaView style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.brand} />
+          <Text style={styles.loadingText}>Cargando tu día...</Text>
         </SafeAreaView>
       </SafeAreaProvider>
     );
   }
 
   return (
-    <View>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.headerText}>
-            Hola {profile?.fullName + " " + profile?.lastName || "Nombre no disponible"}
-          </Text>
-          {route && route.length > 0 ? (
-            <View style={styles.headerRow}>
-              <Text style={styles.dateText}>Ruta de Hoy {formatDate2(today)}</Text>
-              <TouchableOpacity style={styles.openButton} onPress={navigate}>
-                <Text style={styles.openButtonText}>Abrir &gt;</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <Text style={styles.dateText}>No hay rutas disponibles</Text>
-          )}
-        </View>
-
-        {locationPermissionGranted && (
-          <MapView
-            provider={PROVIDER_GOOGLE}
-            style={styles.map}
-            initialRegion={{
-              latitude: -17.38156252481452,
-              longitude: -66.1613705009222,
-              latitudeDelta: 0.04,
-              longitudeDelta: 0.04,
-            }}
-            showsUserLocation={true}
+    <SafeAreaProvider>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.brand} />
+      <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="automatic"
+        >
+          <SafeAreaView
+            edges={["top"]}
+            style={{ backgroundColor: COLORS.brand }}
           >
-            {route?.length > 0 &&
-              route[0].route?.map((point, index) => (
-                <Marker
-                  key={index}
-                  coordinate={{
-                    latitude: parseFloat(point.client_location.latitud),
-                    longitude: parseFloat(point.client_location.longitud),
-                  }}
-                  title={`${point.name}`}
-                >
-                  <Image source={require("../icons/tienda.png")} style={{ width: 40, height: 40 }} />
-                </Marker>
-              ))}
-
-            {route?.length > 0 && route[0].route?.length > 1 && (
-              <MapViewDirections
-                origin={{
-                  latitude: parseFloat(route[0].route[0].client_location.latitud || "0"),
-                  longitude: parseFloat(route[0].route[0].client_location.longitud || "0"),
-                }}
-                destination={{
-                  latitude: parseFloat(route[0].route[route[0].route.length - 1].client_location.latitud),
-                  longitude: parseFloat(route[0].route[route[0].route.length - 1].client_location.longitud),
-                }}
-                waypoints={route[0].route.slice(1, -1).map(point => ({
-                  latitude: parseFloat(point.client_location.latitud),
-                  longitude: parseFloat(point.client_location.longitud),
-                }))}
-                apikey={GOOGLE_API_KEY}
-                strokeColor="black"
-                strokeWidth={3}
-              />
-            )}
-          </MapView>
-        )}
-
-        <View style={styles.header}>
-          <Text style={styles.headerText}>Pedidos a entregar   #{totalPedidos}</Text>
-        </View>
-
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color="#D3423E" style={styles.searchIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Buscar por nombre, apellido..."
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-            placeholderTextColor="#000"
-          />
-        </View>
-
-        {filteredData.map((item, index) => (
-          <TouchableOpacity key={index} style={styles.card} onPress={() => goToClientDetails(item)}>
-            <View style={styles.cardContent}>
-              <Text style={styles.rowText}>{formatDate(item.creationDate)}</Text>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={styles.clientName}>{(item.id_client.name + " " + item.id_client.lastName).toUpperCase()}</Text>
-                <Text style={styles.location}>Bs. {item.totalAmount || "No disponible"}</Text>
-              </View>
-              <Text style={styles.clientName2}>{item.id_client.company}</Text>
-              <Text style={styles.clientName2}>{"#" + item.receiveNumber}</Text>
-
-              <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 8 }}>
-                <View
-                  style={{
-                    backgroundColor: item.payStatus === "Pagado" ? "#27AE60" : "#E74C3C",
-                    borderRadius: 20,
-                    paddingVertical: 2,
-                    paddingHorizontal: 8,
-                  }}
-                >
-                  <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
-                    {item.payStatus === "Pagado" ? "PAGO COMPLETO" : "PAGO PENDIENTE"}
-                  </Text>
+            <View style={styles.heroWrapper}>
+              <View style={styles.heroBg} />
+              <View style={styles.heroContent}>
+                <View style={styles.heroTop}>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {profile?.fullName?.[0]?.toUpperCase()}
+                      {profile?.lastName?.[0]?.toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.heroGreeting}>Hola,</Text>
+                    <Text style={styles.heroName} numberOfLines={1}>
+                      {profile?.fullName || "Vendedor"} {profile?.lastName || ""}
+                    </Text>
+                  </View>
+                  <TouchableOpacity style={styles.bellBtn}>
+                    <Ionicons name="notifications-outline" size={20} color="#fff" />
+                  </TouchableOpacity>
                 </View>
 
-                <View
-                  style={{
-                    backgroundColor:
-                      item.orderStatus === "aproved"
-                        ? "#F39C12"
-                        : item.orderStatus === "En Ruta"
-                        ? "#3498DB"
-                        : item.orderStatus === "Entregado"
-                        ? "#27AE60"
-                        : "#E74C3C",
-                    borderRadius: 20,
-                    paddingVertical: 2,
-                    paddingHorizontal: 8,
-                  }}
-                >
-                  <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 8 }}>
-                    {item.orderStatus === "aproved"
-                      ? "PEDIDO APROBADO"
-                      : item.orderStatus === "En Ruta"
-                      ? "PEDIDO EN CAMINO"
-                      : item.orderStatus === "Entregado"
-                      ? "PEDIDO ENTREGADO"
-                      : item.orderStatus}
-                  </Text>
+                <Text style={styles.heroDate}>{formatDateLong(today)}</Text>
+
+                <View style={styles.kpiRow}>
+                  <View style={styles.kpiCard}>
+                    <View style={[styles.kpiIcon, { backgroundColor: COLORS.infoBg }]}>
+                      <Ionicons name="receipt-outline" size={16} color={COLORS.info} />
+                    </View>
+                    <View>
+                      <Text style={styles.kpiLabel}>Pedidos</Text>
+                      <Text style={styles.kpiValue}>{totalPedidos}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.kpiCard}>
+                    <View style={[styles.kpiIcon, { backgroundColor: COLORS.warningBg }]}>
+                      <Ionicons name="location-outline" size={16} color={COLORS.warning} />
+                    </View>
+                    <View>
+                      <Text style={styles.kpiLabel}>Paradas</Text>
+                      <Text style={styles.kpiValue}>{stopsRuta}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.kpiCard}>
+                    <View style={[styles.kpiIcon, { backgroundColor: COLORS.successBg }]}>
+                      <Ionicons name="trending-up" size={16} color={COLORS.success} />
+                    </View>
+                    <View>
+                      <Text style={styles.kpiLabel}>Avance</Text>
+                      <Text style={styles.kpiValue}>
+                        {promedioObjetivo.toFixed(0)}%
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
             </View>
-          </TouchableOpacity>
-        ))}
+          </SafeAreaView>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Ruta de hoy</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {route && route.length > 0
+                    ? `${stopsRuta} paradas programadas`
+                    : "Sin rutas asignadas"}
+                </Text>
+              </View>
+              {route && route.length > 0 && (
+                <TouchableOpacity onPress={navigate} style={styles.openMapBtn}>
+                  <Text style={styles.openMapBtnText}>Abrir</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#fff" />
+                </TouchableOpacity>
+              )}
+            </View>
 
-        <View style={styles.header}>
-          <Text style={styles.headerText}>Objetivos del mes</Text>
-        </View>
-        <View style={styles.card1}>
-          {objectiveData.map((item, index) => {
-            const progress = (item.caja / item.numberOfBoxes) * 100;
-            const color = getRandomColor();
+            {locationPermissionGranted && (
+              <View style={styles.mapWrapper}>
+                <MapView
+                  provider={PROVIDER_GOOGLE}
+                  style={styles.map}
+                  customMapStyle={MAP_STYLE}
+                  initialRegion={{
+                    latitude: -17.38156252481452,
+                    longitude: -66.1613705009222,
+                    latitudeDelta: 0.04,
+                    longitudeDelta: 0.04,
+                  }}
+                  showsUserLocation={true}
+                  showsMyLocationButton={false}
+                >
+                  {route?.length > 0 &&
+                    route[0].route?.map((point, index) => (
+                      <Marker
+                        key={index}
+                        coordinate={{
+                          latitude: parseFloat(point.client_location.latitud),
+                          longitude: parseFloat(point.client_location.longitud),
+                        }}
+                        title={point.name}
+                      >
+                        <View style={styles.markerWrapper}>
+                          <View style={styles.markerCircle}>
+                            <Text style={styles.markerText}>{index + 1}</Text>
+                          </View>
+                          <View style={styles.markerArrow} />
+                        </View>
+                      </Marker>
+                    ))}
 
-            return (
-              <View key={index} style={styles.itemContainer}>
-                <View style={styles.labelRow}>
-                  <Text style={styles.label}>{item.lyne + " - Objetivo: " + item.numberOfBoxes.toFixed(2)}</Text>
-                  <Text style={styles.percent}>{progress.toFixed(1)}%</Text>
-                </View>
-                <View style={styles.progressBackground}>
-                  <View
-                    style={[
-                      styles.progressBar,
-                      { width: `${Math.min(progress, 100)}%`, backgroundColor: color },
-                    ]}
-                  />
+                  {route?.length > 0 && route[0].route?.length > 1 && (
+                    <MapViewDirections
+                      origin={{
+                        latitude: parseFloat(route[0].route[0].client_location.latitud || "0"),
+                        longitude: parseFloat(route[0].route[0].client_location.longitud || "0"),
+                      }}
+                      destination={{
+                        latitude: parseFloat(
+                          route[0].route[route[0].route.length - 1].client_location.latitud
+                        ),
+                        longitude: parseFloat(
+                          route[0].route[route[0].route.length - 1].client_location.longitud
+                        ),
+                      }}
+                      waypoints={route[0].route.slice(1, -1).map((p) => ({
+                        latitude: parseFloat(p.client_location.latitud),
+                        longitude: parseFloat(p.client_location.longitud),
+                      }))}
+                      apikey={GOOGLE_API_KEY}
+                      strokeColor="#111827"
+                      strokeWidth={4}
+                      lineDashPattern={[0]}
+                    />
+                  )}
+                </MapView>
+
+                <View style={styles.mapOverlay}>
+                  <Ionicons name="navigate" size={14} color={COLORS.brand} />
+                  <Text style={styles.mapOverlayText}>
+                    {stopsRuta} {stopsRuta === 1 ? "parada" : "paradas"}
+                  </Text>
                 </View>
               </View>
-            );
-          })}
-        </View>
-      </ScrollView>
-    </View>
+            )}
+          </View>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Pedidos a entregar</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {totalPedidos} {totalPedidos === 1 ? "pedido" : "pedidos"} pendientes
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.searchBox}>
+              <Ionicons name="search" size={18} color={COLORS.textMid} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar por nombre o apellido..."
+                value={searchTerm}
+                onChangeText={setSearchTerm}
+                placeholderTextColor={COLORS.textLight}
+              />
+              {searchTerm.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchTerm("")}>
+                  <Ionicons name="close-circle" size={18} color={COLORS.textLight} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {filteredData.length > 0 ? (
+              filteredData.map((item, index) => {
+                const orderStatus = getOrderStatusStyle(item.orderStatus);
+                const isPagado = item.payStatus === "Pagado";
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.orderCard}
+                    onPress={() => goToClientDetails(item)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.orderTop}>
+                      <View style={styles.orderDateChip}>
+                        <Ionicons name="calendar-outline" size={11} color={COLORS.textMid} />
+                        <Text style={styles.orderDateText}>
+                          {formatDate(item.creationDate)}
+                        </Text>
+                      </View>
+                      <Text style={styles.orderAmount}>
+                        Bs. {Number(item.totalAmount || 0).toFixed(2)}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.orderClient} numberOfLines={1}>
+                      {(item.id_client.name + " " + item.id_client.lastName).toUpperCase()}
+                    </Text>
+                    {item.id_client.company ? (
+                      <Text style={styles.orderCompany} numberOfLines={1}>
+                        {item.id_client.company}
+                      </Text>
+                    ) : null}
+
+                    <View style={styles.orderDivider} />
+
+                    <View style={styles.orderBottom}>
+                      <Text style={styles.orderNote}>#{item.receiveNumber}</Text>
+                      <View style={styles.orderPills}>
+                        <View
+                          style={[
+                            styles.pill,
+                            {
+                              backgroundColor: isPagado
+                                ? COLORS.successBg
+                                : COLORS.dangerBg,
+                            },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.pillDot,
+                              {
+                                backgroundColor: isPagado
+                                  ? COLORS.success
+                                  : COLORS.danger,
+                              },
+                            ]}
+                          />
+                          <Text
+                            style={[
+                              styles.pillText,
+                              {
+                                color: isPagado ? COLORS.success : COLORS.danger,
+                              },
+                            ]}
+                          >
+                            {isPagado ? "PAGADO" : "PENDIENTE"}
+                          </Text>
+                        </View>
+                        <View
+                          style={[styles.pill, { backgroundColor: orderStatus.bg }]}
+                        >
+                          <Text
+                            style={[styles.pillText, { color: orderStatus.text }]}
+                          >
+                            {orderStatus.label}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons
+                  name="search-outline"
+                  size={40}
+                  color={COLORS.textLight}
+                />
+                <Text style={styles.emptyTitle}>Sin pedidos</Text>
+                <Text style={styles.emptyDesc}>
+                  No hay pedidos que coincidan
+                </Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Objetivos del mes</Text>
+                <Text style={styles.sectionSubtitle}>
+                  Tu avance por línea de producto
+                </Text>
+              </View>
+              <View style={styles.avgBadge}>
+                <Text style={styles.avgBadgeText}>
+                  {promedioObjetivo.toFixed(0)}% prom.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.objectiveCard}>
+              {objectiveData.length > 0 ? (
+                objectiveData.map((item, index) => {
+                  const progress = (item.caja / item.numberOfBoxes) * 100;
+                  const color = getProgressColor(progress);
+                  const isLast = index === objectiveData.length - 1;
+                  return (
+                    <View
+                      key={index}
+                      style={[
+                        styles.objectiveItem,
+                        !isLast && styles.objectiveItemBorder,
+                      ]}
+                    >
+                      <View style={styles.objectiveTop}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.objectiveLine} numberOfLines={1}>
+                            {item.lyne}
+                          </Text>
+                          <Text style={styles.objectiveTarget}>
+                            Objetivo: {item.numberOfBoxes.toFixed(0)} cajas
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.objectivePill,
+                            { backgroundColor: color + "20" },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.objectivePillText, { color }]}
+                          >
+                            {progress.toFixed(0)}%
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.progressTrack}>
+                        <View
+                          style={[
+                            styles.progressFill,
+                            {
+                              width: `${Math.min(progress, 100)}%`,
+                              backgroundColor: color,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons
+                    name="flag-outline"
+                    size={40}
+                    color={COLORS.textLight}
+                  />
+                  <Text style={styles.emptyTitle}>Sin objetivos</Text>
+                  <Text style={styles.emptyDesc}>
+                    No tienes objetivos asignados este mes
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          <View style={{ height: 24 }} />
+        </ScrollView>
+      </View>
+    </SafeAreaProvider>
   );
 }
+
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.bg,
+  },
+  loadingText: {
+    marginTop: 12,
+    color: COLORS.textMid,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  scrollContent: {
+    paddingBottom: 120,
+  },
+  heroWrapper: {
+    position: "relative",
+    paddingBottom: 24,
+    marginBottom: 4,
+  },
+  heroBg: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.brand,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+  heroContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+  },
+  heroTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  avatar: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 2, borderColor: "rgba(255,255,255,0.3)",
+  },
+  avatarText: { color: "#fff", fontSize: 15, fontWeight: "800", letterSpacing: 0.5 },
+  heroGreeting: { color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "500" },
+  heroName: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  bellBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    justifyContent: "center", alignItems: "center",
+  },
+  heroDate: {
+    color: "rgba(255,255,255,0.9)", fontSize: 12, fontWeight: "500",
+    textTransform: "capitalize", marginBottom: 16,
+  },
+
+  kpiRow: { flexDirection: "row", gap: 8 },
+  kpiCard: {
     flex: 1,
     backgroundColor: "#fff",
-  },
-  card: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
+    borderRadius: 14,
     padding: 10,
-    marginTop: 10,
-    marginBottom: 10,
-    borderRadius: 25,
-    color: "#000",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     shadowColor: "#000",
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  kpiIcon: {
+    width: 30, height: 30, borderRadius: 10,
+    justifyContent: "center", alignItems: "center",
+  },
+  kpiLabel: { fontSize: 10, color: COLORS.textMid, fontWeight: "600" },
+  kpiValue: { fontSize: 16, color: COLORS.text, fontWeight: "800", marginTop: -1 },
+
+  section: { paddingHorizontal: 20, marginTop: 20 },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: 12,
+  },
+  sectionTitle: { fontSize: 18, fontWeight: "800", color: COLORS.text },
+  sectionSubtitle: {
+    fontSize: 12, color: COLORS.textMid, fontWeight: "500", marginTop: 2,
+  },
+  openMapBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: COLORS.brand,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  openMapBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+
+  mapWrapper: {
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  map: { width: "100%", height: height * 0.26 },
+  mapOverlay: {
+    position: "absolute",
+    bottom: 12, left: 12,
+    backgroundColor: "#fff",
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 3,
-    marginVertical: 5,
   },
+  mapOverlayText: {
+    fontSize: 11, fontWeight: "700", color: COLORS.text,
+  },
+
+  markerWrapper: { alignItems: "center" },
+  markerCircle: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: COLORS.brand,
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 2, borderColor: "#fff",
+    shadowColor: "#000", shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 }, shadowRadius: 3,
+    elevation: 4,
+  },
+  markerText: { color: "#fff", fontWeight: "800", fontSize: 12 },
+  markerArrow: {
+    width: 0, height: 0,
+    borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 6,
+    borderLeftColor: "transparent", borderRightColor: "transparent",
+    borderTopColor: COLORS.brand, marginTop: -2,
+  },
+
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 20,
-    marginTop:10,
-    marginBottom:10,
-    paddingHorizontal: 10,
-    height: 40,
-    flex: 1,
-  },
-  card1: {
     backgroundColor: "#fff",
-    padding: 10,
-
-    borderRadius: 16,
-    marginVertical: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 46,
+    marginBottom: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  image: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  cardContent: {
-    flex: 1,
-    marginLeft: 10,
-    justifyContent: "center",
-  },
-  clientName: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  locationContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 5,
-  },
-  icon: {
-    marginRight: 5,
-  },
-  location: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  map: {
-    width: "100%",
-    height: height * 0.25,
-    borderRadius: 25,
-    marginBottom: 10,
-  },
-  header: {
-    backgroundColor: "#D63E3E",
-    padding: 15,
-    borderRadius: 20,
-    marginBottom: 10,
-    alignItems: "left",
-  },
-  headerText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  dateText: {
-    marginTop: 5,
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 5,
-  },
-  openButton: {
-    backgroundColor: "#D63E3E",
-    padding: 10,
-    borderRadius: 8,
-  },
-  openButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  map: {
-    width: "100%",
-    height: 250,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  input: {
+  searchInput: {
     flex: 1,
     fontSize: 14,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    color: "#2E2B2B",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 10,
+    color: COLORS.text,
+    paddingVertical: 0,
   },
 
-  title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 16,
-    textAlign: "center",
-    color: "#333",
+  orderCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 1,
   },
-  itemContainer: {
-    marginBottom: 16,
-  },
-  labelRow: {
+  orderTop: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 4,
+    alignItems: "center",
+    marginBottom: 8,
   },
-  label: {
-    fontSize: 16,
+  orderDateChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: COLORS.borderLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  orderDateText: { fontSize: 11, color: COLORS.textMid, fontWeight: "600" },
+  orderAmount: { fontSize: 17, fontWeight: "800", color: COLORS.text },
+  orderClient: { fontSize: 15, fontWeight: "700", color: COLORS.text, marginBottom: 2 },
+  orderCompany: { fontSize: 12, color: COLORS.textMid, fontWeight: "500" },
+  orderDivider: { height: 1, backgroundColor: COLORS.borderLight, marginVertical: 10 },
+  orderBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  orderNote: { fontSize: 12, color: COLORS.textMid, fontWeight: "600" },
+  orderPills: { flexDirection: "row", gap: 6 },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  pillDot: { width: 6, height: 6, borderRadius: 3 },
+  pillText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.4 },
+
+  avgBadge: {
+    backgroundColor: COLORS.dangerBg,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  avgBadgeText: { fontSize: 11, fontWeight: "800", color: COLORS.brand },
+
+  objectiveCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  objectiveItem: { paddingVertical: 10 },
+  objectiveItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  objectiveTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  objectiveLine: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  objectiveTarget: {
+    fontSize: 11,
+    color: COLORS.textMid,
     fontWeight: "500",
-    color: "#444",
+    marginTop: 1,
   },
-  percent: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#444",
+  objectivePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    marginLeft: 8,
   },
-  progressBackground: {
-    height: 10,
-    backgroundColor: "#e0e0e0",
-    borderRadius: 5,
+  objectivePillText: { fontSize: 11, fontWeight: "800" },
+  progressTrack: {
+    height: 6,
+    backgroundColor: COLORS.borderLight,
+    borderRadius: 999,
     overflow: "hidden",
   },
-  progressBar: {
-    height: 40,
-    borderRadius: 5,
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
   },
+
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 32,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.text,
+    marginTop: 10,
+  },
+  emptyDesc: { fontSize: 12, color: COLORS.textMid, marginTop: 2 },
 });

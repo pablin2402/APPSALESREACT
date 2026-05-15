@@ -7,44 +7,35 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
-
+const COLORS = {
+  brand: "#D3423E",
+  brandDark: "#bb3330",
+  bg: "#f9fafb",
+  card: "#ffffff",
+  border: "#e5e7eb",
+  borderLight: "#f3f4f6",
+  text: "#111827",
+  textMid: "#6b7280",
+  textLight: "#9ca3af",
+  success: "#16a34a",
+  successBg: "#dcfce7",
+  dangerBg: "#fee2e2",
+};
 export default function UserInfoScreen() {
   const { role } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
   const { width } = Dimensions.get("window");
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.svgContainer}>
-        <Svg height={200} width={width} style={styles.wave}>
-          <Path
-            d={`
-            M0,0 
-            L0,80 
-            C${width * 0.45},300 ${width * 0.75},40 ${width},190 
-            L${width},0 
-            Z
-          `}
-            fill="#D3423E"
-          />
-        </Svg>
-      </View>
+    <>
       {role === "ADMIN" && <SalesManInfoScreen />}
       {role === "SALES" && <SalesManInfoScreen />}
       {role === "DELIVERY" && <DeliveryInfoPage />}
-    </SafeAreaView>
+  </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  svgContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-  },
+  container: { flex: 1, backgroundColor: COLORS.bg },
 
 });
