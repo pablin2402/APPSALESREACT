@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useContext } from "react";
+import React, { useEffect,useRef, useState, useCallback, useContext } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,10 @@ import {
   StyleSheet,
   Platform,
   StatusBar,
+  Animated,
+  LayoutAnimation,
+  UIManager,
+  Easing,
 } from "react-native";
 import axios from "axios";
 import { API_URL } from "../config";
@@ -17,6 +21,10 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { AuthContext } from "../AuthContext";
 import Ionicons from "react-native-vector-icons/Ionicons";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const COLORS = {
   brand: "#D3423E",
@@ -37,7 +45,68 @@ const COLORS = {
   danger: "#dc2626",
   dangerBg: "#fee2e2",
 };
+const ShimmerBlock = ({ width, height, style, radius = 8 }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
 
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmer]);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-150, 250],
+  });
+
+  return (
+    <View
+      style={[
+        {
+          width,
+          height,
+          borderRadius: radius,
+          backgroundColor: "#e5e7eb",
+          overflow: "hidden",
+        },
+        style,
+      ]}
+    >
+      <Animated.View
+        style={{
+          width: 100,
+          height: "100%",
+          backgroundColor: "rgba(255,255,255,0.6)",
+          transform: [{ translateX }, { skewX: "-20deg" }],
+        }}
+      />
+    </View>
+  );
+};
+const SkeletonCard = () => (
+  <View style={styles.skeletonCard}>
+    <View style={styles.skeletonTop}>
+      <ShimmerBlock width={120} height={18} radius={8} />
+      <ShimmerBlock width={80} height={22} radius={6} />
+    </View>
+    <View style={styles.skeletonMiddle}>
+      <ShimmerBlock width={36} height={36} radius={18} />
+      <View style={{ flex: 1, gap: 6 }}>
+        <ShimmerBlock width={140} height={14} radius={6} />
+        <ShimmerBlock width={90} height={11} radius={5} />
+      </View>
+    </View>
+    <View style={styles.skeletonDivider} />
+    <ShimmerBlock width={100} height={20} radius={999} />
+  </View>
+);
 export default function ClientDetailsScreen() {
   const route = useRoute();
   const navigation = useNavigation();
@@ -139,18 +208,6 @@ export default function ClientDetailsScreen() {
       orderId: item._id,
     });
   };
-
-  if (!client) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.loadingFull}>
-          <ActivityIndicator size="large" color={COLORS.brand} />
-          <Text style={styles.loadingText}>Cargando cliente...</Text>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
   const getInitials = (name, lastName) => {
     return `${name?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
@@ -204,7 +261,19 @@ export default function ClientDetailsScreen() {
             </View>
           </SafeAreaView>
         </View>
-
+  {loading  ? (
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: insets.bottom + 24,
+            }}
+          >
+            {[1, 2, 3, 4, 5].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </View>
+        ) : (
         <FlatList
           data={filteredData}
           keyExtractor={(item) => item._id}
@@ -505,6 +574,7 @@ export default function ClientDetailsScreen() {
           }
           keyboardShouldPersistTaps="handled"
         />
+         )}
       </View>
     </SafeAreaProvider>
   );
@@ -517,6 +587,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.bg,
+  },
+    skeletonCard: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+  skeletonTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  skeletonMiddle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 14,
+  },
+  skeletonDivider: {
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    marginBottom: 14,
   },
   loaderInline: {
     alignItems: "center",

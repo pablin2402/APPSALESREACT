@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useContext } from "react";
+import React, { useEffect,useRef, useCallback, useState, useContext } from "react";
 import axios from "axios";
 import { API_URL } from "../config";
 import { useNavigation } from "@react-navigation/native";
@@ -12,6 +12,10 @@ import {
   Image,
   StyleSheet,
   StatusBar,
+  Animated,
+  LayoutAnimation,
+  UIManager,
+  Easing,
 } from "react-native";
 import { useSafeAreaInsets, SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -35,6 +39,69 @@ const COLORS = {
   infoBg: "#eff6ff",
   dangerBg: "#fee2e2",
 };
+const ShimmerBlock = ({ width, height, style, radius = 8 }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmer]);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-150, 250],
+  });
+
+  return (
+    <View
+      style={[
+        {
+          width,
+          height,
+          borderRadius: radius,
+          backgroundColor: "#e5e7eb",
+          overflow: "hidden",
+        },
+        style,
+      ]}
+    >
+      <Animated.View
+        style={{
+          width: 100,
+          height: "100%",
+          backgroundColor: "rgba(255,255,255,0.6)",
+          transform: [{ translateX }, { skewX: "-20deg" }],
+        }}
+      />
+    </View>
+  );
+};
+
+const SkeletonCard = () => (
+  <View style={styles.skeletonCard}>
+    <View style={styles.skeletonTop}>
+      <ShimmerBlock width={120} height={18} radius={8} />
+      <ShimmerBlock width={80} height={22} radius={6} />
+    </View>
+    <View style={styles.skeletonMiddle}>
+      <ShimmerBlock width={36} height={36} radius={18} />
+      <View style={{ flex: 1, gap: 6 }}>
+        <ShimmerBlock width={140} height={14} radius={6} />
+        <ShimmerBlock width={90} height={11} radius={5} />
+      </View>
+    </View>
+    <View style={styles.skeletonDivider} />
+    <ShimmerBlock width={100} height={20} radius={999} />
+  </View>
+);
 
 export default function ClientScreen() {
   const navigation = useNavigation();
@@ -99,18 +166,6 @@ export default function ClientScreen() {
   const goToClientDetails = (client) => {
     navigation.navigate("ClientDetailsScreen", { client: client._id });
   };
-
-  if (loading && salesData.length === 0) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.loadingFull}>
-          <ActivityIndicator size="large" color={COLORS.brand} />
-          <Text style={styles.loadingText}>Cargando clientes...</Text>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
   const getInitials = (name, lastName) => {
     return `${name?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
@@ -173,7 +228,19 @@ export default function ClientScreen() {
             </View>
           </SafeAreaView>
         </View>
-
+{loading && salesData.length === 0 ? (
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: insets.bottom + 24,
+            }}
+          >
+            {[1, 2, 3, 4, 5].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </View>
+        ) : (
         <FlatList
           data={salesData}
           keyExtractor={(item) => item._id}
@@ -239,7 +306,7 @@ export default function ClientScreen() {
             </TouchableOpacity>
           )}
         />
-
+  )}
         {totalPages > 1 && (
           <View style={[styles.paginationBar, { paddingBottom: insets.bottom + 10 }]}>
             <TouchableOpacity
@@ -510,4 +577,30 @@ const styles = StyleSheet.create({
   pageBtnActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
   pageText: { fontSize: 13, fontWeight: "700", color: COLORS.textMid },
   pageTextActive: { fontSize: 13, fontWeight: "800", color: "#fff" },
+
+  skeletonCard: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+  skeletonTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  skeletonMiddle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 14,
+  },
+  skeletonDivider: {
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    marginBottom: 14,
+  },
 });

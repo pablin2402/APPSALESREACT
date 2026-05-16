@@ -225,7 +225,6 @@ export default function DeliveryPage() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.brand} />
-
       <View style={styles.container}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -248,13 +247,8 @@ export default function DeliveryPage() {
                       {profile?.fullName || "Vendedor"} {profile?.lastName || ""}
                     </Text>
                   </View>
-                  <TouchableOpacity style={styles.bellBtn}>
-                    <Ionicons name="notifications-outline" size={20} color="#fff" />
-                  </TouchableOpacity>
                 </View>
-
                 <Text style={styles.heroDate}>{formatDateLong(today)}</Text>
-
                 <View style={styles.kpiRow}>
                   <View style={styles.kpiCard}>
                     <View style={[styles.kpiIcon, { backgroundColor: COLORS.infoBg }]}>
@@ -280,7 +274,6 @@ export default function DeliveryPage() {
             </SafeAreaView>
           </View>
           <View style={styles.section}>
-
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>Ruta de hoy</Text>
@@ -485,7 +478,6 @@ export default function DeliveryPage() {
               </View>
             )}
           </View>
-
         </ScrollView>
       </View>
     </SafeAreaProvider>

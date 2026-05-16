@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
 import {
   View,
   Text,
@@ -6,23 +6,35 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Platform,
   StatusBar,
+  Animated,
+  LayoutAnimation,
+  UIManager,
+  Easing,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import axios from "axios";
 import { API_URL } from "../config";
-import { useSafeAreaInsets, SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  useSafeAreaInsets,
+  SafeAreaView,
+  SafeAreaProvider,
+} from "react-native-safe-area-context";
 import { AuthContext } from "../AuthContext";
 import { useNavigation } from "@react-navigation/native";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const COLORS = {
   brand: "#D3423E",
   brandDark: "#bb3330",
   bg: "#f9fafb",
   card: "#ffffff",
+  cardSoft: "#f3f4f6",
   border: "#e5e7eb",
   borderLight: "#f3f4f6",
   text: "#111827",
@@ -36,6 +48,285 @@ const COLORS = {
   infoBg: "#eff6ff",
   danger: "#dc2626",
   dangerBg: "#fee2e2",
+};
+
+const ShimmerBlock = ({ width, height, style, radius = 8 }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmer]);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-150, 250],
+  });
+
+  return (
+    <View
+      style={[
+        {
+          width,
+          height,
+          borderRadius: radius,
+          backgroundColor: "#e5e7eb",
+          overflow: "hidden",
+        },
+        style,
+      ]}
+    >
+      <Animated.View
+        style={{
+          width: 100,
+          height: "100%",
+          backgroundColor: "rgba(255,255,255,0.6)",
+          transform: [{ translateX }, { skewX: "-20deg" }],
+        }}
+      />
+    </View>
+  );
+};
+
+const SkeletonCard = () => (
+  <View style={styles.skeletonCard}>
+    <View style={styles.skeletonTop}>
+      <ShimmerBlock width={120} height={18} radius={8} />
+      <ShimmerBlock width={80} height={22} radius={6} />
+    </View>
+    <View style={styles.skeletonMiddle}>
+      <ShimmerBlock width={36} height={36} radius={18} />
+      <View style={{ flex: 1, gap: 6 }}>
+        <ShimmerBlock width={140} height={14} radius={6} />
+        <ShimmerBlock width={90} height={11} radius={5} />
+      </View>
+    </View>
+    <View style={styles.skeletonDivider} />
+    <ShimmerBlock width={100} height={20} radius={999} />
+  </View>
+);
+
+const ExpandedReceipt = ({ item, formatDate }) => {
+  const order = item.orderId || {};
+  const products = order.products || [];
+  const discount = order.disscount || 0;
+  const accountStatus = order.accountStatus || "—";
+  const dueDate = order.dueDate;
+  const totalAmount = Number(order.totalAmount || item.total || 0);
+
+  const formatShortDate = (d) => {
+    if (!d) return "—";
+    const date = new Date(d);
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const getPayMethodStyle = (method) => {
+    if (method === "Contado")
+      return { color: COLORS.success, bg: COLORS.successBg, icon: "cash" };
+    if (method === "Crédito")
+      return { color: COLORS.info, bg: COLORS.infoBg, icon: "card" };
+    if (method === "Cheque")
+      return { color: COLORS.warning, bg: COLORS.warningBg, icon: "document-text" };
+    return { color: COLORS.textMid, bg: COLORS.borderLight, icon: "wallet" };
+  };
+
+  const method = getPayMethodStyle(accountStatus);
+
+  return (
+    <View style={styles.receiptWrap}>
+      <View style={styles.receiptDivider} />
+
+      <View style={styles.receiptHeader}>
+        <View style={styles.receiptIconBox}>
+          <Ionicons name="receipt" size={14} color={COLORS.brand} />
+        </View>
+        <Text style={styles.receiptTitle}>Detalle del recibo</Text>
+      </View>
+
+      <View style={styles.receiptMetaRow}>
+        <View style={styles.receiptMetaItem}>
+          <Text style={styles.receiptMetaLabel}>Método de pago</Text>
+          <View
+            style={[styles.receiptMethodPill, { backgroundColor: method.bg }]}
+          >
+            <Ionicons name={method.icon} size={11} color={method.color} />
+            <Text style={[styles.receiptMethodText, { color: method.color }]}>
+              {accountStatus}
+            </Text>
+          </View>
+        </View>
+
+        {dueDate && (
+          <View style={styles.receiptMetaItem}>
+            <Text style={styles.receiptMetaLabel}>Vencimiento</Text>
+            <View style={styles.receiptDueChip}>
+              <Ionicons name="calendar" size={11} color={COLORS.text} />
+              <Text style={styles.receiptDueText}>{formatShortDate(dueDate)}</Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {products.length > 0 && (
+        <View style={styles.productsSection}>
+          <Text style={styles.productsLabel}>
+            Productos ({products.length})
+          </Text>
+          {products.slice(0, 5).map((p, idx) => {
+            const subtotal = (p.precio || 0) * (p.cantidad || 0);
+            return (
+              <View
+                key={idx}
+                style={[
+                  styles.productRow,
+                  idx === Math.min(products.length, 5) - 1 &&
+                    products.length <= 5 && {
+                      borderBottomWidth: 0,
+                    },
+                ]}
+              >
+                <View style={styles.productQtyBadge}>
+                  <Text style={styles.productQtyText}>×{p.cantidad}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.productName} numberOfLines={1}>
+                    {p.nombre}
+                  </Text>
+                  <Text style={styles.productPrice}>
+                    Bs. {Number(p.precio || 0).toFixed(2)} c/u
+                  </Text>
+                </View>
+                <Text style={styles.productSubtotal}>
+                  Bs. {subtotal.toFixed(2)}
+                </Text>
+              </View>
+            );
+          })}
+          {products.length > 5 && (
+            <View style={styles.moreProducts}>
+              <Text style={styles.moreProductsText}>
+                +{products.length - 5} producto{products.length - 5 > 1 ? "s" : ""} más
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      <View style={styles.totalsCard}>
+        {discount > 0 && (
+          <View style={styles.totalsRow}>
+            <Text style={styles.totalsLabel}>Descuento</Text>
+            <Text style={[styles.totalsValue, { color: COLORS.success }]}>
+              -Bs. {Number(discount).toFixed(2)}
+            </Text>
+          </View>
+        )}
+        <View style={styles.totalsRow}>
+          <Text style={styles.totalsGrandLabel}>Total pagado</Text>
+          <Text style={styles.totalsGrandValue}>
+            Bs. {totalAmount.toFixed(2)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.receiptFooter}>
+        <Ionicons name="time-outline" size={11} color={COLORS.textLight} />
+        <Text style={styles.receiptFooterText}>
+          Registrado {formatDate(item.creationDate)}
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+const PaymentCard = ({ item, isExpanded, onToggle, formatDate, getPaymentStatusStyle }) => {
+  const status = getPaymentStatusStyle(item.paymentStatus);
+  const chevronAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(chevronAnim, {
+      toValue: isExpanded ? 1 : 0,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 60,
+    }).start();
+  }, [isExpanded, chevronAnim]);
+
+  const chevronRotate = chevronAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+
+  return (
+    <TouchableOpacity
+      style={[styles.paymentCard, isExpanded && styles.paymentCardActive]}
+      activeOpacity={0.95}
+      onPress={onToggle}
+    >
+      <View style={styles.paymentTop}>
+        <View style={styles.paymentDateChip}>
+          <Ionicons name="calendar-outline" size={11} color={COLORS.textMid} />
+          <Text style={styles.paymentDateText}>
+            {formatDate(item.creationDate)}
+          </Text>
+        </View>
+        <Text style={styles.paymentAmount}>
+          Bs. {Number(item.total || 0).toFixed(2)}
+        </Text>
+      </View>
+
+      <View style={styles.paymentMiddle}>
+        <View style={styles.paymentAvatar}>
+          <Text style={styles.paymentAvatarText}>
+            {item.orderId?.id_client?.name?.[0]?.toUpperCase()}
+            {item.orderId?.id_client?.lastName?.[0]?.toUpperCase()}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.paymentClient} numberOfLines={1}>
+            {item.orderId?.id_client?.name}{" "}
+            {item.orderId?.id_client?.lastName}
+          </Text>
+          <Text style={styles.paymentNote}>
+            Nota #{item.orderId?.receiveNumber}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.paymentDivider} />
+
+      <View style={styles.paymentBottom}>
+        <View style={[styles.paymentStatusPill, { backgroundColor: status.bg }]}>
+          <Ionicons name={status.icon} size={11} color={status.color} />
+          <Text style={[styles.paymentStatusText, { color: status.color }]}>
+            {status.label}
+          </Text>
+        </View>
+
+        <View style={styles.expandHint}>
+          <Text style={styles.expandHintText}>
+            {isExpanded ? "Ocultar" : "Ver recibo"}
+          </Text>
+          <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
+            <Ionicons name="chevron-down" size={14} color={COLORS.brand} />
+          </Animated.View>
+        </View>
+      </View>
+
+      {isExpanded && <ExpandedReceipt item={item} formatDate={formatDate} />}
+    </TouchableOpacity>
+  );
 };
 
 export default function PaymentScreen() {
@@ -53,6 +344,7 @@ export default function PaymentScreen() {
   const [totalPages, setTotalPages] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
 
   const range = 2;
   const startPage = Math.max(1, page - range);
@@ -171,17 +463,24 @@ export default function PaymentScreen() {
     setTimeout(() => fetchProducts(1), 100);
   };
 
-  if (loading && salesData.length === 0) {
-    return (
-        <View style={styles.loadingContainer}>
-          <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color={COLORS.brand} />
-            <Text style={styles.loadingText}>Cargando...</Text>
-          </View>
-        </View>
-    
-    );
-  }
+  const handleToggleExpand = (id) => {
+    LayoutAnimation.configureNext({
+      duration: 300,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: {
+        type: LayoutAnimation.Types.spring,
+        springDamping: 0.8,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+    });
+    setExpandedId(expandedId === id ? null : id);
+  };
 
   return (
     <SafeAreaProvider>
@@ -358,117 +657,95 @@ export default function PaymentScreen() {
           </View>
         )}
 
-        <FlatList
-          data={salesData}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingTop: 12,
-            paddingBottom: insets.bottom + 24,
-          }}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="card-outline" size={48} color={COLORS.textLight} />
-              <Text style={styles.emptyTitle}>Sin pagos</Text>
-              <Text style={styles.emptyDesc}>
-                No encontramos pagos con estos filtros
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => {
-            const status = getPaymentStatusStyle(item.paymentStatus);
-            return (
-              <TouchableOpacity style={styles.paymentCard} activeOpacity={0.85}>
-                <View style={styles.paymentTop}>
-                  <View style={styles.paymentDateChip}>
-                    <Ionicons name="calendar-outline" size={11} color={COLORS.textMid} />
-                    <Text style={styles.paymentDateText}>
-                      {formatDate(item.creationDate)}
-                    </Text>
-                  </View>
-                  <Text style={styles.paymentAmount}>
-                    Bs. {Number(item.total || 0).toFixed(2)}
-                  </Text>
-                </View>
-
-                <View style={styles.paymentMiddle}>
-                  <View style={styles.paymentAvatar}>
-                    <Text style={styles.paymentAvatarText}>
-                      {item.orderId?.id_client?.name?.[0]?.toUpperCase()}
-                      {item.orderId?.id_client?.lastName?.[0]?.toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.paymentClient} numberOfLines={1}>
-                      {item.orderId?.id_client?.name}{" "}
-                      {item.orderId?.id_client?.lastName}
-                    </Text>
-                    <Text style={styles.paymentNote}>
-                      Nota #{item.orderId?.receiveNumber}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.paymentDivider} />
-
-                <View style={[styles.paymentStatusPill, { backgroundColor: status.bg }]}>
-                  <Ionicons name={status.icon} size={11} color={status.color} />
-                  <Text style={[styles.paymentStatusText, { color: status.color }]}>
-                    {status.label}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-          ListFooterComponent={
-            totalPages > 1 ? (
-              <View style={styles.pagination}>
-                <TouchableOpacity
-                  onPress={() => setPage((p) => Math.max(p - 1, 1))}
-                  disabled={page === 1}
-                  style={[styles.pageNavBtn, page === 1 && styles.pageNavBtnDisabled]}
-                >
-                  <Ionicons
-                    name="chevron-back"
-                    size={16}
-                    color={page === 1 ? COLORS.textLight : COLORS.brand}
-                  />
-                </TouchableOpacity>
-
-                {pagesToShow.map((num) => (
-                  <TouchableOpacity
-                    key={num}
-                    onPress={() => setPage(num)}
-                    style={[styles.pageBtn, page === num && styles.pageBtnActive]}
-                  >
-                    <Text
-                      style={page === num ? styles.pageTextActive : styles.pageText}
-                    >
-                      {num}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-
-                <TouchableOpacity
-                  onPress={() => setPage((p) => Math.min(p + 1, totalPages))}
-                  disabled={page === totalPages}
-                  style={[
-                    styles.pageNavBtn,
-                    page === totalPages && styles.pageNavBtnDisabled,
-                  ]}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={16}
-                    color={page === totalPages ? COLORS.textLight : COLORS.brand}
-                  />
-                </TouchableOpacity>
+        {loading && salesData.length === 0 ? (
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: insets.bottom + 24,
+            }}
+          >
+            {[1, 2, 3, 4, 5].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </View>
+        ) : (
+          <FlatList
+            data={salesData}
+            keyExtractor={(item) => item._id}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: insets.bottom + 24,
+            }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="card-outline" size={48} color={COLORS.textLight} />
+                <Text style={styles.emptyTitle}>Sin pagos</Text>
+                <Text style={styles.emptyDesc}>
+                  No encontramos pagos con estos filtros
+                </Text>
               </View>
-            ) : null
-          }
-          keyboardShouldPersistTaps="handled"
-        />
+            }
+            renderItem={({ item }) => (
+              <PaymentCard
+                item={item}
+                isExpanded={expandedId === item._id}
+                onToggle={() => handleToggleExpand(item._id)}
+                formatDate={formatDate}
+                getPaymentStatusStyle={getPaymentStatusStyle}
+              />
+            )}
+            ListFooterComponent={
+              totalPages > 1 ? (
+                <View style={styles.pagination}>
+                  <TouchableOpacity
+                    onPress={() => setPage((p) => Math.max(p - 1, 1))}
+                    disabled={page === 1}
+                    style={[styles.pageNavBtn, page === 1 && styles.pageNavBtnDisabled]}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={16}
+                      color={page === 1 ? COLORS.textLight : COLORS.brand}
+                    />
+                  </TouchableOpacity>
+
+                  {pagesToShow.map((num) => (
+                    <TouchableOpacity
+                      key={num}
+                      onPress={() => setPage(num)}
+                      style={[styles.pageBtn, page === num && styles.pageBtnActive]}
+                    >
+                      <Text
+                        style={page === num ? styles.pageTextActive : styles.pageText}
+                      >
+                        {num}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+
+                  <TouchableOpacity
+                    onPress={() => setPage((p) => Math.min(p + 1, totalPages))}
+                    disabled={page === totalPages}
+                    style={[
+                      styles.pageNavBtn,
+                      page === totalPages && styles.pageNavBtnDisabled,
+                    ]}
+                  >
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color={page === totalPages ? COLORS.textLight : COLORS.brand}
+                    />
+                  </TouchableOpacity>
+                </View>
+              ) : null
+            }
+            keyboardShouldPersistTaps="handled"
+          />
+        )}
       </View>
     </SafeAreaProvider>
   );
@@ -476,18 +753,6 @@ export default function PaymentScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  loadingFull: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.bg,
-  },
-  loadingText: {
-    marginTop: 12,
-    color: COLORS.textMid,
-    fontSize: 13,
-    fontWeight: "500",
-  },
 
   heroWrapper: { position: "relative", paddingBottom: 20 },
   heroBg: {
@@ -649,17 +914,24 @@ const styles = StyleSheet.create({
   applyBtnText: { color: "#fff", fontSize: 13, fontWeight: "800" },
 
   paymentCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 18,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: "rgba(0,0,0,0.04)",
     shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 1,
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  paymentCardActive: {
+    backgroundColor: "#fff",
+    borderColor: COLORS.brand,
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
   },
   paymentTop: {
     flexDirection: "row",
@@ -671,13 +943,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: COLORS.borderLight,
+    backgroundColor: "rgba(255,255,255,0.7)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   paymentDateText: { fontSize: 10, color: COLORS.textMid, fontWeight: "600" },
-  paymentAmount: { fontSize: 17, fontWeight: "800", color: COLORS.text },
+  paymentAmount: { fontSize: 22, fontWeight: "800", color: COLORS.text },
 
   paymentMiddle: { flexDirection: "row", alignItems: "center", gap: 10 },
   paymentAvatar: {
@@ -704,12 +976,16 @@ const styles = StyleSheet.create({
 
   paymentDivider: {
     height: 1,
-    backgroundColor: COLORS.borderLight,
+    backgroundColor: "rgba(0,0,0,0.06)",
     marginVertical: 10,
   },
 
+  paymentBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   paymentStatusPill: {
-    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
@@ -718,6 +994,173 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   paymentStatusText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.4 },
+
+  expandHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  expandHintText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: COLORS.brand,
+    letterSpacing: 0.3,
+  },
+
+  receiptWrap: { marginTop: 12 },
+  receiptDivider: {
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.08)",
+    marginBottom: 14,
+    borderStyle: "dashed",
+  },
+  receiptHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  receiptIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: COLORS.dangerBg,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  receiptTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: COLORS.text,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  receiptMetaRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 14,
+  },
+  receiptMetaItem: { flex: 1 },
+  receiptMetaLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: COLORS.textMid,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+  receiptMethodPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  receiptMethodText: {
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  receiptDueChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: COLORS.bg,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  receiptDueText: { fontSize: 11, fontWeight: "700", color: COLORS.text },
+
+  productsSection: { marginBottom: 12 },
+  productsLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: COLORS.textMid,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 8,
+  },
+  productRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.04)",
+  },
+  productQtyBadge: {
+    minWidth: 36,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: COLORS.brand,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  productQtyText: { fontSize: 10, fontWeight: "800", color: "#fff" },
+  productName: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.text,
+    marginBottom: 1,
+  },
+  productPrice: {
+    fontSize: 10,
+    color: COLORS.textMid,
+    fontWeight: "600",
+  },
+  productSubtotal: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: COLORS.text,
+  },
+  moreProducts: {
+    paddingTop: 8,
+    alignItems: "center",
+  },
+  moreProductsText: {
+    fontSize: 11,
+    color: COLORS.textMid,
+    fontWeight: "700",
+  },
+
+  totalsCard: {
+    backgroundColor: COLORS.bg,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  totalsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  totalsLabel: { fontSize: 12, color: COLORS.textMid, fontWeight: "600" },
+  totalsValue: { fontSize: 13, fontWeight: "800" },
+  totalsGrandLabel: { fontSize: 13, color: COLORS.text, fontWeight: "800" },
+  totalsGrandValue: { fontSize: 17, fontWeight: "800", color: COLORS.text },
+
+  receiptFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingTop: 4,
+  },
+  receiptFooterText: {
+    fontSize: 10,
+    color: COLORS.textLight,
+    fontWeight: "600",
+  },
 
   emptyState: {
     alignItems: "center",
@@ -769,4 +1212,30 @@ const styles = StyleSheet.create({
   pageBtnActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
   pageText: { fontSize: 13, fontWeight: "700", color: COLORS.textMid },
   pageTextActive: { fontSize: 13, fontWeight: "800", color: "#fff" },
+
+  skeletonCard: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+  skeletonTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  skeletonMiddle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 14,
+  },
+  skeletonDivider: {
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    marginBottom: 14,
+  },
 });

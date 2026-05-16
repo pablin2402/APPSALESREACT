@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useRef, useContext } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,11 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  Dimensions,
+  Platform,
+  PermissionsAndroid,
+  Animated,
+  Easing,
 } from "react-native";
 import { useSafeAreaInsets, SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -15,6 +20,7 @@ import axios from "axios";
 import { API_URL } from "../config";
 import { AuthContext } from "../AuthContext";
 import Ionicons from "react-native-vector-icons/Ionicons";
+const { height, width } = Dimensions.get("window");
 
 const COLORS = {
   brand: "#D3423E",
@@ -34,6 +40,60 @@ const COLORS = {
   infoBg: "#eff6ff",
   dangerBg: "#fee2e2",
 };
+const ShimmerBlock = ({ width: w, height: h, style, radius = 8 }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmer]);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-150, 250],
+  });
+
+  return (
+    <View
+      style={[
+        {
+          width: w,
+          height: h,
+          borderRadius: radius,
+          backgroundColor: "#e5e7eb",
+          overflow: "hidden",
+        },
+        style,
+      ]}
+    >
+      <Animated.View
+        style={{
+          width: 100,
+          height: "100%",
+          backgroundColor: "rgba(255,255,255,0.6)",
+          transform: [{ translateX }, { skewX: "-20deg" }],
+        }}
+      />
+    </View>
+  );
+};
+const SkeletonMapBlock = () => (
+  <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+    <View style={{ marginBottom: 12 }}>
+      <ShimmerBlock width={120} height={18} radius={6} style={{ marginBottom: 6 }} />
+      <ShimmerBlock width={160} height={11} radius={5} />
+    </View>
+    <ShimmerBlock width="100%" height={height * 0.16} radius={18} />
+  </View>
+);
 
 const InfoRow = ({ icon, iconBg, iconColor, label, value, isLast }) => (
   <View style={[styles.infoRow, !isLast && styles.infoRowBorder]}>
@@ -74,17 +134,6 @@ export default function AccountScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (loading) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.loadingFull}>
-          <ActivityIndicator size="large" color={COLORS.brand} />
-          <Text style={styles.loadingText}>Cargando perfil...</Text>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
   const displayName =
     profile?.fullName && profile?.lastName
       ? `${profile.fullName} ${profile.lastName}`
@@ -124,7 +173,16 @@ export default function AccountScreen() {
             </View>
           </SafeAreaView>
         </View>
-
+        {loading ? (
+      <SafeAreaProvider>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.brand} />
+               <View style={styles.container}>
+                <SkeletonMapBlock />
+                <SkeletonMapBlock />
+                <SkeletonMapBlock />
+               </View>
+      </SafeAreaProvider>
+     ) : (
         <ScrollView
           contentContainerStyle={{
             paddingHorizontal: 20,
@@ -211,21 +269,10 @@ export default function AccountScreen() {
             />
           </View>
 
-          <TouchableOpacity style={styles.logoutBtn} activeOpacity={0.85}>
-            <View style={styles.logoutLeft}>
-              <View style={styles.logoutIcon}>
-                <Ionicons name="log-out-outline" size={18} color={COLORS.brand} />
-              </View>
-              <View>
-                <Text style={styles.logoutText}>Cerrar sesión</Text>
-                <Text style={styles.logoutSubtext}>Salir de tu cuenta</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-          </TouchableOpacity>
 
           <Text style={styles.versionText}>Versión 1.0.0</Text>
         </ScrollView>
+        )}
       </View>
     </SafeAreaProvider>
   );
@@ -447,5 +494,63 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
     fontWeight: "600",
     marginTop: 24,
+  },
+    skeletonHero: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+    backgroundColor: COLORS.brand,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+  skeletonHeroTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  skeletonKpi: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 14,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  skeletonSectionWrap: {},
+  skeletonOrderCard: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+  skeletonOrderTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  skeletonOrderDivider: {
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    marginVertical: 10,
+  },
+  skeletonOrderBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  skeletonObjItem: { paddingVertical: 10 },
+  skeletonObjBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.06)",
+  },
+  skeletonObjTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
   },
 });

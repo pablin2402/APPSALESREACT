@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
 import axios from "axios";
 import { API_URL, GOOGLE_API_KEY } from "../config";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -9,19 +9,19 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  ActivityIndicator,
   ScrollView,
-  Image,
   StatusBar,
+  RefreshControl,
   Platform,
   PermissionsAndroid,
+  Animated,
+  Easing,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import { AuthContext } from "../AuthContext";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 
 const { height, width } = Dimensions.get("window");
 
@@ -31,8 +31,8 @@ const COLORS = {
   brandLight: "#ff6b6b",
   bg: "#ffffff",
   card: "#ffffff",
-  border: "#b4b8c3",
-  borderLight: "#d9dce2e3",
+  border: "#e5e7eb",
+  borderLight: "#f3f4f6",
   text: "#111827",
   textMid: "#6b7280",
   textLight: "#9ca3af",
@@ -69,6 +69,122 @@ const MAP_STYLE = [
   { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
 ];
 
+const ShimmerBlock = ({ width: w, height: h, style, radius = 8 }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmer]);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-150, 250],
+  });
+
+  return (
+    <View
+      style={[
+        {
+          width: w,
+          height: h,
+          borderRadius: radius,
+          backgroundColor: "#e5e7eb",
+          overflow: "hidden",
+        },
+        style,
+      ]}
+    >
+      <Animated.View
+        style={{
+          width: 100,
+          height: "100%",
+          backgroundColor: "rgba(255,255,255,0.6)",
+          transform: [{ translateX }, { skewX: "-20deg" }],
+        }}
+      />
+    </View>
+  );
+};
+
+const SkeletonHero = () => (
+  <View style={styles.skeletonHero}>
+    <View style={styles.skeletonHeroTop}>
+      <ShimmerBlock width={44} height={44} radius={22} />
+      <View style={{ flex: 1, marginLeft: 12, gap: 6 }}>
+        <ShimmerBlock width={50} height={11} radius={5} />
+        <ShimmerBlock width={140} height={16} radius={6} />
+      </View>
+    </View>
+    <ShimmerBlock width={180} height={11} radius={5} style={{ marginBottom: 16 }} />
+    <View style={{ flexDirection: "row", gap: 8 }}>
+      {[1, 2, 3].map((i) => (
+        <View key={i} style={styles.skeletonKpi}>
+          <ShimmerBlock width={30} height={30} radius={10} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <ShimmerBlock width={45} height={9} radius={4} />
+            <ShimmerBlock width={28} height={14} radius={5} />
+          </View>
+        </View>
+      ))}
+    </View>
+  </View>
+);
+
+const SkeletonSection = ({ children }) => (
+  <View style={styles.skeletonSectionWrap}>{children}</View>
+);
+
+const SkeletonMapBlock = () => (
+  <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+    <View style={{ marginBottom: 12 }}>
+      <ShimmerBlock width={120} height={18} radius={6} style={{ marginBottom: 6 }} />
+      <ShimmerBlock width={160} height={11} radius={5} />
+    </View>
+    <ShimmerBlock width="100%" height={height * 0.26} radius={18} />
+  </View>
+);
+
+const SkeletonOrderCard = () => (
+  <View style={styles.skeletonOrderCard}>
+    <View style={styles.skeletonOrderTop}>
+      <ShimmerBlock width={100} height={18} radius={6} />
+      <ShimmerBlock width={70} height={20} radius={6} />
+    </View>
+    <ShimmerBlock width={180} height={15} radius={5} style={{ marginBottom: 6 }} />
+    <ShimmerBlock width={110} height={11} radius={5} style={{ marginBottom: 12 }} />
+    <View style={styles.skeletonOrderDivider} />
+    <View style={styles.skeletonOrderBottom}>
+      <ShimmerBlock width={40} height={11} radius={5} />
+      <View style={{ flexDirection: "row", gap: 6 }}>
+        <ShimmerBlock width={70} height={18} radius={999} />
+        <ShimmerBlock width={70} height={18} radius={999} />
+      </View>
+    </View>
+  </View>
+);
+
+const SkeletonObjectiveItem = ({ isLast }) => (
+  <View style={[styles.skeletonObjItem, !isLast && styles.skeletonObjBorder]}>
+    <View style={styles.skeletonObjTop}>
+      <View style={{ flex: 1, gap: 5 }}>
+        <ShimmerBlock width={120} height={14} radius={5} />
+        <ShimmerBlock width={90} height={11} radius={4} />
+      </View>
+      <ShimmerBlock width={50} height={20} radius={999} />
+    </View>
+    <ShimmerBlock width="100%" height={6} radius={999} />
+  </View>
+);
+
 export default function SalesPrincipalPage() {
   const navigation = useNavigation();
   const { token, idOwner, salesId } = useContext(AuthContext);
@@ -81,7 +197,7 @@ export default function SalesPrincipalPage() {
   const [objectiveData, setObjectiveData] = useState([]);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [loading, setLoading] = useState(true);
-
+  const [refreshing, setRefreshing] = useState(false);
   const today = new Date();
 
   const requestLocationPermission = async () => {
@@ -105,6 +221,12 @@ export default function SalesPrincipalPage() {
   useEffect(() => {
     requestLocationPermission();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      onRefresh();
+    }, [])
+  );
 
   const fetchProfile = async () => {
     const response = await axios.post(
@@ -153,6 +275,22 @@ export default function SalesPrincipalPage() {
       { headers: { Authorization: `Bearer ${token}` } }
     );
     setObjectiveData(response.data);
+  };
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await Promise.all([
+        fetchProfile(),
+        fetchOrders(),
+        startRoute(),
+        fetchObjectiveDataRegion(),
+      ]);
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
@@ -221,9 +359,9 @@ export default function SalesPrincipalPage() {
   const promedioObjetivo =
     objectiveData.length > 0
       ? objectiveData.reduce(
-        (s, i) => s + ((i.caja / i.numberOfBoxes) * 100 || 0),
-        0
-      ) / objectiveData.length
+          (s, i) => s + ((i.caja / i.numberOfBoxes) * 100 || 0),
+          0
+        ) / objectiveData.length
       : 0;
 
   const getOrderStatusStyle = (status) => {
@@ -242,10 +380,26 @@ export default function SalesPrincipalPage() {
   if (loading) {
     return (
       <SafeAreaProvider>
-        <SafeAreaView style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.brand} />
-          <Text style={styles.loadingText}>Cargando tu día...</Text>
-        </SafeAreaView>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.brand} />
+        <View style={styles.container}>
+          <SafeAreaView edges={["top"]} style={{ backgroundColor: COLORS.brand }}>
+            <SkeletonHero />
+          </SafeAreaView>
+
+          <SkeletonMapBlock />
+
+          <SkeletonSection>
+            <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+              <View style={{ marginBottom: 12 }}>
+                <ShimmerBlock width={160} height={18} radius={6} style={{ marginBottom: 6 }} />
+                <ShimmerBlock width={140} height={11} radius={5} />
+              </View>
+              <ShimmerBlock width="100%" height={46} radius={14} style={{ marginBottom: 12 }} />
+              <SkeletonOrderCard />
+              <SkeletonOrderCard />
+            </View>
+          </SkeletonSection>
+        </View>
       </SafeAreaProvider>
     );
   }
@@ -254,10 +408,21 @@ export default function SalesPrincipalPage() {
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.brand} />
       <View style={styles.container}>
+        <View style={styles.refreshBacker} />
+
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          contentInsetAdjustmentBehavior="automatic"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#fff"
+              colors={["#fff"]}
+              progressBackgroundColor={COLORS.brand}
+              progressViewOffset={Platform.OS === "android" ? 20 : 0}
+            />
+          }
         >
           <SafeAreaView
             edges={["top"]}
@@ -279,9 +444,6 @@ export default function SalesPrincipalPage() {
                       {profile?.fullName || "Vendedor"} {profile?.lastName || ""}
                     </Text>
                   </View>
-                  <TouchableOpacity style={styles.bellBtn}>
-                    <Ionicons name="notifications-outline" size={20} color="#fff" />
-                  </TouchableOpacity>
                 </View>
 
                 <Text style={styles.heroDate}>{formatDateLong(today)}</Text>
@@ -320,6 +482,7 @@ export default function SalesPrincipalPage() {
               </View>
             </View>
           </SafeAreaView>
+
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View>
@@ -407,6 +570,7 @@ export default function SalesPrincipalPage() {
               </View>
             )}
           </View>
+
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View>
@@ -442,7 +606,7 @@ export default function SalesPrincipalPage() {
                     key={index}
                     style={styles.orderCard}
                     onPress={() => goToClientDetails(item)}
-                    activeOpacity={0.7}
+                    activeOpacity={0.85}
                   >
                     <View style={styles.orderTop}>
                       <View style={styles.orderDateChip}>
@@ -529,6 +693,7 @@ export default function SalesPrincipalPage() {
               </View>
             )}
           </View>
+
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View>
@@ -573,9 +738,7 @@ export default function SalesPrincipalPage() {
                             { backgroundColor: color + "20" },
                           ]}
                         >
-                          <Text
-                            style={[styles.objectivePillText, { color }]}
-                          >
+                          <Text style={[styles.objectivePillText, { color }]}>
                             {progress.toFixed(0)}%
                           </Text>
                         </View>
@@ -609,8 +772,6 @@ export default function SalesPrincipalPage() {
               )}
             </View>
           </View>
-
-          <View style={{ height: 24 }} />
         </ScrollView>
       </View>
     </SafeAreaProvider>
@@ -619,29 +780,28 @@ export default function SalesPrincipalPage() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.bg,
+
+  refreshBacker: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 200,
+    backgroundColor: COLORS.brand,
+    zIndex: -1,
   },
-  loadingText: {
-    marginTop: 12,
-    color: COLORS.textMid,
-    fontSize: 14,
-    fontWeight: "500",
-  },
+
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 24,
   },
+
   heroWrapper: {
     position: "relative",
     paddingBottom: 24,
-    marginBottom: 4,
   },
   heroBg: {
     position: "absolute",
-    top: 0,
+    top: -200,
     left: 0,
     right: 0,
     bottom: 0,
@@ -659,22 +819,24 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   avatar: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center", alignItems: "center",
-    borderWidth: 2, borderColor: "rgba(255,255,255,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
   },
   avatarText: { color: "#fff", fontSize: 15, fontWeight: "800", letterSpacing: 0.5 },
   heroGreeting: { color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "500" },
   heroName: { color: "#fff", fontSize: 18, fontWeight: "800" },
-  bellBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    justifyContent: "center", alignItems: "center",
-  },
   heroDate: {
-    color: "rgba(255,255,255,0.9)", fontSize: 12, fontWeight: "500",
-    textTransform: "capitalize", marginBottom: 16,
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 12,
+    fontWeight: "500",
+    textTransform: "capitalize",
+    marginBottom: 16,
   },
 
   kpiRow: { flexDirection: "row", gap: 8 },
@@ -693,13 +855,16 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   kpiIcon: {
-    width: 30, height: 30, borderRadius: 10,
-    justifyContent: "center", alignItems: "center",
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
   },
   kpiLabel: { fontSize: 10, color: COLORS.textMid, fontWeight: "600" },
   kpiValue: { fontSize: 16, color: COLORS.text, fontWeight: "800", marginTop: -1 },
 
-  section: { paddingHorizontal: 20, marginTop: 20 },
+  section: { paddingHorizontal: 20, marginTop: 22 },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -708,7 +873,10 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 18, fontWeight: "800", color: COLORS.text },
   sectionSubtitle: {
-    fontSize: 12, color: COLORS.textMid, fontWeight: "500", marginTop: 2,
+    fontSize: 12,
+    color: COLORS.textMid,
+    fontWeight: "500",
+    marginTop: 2,
   },
   openMapBtn: {
     flexDirection: "row",
@@ -722,23 +890,23 @@ const styles = StyleSheet.create({
   openMapBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 
   mapWrapper: {
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: "hidden",
     backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: COLORS.border,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 2,
   },
   map: { width: "100%", height: height * 0.26 },
   mapOverlay: {
     position: "absolute",
-    bottom: 12, left: 12,
+    bottom: 12,
+    left: 12,
     backgroundColor: "#fff",
-    paddingHorizontal: 10, paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 20,
     flexDirection: "row",
     alignItems: "center",
@@ -750,25 +918,38 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   mapOverlayText: {
-    fontSize: 11, fontWeight: "700", color: COLORS.text,
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.text,
   },
 
   markerWrapper: { alignItems: "center" },
   markerCircle: {
-    width: 28, height: 28, borderRadius: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: COLORS.brand,
-    justifyContent: "center", alignItems: "center",
-    borderWidth: 2, borderColor: "#fff",
-    shadowColor: "#000", shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 2 }, shadowRadius: 3,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
     elevation: 4,
   },
   markerText: { color: "#fff", fontWeight: "800", fontSize: 12 },
   markerArrow: {
-    width: 0, height: 0,
-    borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 6,
-    borderLeftColor: "transparent", borderRightColor: "transparent",
-    borderTopColor: COLORS.brand, marginTop: -2,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 6,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: COLORS.brand,
+    marginTop: -2,
   },
 
   searchBox: {
@@ -791,17 +972,17 @@ const styles = StyleSheet.create({
   },
 
   orderCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 18,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: "rgba(0,0,0,0.04)",
     shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 1,
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 8,
+    elevation: 2,
   },
   orderTop: {
     flexDirection: "row",
@@ -813,16 +994,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: COLORS.borderLight,
+    backgroundColor: "rgba(255,255,255,0.7)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   orderDateText: { fontSize: 11, color: COLORS.textMid, fontWeight: "600" },
-  orderAmount: { fontSize: 17, fontWeight: "800", color: COLORS.text },
-  orderClient: { fontSize: 15, fontWeight: "700", color: COLORS.text, marginBottom: 2 },
+  orderAmount: { fontSize: 18, fontWeight: "800", color: COLORS.text },
+  orderClient: { fontSize: 15, fontWeight: "800", color: COLORS.text, marginBottom: 2 },
   orderCompany: { fontSize: 12, color: COLORS.textMid, fontWeight: "500" },
-  orderDivider: { height: 1, backgroundColor: COLORS.borderLight, marginVertical: 10 },
+  orderDivider: {
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    marginVertical: 10,
+  },
   orderBottom: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -850,21 +1035,21 @@ const styles = StyleSheet.create({
   avgBadgeText: { fontSize: 11, fontWeight: "800", color: COLORS.brand },
 
   objectiveCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: "rgba(0,0,0,0.04)",
     shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 1,
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 8,
+    elevation: 2,
   },
   objectiveItem: { paddingVertical: 10 },
   objectiveItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
+    borderBottomColor: "rgba(0,0,0,0.06)",
   },
   objectiveTop: {
     flexDirection: "row",
@@ -874,7 +1059,7 @@ const styles = StyleSheet.create({
   },
   objectiveLine: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "800",
     color: COLORS.text,
   },
   objectiveTarget: {
@@ -892,7 +1077,7 @@ const styles = StyleSheet.create({
   objectivePillText: { fontSize: 11, fontWeight: "800" },
   progressTrack: {
     height: 6,
-    backgroundColor: COLORS.borderLight,
+    backgroundColor: "rgba(0,0,0,0.06)",
     borderRadius: 999,
     overflow: "hidden",
   },
@@ -913,4 +1098,63 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   emptyDesc: { fontSize: 12, color: COLORS.textMid, marginTop: 2 },
+
+  skeletonHero: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+    backgroundColor: COLORS.brand,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+  skeletonHeroTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  skeletonKpi: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 14,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  skeletonSectionWrap: {},
+  skeletonOrderCard: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+  skeletonOrderTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  skeletonOrderDivider: {
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    marginVertical: 10,
+  },
+  skeletonOrderBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  skeletonObjItem: { paddingVertical: 10 },
+  skeletonObjBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.06)",
+  },
+  skeletonObjTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
 });

@@ -57,7 +57,7 @@ export default function PrincipalScreen() {
 
   return (
     <>
-          {(role === "SALES" || role === "ADMIN") && <DeliveryPage />}
+          {(role === "SALES" || role === "ADMIN") && <SalesPrincipalPage />}
         {role === "DELIVERY" && <DeliveryPage />}
     </>
   );

@@ -1,15 +1,15 @@
 import React, { useEffect, useState, useRef, useContext } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  TextInput,
-  ActivityIndicator,
-  StyleSheet,
-  Dimensions,
-  StatusBar,
+    View,
+    Text,
+    ScrollView,
+    TouchableOpacity,
+    Image,
+    TextInput,
+    ActivityIndicator,
+    StyleSheet,
+    Dimensions,
+    StatusBar,
 } from "react-native";
 import MapView from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
@@ -34,38 +34,38 @@ import { AuthContext } from "../AuthContext";
 const { width, height } = Dimensions.get("window");
 
 const COLORS = {
-  brand: "#D3423E",
-  brandDark: "#bb3330",
-  bg: "#f9fafb",
-  card: "#ffffff",
-  border: "#e5e7eb",
-  borderLight: "#f3f4f6",
-  text: "#111827",
-  textMid: "#6b7280",
-  textLight: "#9ca3af",
-  success: "#16a34a",
-  successBg: "#dcfce7",
-  warning: "#d97706",
-  warningBg: "#fef3c7",
-  info: "#2563eb",
-  infoBg: "#eff6ff",
-  danger: "#dc2626",
-  dangerBg: "#fee2e2",
+    brand: "#D3423E",
+    brandDark: "#bb3330",
+    bg: "#f9fafb",
+    card: "#ffffff",
+    border: "#e5e7eb",
+    borderLight: "#f3f4f6",
+    text: "#111827",
+    textMid: "#6b7280",
+    textLight: "#9ca3af",
+    success: "#16a34a",
+    successBg: "#dcfce7",
+    warning: "#d97706",
+    warningBg: "#fef3c7",
+    info: "#2563eb",
+    infoBg: "#eff6ff",
+    danger: "#dc2626",
+    dangerBg: "#fee2e2",
 };
 
 const MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
-  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
-  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-  { featureType: "road.arterial", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#ffd6d4" }] },
-  { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
+    { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
+    { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
+    { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
+    { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
+    { featureType: "poi", stylers: [{ visibility: "off" }] },
+    { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+    { featureType: "road.arterial", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
+    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#ffd6d4" }] },
+    { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
+    { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
 ];
 
 const MapDelivery = () => {
@@ -107,6 +107,7 @@ const MapDelivery = () => {
     const localTime = new Date();
     const [routeId, setRouteId] = useState("");
     const { token, idOwner, salesId } = useContext(AuthContext);
+    const [deliveryRegistered, setDeliveryRegistered] = useState(false);
 
     function getStartOfDayInUTCMinus4(date) {
         const utcDate = new Date(date);
@@ -371,15 +372,15 @@ const MapDelivery = () => {
     }, []);
     useEffect(() => {
         let interval = null;
+
         if (isTimerRunning) {
             interval = setInterval(() => {
                 setTimer(prevTime => prevTime + 1);
             }, 1000);
-        } else {
-            clearInterval(interval);
         }
+
         return () => clearInterval(interval);
-    }, [isTimerRunning, timer]);
+    }, [isTimerRunning]);
 
     useEffect(() => {
         let etaInterval = null;
@@ -453,7 +454,17 @@ const MapDelivery = () => {
         return `${day}/${month}/${year}`;
     };
     const handlePay = (selectedClient) => {
-        navigation.navigate("OrderPickUp", { client: selectedClient, route: routeId });
+        navigation.navigate("OrderPickUp", {
+            client: selectedClient,
+            route,
+            onFinishDelivery: async () => {
+                setIsTimerRunning(false);
+                setTimer(0);
+                setActiveDestination(null);
+
+                await AsyncStorage.removeItem("timer_start");
+            },
+        });
     };
 
     const getDeliveryStatusStyle = (status) => {
@@ -921,31 +932,32 @@ const MapDelivery = () => {
                             )}
 
                             {isTimerRunning && (
-                                <TouchableOpacity
-                                    style={styles.successButton}
-                                    onPress={() => {
-                                        handleTimerToggle(selectedClient, "Termina la visita");
-                                        setShowRegisterButton(true);
-                                    }}
-                                    activeOpacity={0.9}
-                                >
-                                    <Ionicons name="flag" size={16} color="#fff" />
-                                    <Text style={styles.primaryButtonText}>Llegada al punto de entrega</Text>
-                                </TouchableOpacity>
-                            )}
-
-                            {showRegisterButton && (
-                                <TouchableOpacity
-                                    style={styles.brandButton}
-                                    onPress={() => {
-                                        handlePay(selectedClient, route);
-                                        setShowRegisterButton(false);
-                                    }}
-                                    activeOpacity={0.9}
-                                >
-                                    <Ionicons name="cube" size={16} color="#fff" />
-                                    <Text style={styles.primaryButtonText}>Registrar entrega</Text>
-                                </TouchableOpacity>
+                                <View>
+                                    <TouchableOpacity
+                                        style={styles.brandButton}
+                                        onPress={() => {
+                                            handlePay(selectedClient, route);
+                                            setShowRegisterButton(false);
+                                        }}
+                                        activeOpacity={0.9}
+                                    >
+                                        <Ionicons name="cube" size={16} color="#fff" />
+                                        <Text style={styles.primaryButtonText}>Registrar entrega</Text>
+                                    </TouchableOpacity>
+                                    <br/>
+                                    <br/>
+                                    <TouchableOpacity
+                                        style={styles.successButton}
+                                        onPress={() => {
+                                            handleTimerToggle(selectedClient, "Termina la visita");
+                                            setShowRegisterButton(true);
+                                        }}
+                                        activeOpacity={0.9}
+                                    >
+                                        <Ionicons name="flag" size={16} color="#fff" />
+                                        <Text style={styles.primaryButtonText}>Llegada al punto de entrega</Text>
+                                    </TouchableOpacity>
+                                </View>
                             )}
                         </View>
                     </View>

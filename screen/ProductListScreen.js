@@ -1,10 +1,9 @@
-import React, { useEffect, useContext, useState, useCallback } from "react";
+import React, { useEffect, useContext, useState, useCallback, useRef } from "react";
 import { useNavigation } from "@react-navigation/native";
 import {
   View,
   Text,
   TextInput,
-  ActivityIndicator,
   Dimensions,
   FlatList,
   Image,
@@ -12,6 +11,8 @@ import {
   StyleSheet,
   ScrollView,
   StatusBar,
+  Animated,
+  Easing,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import axios from "axios";
@@ -33,6 +34,74 @@ const COLORS = {
   successBg: "#dcfce7",
   dangerBg: "#fee2e2",
 };
+
+const ShimmerBlock = ({ width: w, height: h, style, radius = 8 }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmer]);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-150, 250],
+  });
+
+  return (
+    <View
+      style={[
+        {
+          width: w,
+          height: h,
+          borderRadius: radius,
+          backgroundColor: "#e5e7eb",
+          overflow: "hidden",
+        },
+        style,
+      ]}
+    >
+      <Animated.View
+        style={{
+          width: 100,
+          height: "100%",
+          backgroundColor: "rgba(255,255,255,0.6)",
+          transform: [{ translateX }, { skewX: "-20deg" }],
+        }}
+      />
+    </View>
+  );
+};
+
+const SkeletonProductCard = ({ cardWidth }) => (
+  <View style={[styles.card, { width: cardWidth }]}>
+    <ShimmerBlock width="100%" height={110} radius={0} />
+    <View style={{ padding: 10 }}>
+      <ShimmerBlock width={60} height={9} radius={4} style={{ marginBottom: 6 }} />
+      <ShimmerBlock width="90%" height={13} radius={5} style={{ marginBottom: 4 }} />
+      <ShimmerBlock width="70%" height={13} radius={5} style={{ marginBottom: 10 }} />
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <View style={{ gap: 4 }}>
+          <ShimmerBlock width={36} height={8} radius={3} />
+          <ShimmerBlock width={60} height={15} radius={5} />
+        </View>
+        <ShimmerBlock width={32} height={32} radius={10} />
+      </View>
+    </View>
+  </View>
+);
+
+const SkeletonChip = ({ w }) => (
+  <ShimmerBlock width={w} height={32} radius={999} />
+);
 
 export default function ProductListScreen() {
   const navigation = useNavigation();
@@ -61,12 +130,11 @@ export default function ProductListScreen() {
     navigation.navigate("CartDetailsScreen", { carts: cart });
   };
 
-  const addToCart = (product) => {
-    const existingIndex = cart.findIndex((item) => item._id === product._id);
-    if (existingIndex !== -1) {
-      const updated = [...cart];
-      updated[existingIndex].quantity += 1;
-      setCart(updated);
+  const isInCart = (productId) => cart.some((i) => i._id === productId);
+
+  const toggleCart = (product) => {
+    if (isInCart(product._id)) {
+      setCart(cart.filter((i) => i._id !== product._id));
     } else {
       setCart([
         ...cart,
@@ -74,19 +142,7 @@ export default function ProductListScreen() {
       ]);
     }
   };
-  const removeFromCart = (productId) => {
-    const existingIndex = cart.findIndex((i) => i._id === productId);
-    if (existingIndex === -1) return;
-    const updated = [...cart];
-    if (updated[existingIndex].quantity > 1) {
-      updated[existingIndex].quantity -= 1;
-    } else {
-      updated.splice(existingIndex, 1);
-    }
-    setCart(updated);
-  };
-  const getQty = (productId) =>
-    cart.find((i) => i._id === productId)?.quantity || 0;
+
   const fetchCategories = async () => {
     try {
       const res = await axios.post(
@@ -145,9 +201,13 @@ export default function ProductListScreen() {
   );
 
   const renderProduct = ({ item }) => {
-    const qty = getQty(item._id);
+    const selected = isInCart(item._id);
     return (
-      <View style={[styles.card, { width: cardWidth }]}>
+      <TouchableOpacity
+        style={[styles.card, { width: cardWidth }, selected && styles.cardSelected]}
+        onPress={() => toggleCart(item)}
+        activeOpacity={0.85}
+      >
         <View style={styles.imageWrapper}>
           {item.productImage ? (
             <Image
@@ -161,9 +221,9 @@ export default function ProductListScreen() {
             </View>
           )}
 
-          {qty > 0 && (
-            <View style={styles.qtyBadge}>
-              <Text style={styles.qtyBadgeText}>{qty}</Text>
+          {selected && (
+            <View style={styles.selectedBadge}>
+              <Ionicons name="checkmark" size={12} color="#fff" />
             </View>
           )}
         </View>
@@ -184,40 +244,16 @@ export default function ProductListScreen() {
               </Text>
             </View>
 
-            {qty === 0 ? (
-              <TouchableOpacity
-                style={styles.addBtn}
-                onPress={() => addToCart(item)}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="add" size={20} color="#fff" />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.qtyControl}>
-                <TouchableOpacity
-                  style={styles.qtyBtn}
-                  onPress={() => removeFromCart(item._id)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={qty === 1 ? "trash-outline" : "remove"}
-                    size={14}
-                    color={COLORS.brand}
-                  />
-                </TouchableOpacity>
-                <Text style={styles.qtyText}>{qty}</Text>
-                <TouchableOpacity
-                  style={styles.qtyBtn}
-                  onPress={() => addToCart(item)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="add" size={14} color={COLORS.brand} />
-                </TouchableOpacity>
-              </View>
-            )}
+            <View style={[styles.toggleBtn, selected && styles.toggleBtnActive]}>
+              <Ionicons
+                name={selected ? "checkmark" : "add"}
+                size={18}
+                color={selected ? "#fff" : COLORS.brand}
+              />
+            </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -230,17 +266,10 @@ export default function ProductListScreen() {
           <SafeAreaView edges={["top"]}>
             <View style={styles.heroContent}>
               <View style={styles.heroTop}>
-                <TouchableOpacity
-                  style={styles.backBtn}
-                  onPress={() => navigation.goBack()}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="arrow-back" size={20} color="#fff" />
-                </TouchableOpacity>
-                <View style={{ flex: 1, marginLeft: 12 }}>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.heroTitle}>Productos</Text>
                   <Text style={styles.heroSubtitle}>
-                    Crea tu pedido y agrega al carrito
+                    Selecciona productos para tu pedido
                   </Text>
                 </View>
                 {cart.length > 0 && (
@@ -291,162 +320,190 @@ export default function ProductListScreen() {
             </View>
           </SafeAreaView>
         </View>
-        {categories.length > 0 && (
-          <View style={styles.chipsWrapper}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipsContainer}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.chip,
-                  selectedCategory === "" && styles.chipActive,
-                ]}
-                onPress={() => {
-                  setSelectedCategory("");
-                  setPage(1);
-                }}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="apps-outline"
-                  size={13}
-                  color={selectedCategory === "" ? "#fff" : COLORS.textMid}
-                />
-                <Text
-                  style={[
-                    styles.chipText,
-                    selectedCategory === "" && styles.chipTextActive,
-                  ]}
-                >
-                  Todos
-                </Text>
-              </TouchableOpacity>
 
-              {categories.map((cat) => {
-                const isActive = selectedCategory === cat._id;
-                return (
+        {loading ? (
+          <>
+            <View style={styles.chipsWrapper}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipsContainer}
+              >
+                <SkeletonChip w={70} />
+                <SkeletonChip w={90} />
+                <SkeletonChip w={80} />
+                <SkeletonChip w={100} />
+                <SkeletonChip w={75} />
+              </ScrollView>
+            </View>
+            <View style={styles.skeletonGrid}>
+              <View style={styles.skeletonRow}>
+                <SkeletonProductCard cardWidth={cardWidth} />
+                <SkeletonProductCard cardWidth={cardWidth} />
+              </View>
+              <View style={styles.skeletonRow}>
+                <SkeletonProductCard cardWidth={cardWidth} />
+                <SkeletonProductCard cardWidth={cardWidth} />
+              </View>
+              <View style={styles.skeletonRow}>
+                <SkeletonProductCard cardWidth={cardWidth} />
+                <SkeletonProductCard cardWidth={cardWidth} />
+              </View>
+            </View>
+          </>
+        ) : (
+          <>
+            {categories.length > 0 && (
+              <View style={styles.chipsWrapper}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.chipsContainer}
+                >
                   <TouchableOpacity
-                    key={cat._id}
-                    style={[styles.chip, isActive && styles.chipActive]}
+                    style={[
+                      styles.chip,
+                      selectedCategory === "" && styles.chipActive,
+                    ]}
                     onPress={() => {
-                      setSelectedCategory(cat._id);
+                      setSelectedCategory("");
                       setPage(1);
                     }}
                     activeOpacity={0.8}
                   >
+                    <Ionicons
+                      name="apps-outline"
+                      size={13}
+                      color={selectedCategory === "" ? "#fff" : COLORS.textMid}
+                    />
                     <Text
                       style={[
                         styles.chipText,
-                        isActive && styles.chipTextActive,
+                        selectedCategory === "" && styles.chipTextActive,
                       ]}
                     >
-                      {cat.categoryName}
+                      Todos
                     </Text>
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
 
-        {loading ? (
-          <View style={styles.loadingWrapper}>
-            <ActivityIndicator size="large" color={COLORS.brand} />
-            <Text style={styles.loadingText}>Cargando productos...</Text>
-          </View>
-        ) : (
-          <FlatList
-            contentContainerStyle={{
-              paddingHorizontal: 20,
-              paddingTop: 8,
-              paddingBottom: cart.length > 0 ? insets.bottom + 100 : insets.bottom + 24,
-            }}
-            data={salesData}
-            keyExtractor={(item) => item._id}
-            numColumns={2}
-            columnWrapperStyle={{ justifyContent: "space-between", gap: 12 }}
-            showsVerticalScrollIndicator={false}
-            renderItem={renderProduct}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Ionicons
-                  name="search-outline"
-                  size={48}
-                  color={COLORS.textLight}
-                />
-                <Text style={styles.emptyTitle}>Sin resultados</Text>
-                <Text style={styles.emptyDesc}>
-                  No encontramos productos con ese filtro
-                </Text>
+                  {categories.map((cat) => {
+                    const isActive = selectedCategory === cat._id;
+                    return (
+                      <TouchableOpacity
+                        key={cat._id}
+                        style={[styles.chip, isActive && styles.chipActive]}
+                        onPress={() => {
+                          setSelectedCategory(cat._id);
+                          setPage(1);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            isActive && styles.chipTextActive,
+                          ]}
+                        >
+                          {cat.categoryName}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
-            }
-            ListFooterComponent={
-              totalPages > 1 ? (
-                <View style={styles.pagination}>
-                  <TouchableOpacity
-                    onPress={() => setPage((p) => Math.max(p - 1, 1))}
-                    disabled={page === 1}
-                    style={[
-                      styles.pageNavBtn,
-                      page === 1 && styles.pageNavBtnDisabled,
-                    ]}
-                  >
-                    <Ionicons
-                      name="chevron-back"
-                      size={16}
-                      color={page === 1 ? COLORS.textLight : COLORS.brand}
-                    />
-                  </TouchableOpacity>
+            )}
 
-                  {pagesToShow.map((num) => (
+            <FlatList
+              contentContainerStyle={{
+                paddingHorizontal: 20,
+                paddingTop: 8,
+                paddingBottom: cart.length > 0 ? insets.bottom + 100 : insets.bottom + 24,
+              }}
+              data={salesData}
+              keyExtractor={(item) => item._id}
+              numColumns={2}
+              columnWrapperStyle={{ justifyContent: "space-between", gap: 12 }}
+              showsVerticalScrollIndicator={false}
+              renderItem={renderProduct}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <Ionicons
+                    name="search-outline"
+                    size={48}
+                    color={COLORS.textLight}
+                  />
+                  <Text style={styles.emptyTitle}>Sin resultados</Text>
+                  <Text style={styles.emptyDesc}>
+                    No encontramos productos con ese filtro
+                  </Text>
+                </View>
+              }
+              ListFooterComponent={
+                totalPages > 1 ? (
+                  <View style={styles.pagination}>
                     <TouchableOpacity
-                      key={num}
-                      onPress={() => setPage(num)}
+                      onPress={() => setPage((p) => Math.max(p - 1, 1))}
+                      disabled={page === 1}
                       style={[
-                        styles.pageBtn,
-                        page === num && styles.pageBtnActive,
+                        styles.pageNavBtn,
+                        page === 1 && styles.pageNavBtnDisabled,
                       ]}
                     >
-                      <Text
-                        style={
-                          page === num
-                            ? styles.pageTextActive
-                            : styles.pageText
-                        }
-                      >
-                        {num}
-                      </Text>
+                      <Ionicons
+                        name="chevron-back"
+                        size={16}
+                        color={page === 1 ? COLORS.textLight : COLORS.brand}
+                      />
                     </TouchableOpacity>
-                  ))}
 
-                  <TouchableOpacity
-                    onPress={() =>
-                      setPage((p) => Math.min(p + 1, totalPages))
-                    }
-                    disabled={page === totalPages}
-                    style={[
-                      styles.pageNavBtn,
-                      page === totalPages && styles.pageNavBtnDisabled,
-                    ]}
-                  >
-                    <Ionicons
-                      name="chevron-forward"
-                      size={16}
-                      color={
-                        page === totalPages ? COLORS.textLight : COLORS.brand
+                    {pagesToShow.map((num) => (
+                      <TouchableOpacity
+                        key={num}
+                        onPress={() => setPage(num)}
+                        style={[
+                          styles.pageBtn,
+                          page === num && styles.pageBtnActive,
+                        ]}
+                      >
+                        <Text
+                          style={
+                            page === num
+                              ? styles.pageTextActive
+                              : styles.pageText
+                          }
+                        >
+                          {num}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+
+                    <TouchableOpacity
+                      onPress={() =>
+                        setPage((p) => Math.min(p + 1, totalPages))
                       }
-                    />
-                  </TouchableOpacity>
-                </View>
-              ) : null
-            }
-            keyboardShouldPersistTaps="handled"
-          />
+                      disabled={page === totalPages}
+                      style={[
+                        styles.pageNavBtn,
+                        page === totalPages && styles.pageNavBtnDisabled,
+                      ]}
+                    >
+                      <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color={
+                          page === totalPages ? COLORS.textLight : COLORS.brand
+                        }
+                      />
+                    </TouchableOpacity>
+                  </View>
+                ) : null
+              }
+              keyboardShouldPersistTaps="handled"
+            />
+          </>
         )}
 
-        {cart.length > 0 && (
+        {cart.length > 0 && !loading && (
           <TouchableOpacity
             onPress={goToCartDetails}
             style={[
@@ -492,14 +549,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 16,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   heroTitle: { color: "#fff", fontSize: 20, fontWeight: "800" },
   heroSubtitle: {
@@ -582,31 +631,25 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 12, fontWeight: "700", color: COLORS.textMid },
   chipTextActive: { color: "#fff" },
 
-  loadingWrapper: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  loadingText: {
-    marginTop: 10,
-    color: COLORS.textMid,
-    fontSize: 13,
-    fontWeight: "500",
-  },
-
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
     marginBottom: 12,
     overflow: "hidden",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 3 },
     shadowRadius: 8,
     elevation: 2,
+  },
+  cardSelected: {
+    borderColor: COLORS.brand,
+    shadowColor: COLORS.brand,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
   },
   imageWrapper: {
     position: "relative",
@@ -621,24 +664,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  qtyBadge: {
+  selectedBadge: {
     position: "absolute",
     top: 8,
     right: 8,
-    minWidth: 22,
-    height: 22,
-    paddingHorizontal: 6,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: COLORS.brand,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
     shadowColor: COLORS.brand,
     shadowOpacity: 0.4,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 3,
   },
-  qtyBadgeText: { color: "#fff", fontSize: 11, fontWeight: "800" },
 
   cardBody: { padding: 10 },
   category: {
@@ -674,42 +717,24 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginTop: -1,
   },
-  addBtn: {
+  toggleBtn: {
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: COLORS.brand,
+    backgroundColor: COLORS.dangerBg,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: COLORS.brand,
+  },
+  toggleBtnActive: {
+    backgroundColor: COLORS.brand,
+    borderColor: COLORS.brand,
     shadowColor: COLORS.brand,
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 3,
-  },
-  qtyControl: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: COLORS.dangerBg,
-    borderRadius: 10,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-  },
-  qtyBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  qtyText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: COLORS.brand,
-    minWidth: 14,
-    textAlign: "center",
   },
 
   emptyState: {
@@ -806,4 +831,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   payAmount: { color: "#fff", fontSize: 15, fontWeight: "800" },
+
+  skeletonGrid: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  skeletonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
 });

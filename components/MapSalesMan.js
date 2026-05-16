@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Platform,
   PermissionsAndroid,
+  Animated,
+  Easing,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,6 +28,8 @@ import { TimerContext } from "../components/TimerContext";
 import { AuthContext } from "../AuthContext";
 
 const { height } = Dimensions.get("window");
+
+const GEOFENCE_RADIUS_METERS = 300;
 
 const COLORS = {
   brand: "#D3423E",
@@ -62,6 +66,77 @@ const MAP_STYLE = [
   { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
 ];
 
+const haversineDistance = (lat1, lon1, lat2, lon2) => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+  const R = 6371000;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const Toast = ({ visible, type, title, message, onHide }) => {
+  const slideAnim = useRef(new Animated.Value(-120)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        friction: 8,
+        tension: 60,
+      }).start();
+      const timer = setTimeout(() => {
+        Animated.timing(slideAnim, {
+          toValue: -120,
+          duration: 250,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }).start(() => onHide && onHide());
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [visible, slideAnim, onHide]);
+
+  if (!visible) return null;
+
+  const config = {
+    error: { bg: COLORS.dangerBg, color: COLORS.brand, icon: "alert-circle" },
+    warning: { bg: COLORS.warningBg, color: COLORS.warning, icon: "warning" },
+    success: { bg: COLORS.successBg, color: COLORS.success, icon: "checkmark-circle" },
+    info: { bg: COLORS.infoBg, color: COLORS.info, icon: "information-circle" },
+  };
+  const cfg = config[type] || config.info;
+
+  return (
+    <Animated.View style={[styles.toast, { transform: [{ translateY: slideAnim }] }]}>
+      <View style={[styles.toastIcon, { backgroundColor: cfg.bg }]}>
+        <Ionicons name={cfg.icon} size={20} color={cfg.color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.toastTitle}>{title}</Text>
+        {message && <Text style={styles.toastMessage}>{message}</Text>}
+      </View>
+      <TouchableOpacity
+        onPress={() => {
+          Animated.timing(slideAnim, {
+            toValue: -120,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => onHide && onHide());
+        }}
+        style={styles.toastClose}
+      >
+        <Ionicons name="close" size={16} color={COLORS.textMid} />
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 const MapSalesMan = () => {
   const { startTimer, stopTimer } = useContext(TimerContext);
 
@@ -90,6 +165,25 @@ const MapSalesMan = () => {
   const [routeId, setRouteId] = useState("");
   const { token, idOwner, salesId } = useContext(AuthContext);
   const [loadingButton, setLoadingButton] = useState(false);
+
+  const [activeDestination, setActiveDestination] = useState(null);
+  const [distance, setDistance] = useState("");
+  const [duration, setDuration] = useState("");
+  const [durationInTraffic, setDurationInTraffic] = useState("");
+  const [arrivalTime, setArrivalTime] = useState("");
+  const [trafficLevel, setTrafficLevel] = useState("normal");
+
+  const [distanceToClient, setDistanceToClient] = useState(null);
+
+  const [toast, setToast] = useState({ visible: false, type: "info", title: "", message: "" });
+
+  const showToast = (type, title, message) => {
+    setToast({ visible: true, type, title, message: message || "" });
+  };
+
+  const hideToast = () => {
+    setToast((t) => ({ ...t, visible: false }));
+  };
 
   const requestLocationPermission = async () => {
     if (Platform.OS === "android") {
@@ -121,7 +215,9 @@ const MapSalesMan = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setListRoute(response.data);
-    } catch (error) {}
+    } catch (error) {
+      showToast("error", "Error al cargar rutas", "No pudimos obtener tus rutas");
+    }
   };
 
   const getRoutesById = async (value) => {
@@ -132,7 +228,9 @@ const MapSalesMan = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setRoute(response.data);
-    } catch (error) {}
+    } catch (error) {
+      showToast("error", "Error al cargar ruta", "Intenta de nuevo");
+    }
   };
 
   const uploadRoute = async (value, visitStartTime, visitEndTime, visitTime) => {
@@ -152,7 +250,9 @@ const MapSalesMan = () => {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-    } catch (error) {}
+    } catch (error) {
+      showToast("warning", "Sincronización pendiente", "Tu visita se guardará al recuperar señal");
+    }
   };
 
   const uploadProgressRoute = async () => {
@@ -162,13 +262,15 @@ const MapSalesMan = () => {
         { id_owner: idOwner, _id: routeId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-    } catch (error) {}
+    } catch (error) {
+      showToast("warning", "Progreso no actualizado", "Conexión inestable");
+    }
   };
 
   async function getUserLocation() {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
-      alert("Permisos denegados");
+      showToast("error", "Permiso denegado", "Habilita la ubicación en ajustes");
       return;
     }
     let location = await Location.getCurrentPositionAsync({});
@@ -211,33 +313,133 @@ const MapSalesMan = () => {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-    } catch (error) {}
+    } catch (error) {
+      showToast("warning", "Actividad no enviada", "Se reintentará en segundo plano");
+    }
   };
 
-  const handleTimerToggle = async (selectedClient2, text) => {
+  const computeArrivalTime = (durationInSeconds) => {
+    const arrival = new Date(Date.now() + durationInSeconds * 1000);
+    return arrival.toLocaleTimeString("es-BO", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const fetchETA = async (originCoords, destCoords) => {
+    try {
+      const url = `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${originCoords.latitude},${originCoords.longitude}&destinations=${destCoords.latitude},${destCoords.longitude}&departure_time=now&traffic_model=best_guess&key=${GOOGLE_API_KEY}`;
+      const response = await axios.get(url);
+      const data = response.data;
+      if (
+        data.rows.length > 0 &&
+        data.rows[0].elements.length > 0 &&
+        data.rows[0].elements[0].status === "OK"
+      ) {
+        const element = data.rows[0].elements[0];
+        const distanceText = element.distance.text;
+        const durationText = element.duration.text;
+        const durationValue = element.duration.value;
+        const durationTrafficText = element.duration_in_traffic?.text || durationText;
+        const durationTrafficValue = element.duration_in_traffic?.value || durationValue;
+
+        const trafficRatio = durationTrafficValue / durationValue;
+        let level = "normal";
+        if (trafficRatio >= 1.5) level = "heavy";
+        else if (trafficRatio >= 1.2) level = "moderate";
+
+        setDistance(distanceText);
+        setDuration(durationText);
+        setDurationInTraffic(durationTrafficText);
+        setArrivalTime(computeArrivalTime(durationTrafficValue));
+        setTrafficLevel(level);
+      }
+    } catch (error) {
+      // silencioso - no mostramos toast por cada refresh fallido
+    }
+  };
+
+  const handleStartVisit = async (selectedClient2, text) => {
+    const userLocation = await getUserLocation();
+    if (!userLocation) return;
+
+    const destLat = parseFloat(selectedClient2.client_location?.latitud);
+    const destLng = parseFloat(selectedClient2.client_location?.longitud);
+    const distanceMeters = haversineDistance(
+      userLocation.latitude,
+      userLocation.longitude,
+      destLat,
+      destLng
+    );
+
+    if (distanceMeters > GEOFENCE_RADIUS_METERS) {
+      const distanceFormatted =
+        distanceMeters >= 1000
+          ? `${(distanceMeters / 1000).toFixed(1)} km`
+          : `${Math.round(distanceMeters)} m`;
+      showToast(
+        "warning",
+        "Estás demasiado lejos",
+        `Acércate a menos de ${GEOFENCE_RADIUS_METERS}m. Distancia actual: ${distanceFormatted}`
+      );
+      return;
+    }
+
     setLoadingButton(true);
     try {
-      if (isTimerRunning) {
-        setTimer(0);
-        const stopTime = await stopTimer();
-        setShowRoute(true);
-        setShowClients(false);
-        await uploadRoute(selectedClient2, null, stopTime, formatTime(timer));
-        await uploadProgressRoute();
-        await getRoutesById(routeId);
-        await fetchActivity(selectedClient2, text);
-        setModal(false);
-        setSelectedClient(null);
-        await AsyncStorage.removeItem("timer_start");
-      } else {
-        const startTime = await startTimer();
-        startMapping();
-        await uploadRoute(selectedClient2, startTime, null, null);
-        await fetchActivity(selectedClient2, text);
+      const startTime = await startTimer();
+      startMapping();
+      setActiveDestination({
+        latitude: destLat,
+        longitude: destLng,
+        clientId: selectedClient2.client_location._id,
+      });
+      await fetchETA(userLocation, { latitude: destLat, longitude: destLng });
+      await uploadRoute(selectedClient2, startTime, null, null);
+      await fetchActivity(selectedClient2, text);
+      setIsTimerRunning(true);
+      showToast("success", "Visita iniciada", `Cliente: ${selectedClient2.name || selectedClient2.nombre}`);
+
+      if (mapRef.current) {
+        mapRef.current.fitToCoordinates(
+          [
+            userLocation,
+            { latitude: destLat, longitude: destLng },
+          ],
+          {
+            edgePadding: { top: 200, right: 80, bottom: 320, left: 80 },
+            animated: true,
+          }
+        );
       }
-      setIsTimerRunning(!isTimerRunning);
     } catch (error) {
-      console.error(error);
+      showToast("error", "No se pudo iniciar", "Intenta de nuevo en un momento");
+    } finally {
+      setLoadingButton(false);
+    }
+  };
+
+  const handleFinishVisit = async (selectedClient2, text) => {
+    setLoadingButton(true);
+    try {
+      const visitTime = formatTime(timer);
+      setTimer(0);
+      const stopTime = await stopTimer();
+      setShowRoute(true);
+      setShowClients(false);
+      setActiveDestination(null);
+      await uploadRoute(selectedClient2, null, stopTime, visitTime);
+      await uploadProgressRoute();
+      await getRoutesById(routeId);
+      await fetchActivity(selectedClient2, text);
+      setModal(false);
+      setSelectedClient(null);
+      await AsyncStorage.removeItem("timer_start");
+      setIsTimerRunning(false);
+      showToast("success", "Visita finalizada", `Duración: ${visitTime}`);
+    } catch (error) {
+      showToast("error", "Error al finalizar", "Tus datos se guardarán cuando haya conexión");
     } finally {
       setLoadingButton(false);
     }
@@ -266,7 +468,7 @@ const MapSalesMan = () => {
       setFilteredClients(response.data.users);
       setLoading(false);
     } catch (error) {
-      console.error("Error fetching clients:", error);
+      showToast("error", "Error al cargar clientes", "Revisa tu conexión");
       setLoading(false);
     }
   };
@@ -301,6 +503,44 @@ const MapSalesMan = () => {
     return () => clearInterval(interval);
   }, [isTimerRunning, timer]);
 
+  useEffect(() => {
+    let etaInterval = null;
+    let locationInterval = null;
+    if (isTimerRunning && activeDestination) {
+      etaInterval = setInterval(async () => {
+        const currentLocation = await getUserLocation();
+        if (currentLocation) {
+          await fetchETA(currentLocation, {
+            latitude: activeDestination.latitude,
+            longitude: activeDestination.longitude,
+          });
+        }
+      }, 30000);
+      locationInterval = setInterval(async () => {
+        await getUserLocation();
+      }, 10000);
+    }
+    return () => {
+      if (etaInterval) clearInterval(etaInterval);
+      if (locationInterval) clearInterval(locationInterval);
+    };
+  }, [isTimerRunning, activeDestination]);
+
+  useEffect(() => {
+    if (selectedClient && origin.latitude !== 0) {
+      const lat = parseFloat(selectedClient.client_location?.latitud);
+      const lng = parseFloat(selectedClient.client_location?.longitud);
+      if (lat && lng) {
+        const d = haversineDistance(origin.latitude, origin.longitude, lat, lng);
+        setDistanceToClient(d);
+      } else {
+        setDistanceToClient(null);
+      }
+    } else {
+      setDistanceToClient(null);
+    }
+  }, [selectedClient, origin]);
+
   const centerMapOnClient = (client) => {
     setSelectedClient(client);
     setModal(true);
@@ -332,6 +572,12 @@ const MapSalesMan = () => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  const formatDistance = (meters) => {
+    if (meters == null) return "—";
+    if (meters >= 1000) return `${(meters / 1000).toFixed(1)} km`;
+    return `${Math.round(meters)} m`;
   };
 
   const navigate = () => {
@@ -369,6 +615,20 @@ const MapSalesMan = () => {
     if (showRoutes) return `${listRoute?.length || 0} rutas disponibles`;
     return `${filteredClients.length} ${filteredClients.length === 1 ? "cliente" : "clientes"} cerca`;
   };
+
+  const getTrafficStyle = (level) => {
+    if (level === "heavy") return { color: COLORS.brand, bg: COLORS.dangerBg, label: "Tráfico denso" };
+    if (level === "moderate") return { color: COLORS.warning, bg: COLORS.warningBg, label: "Tráfico moderado" };
+    return { color: COLORS.success, bg: COLORS.successBg, label: "Tráfico fluido" };
+  };
+
+  const getRouteStrokeColor = () => {
+    if (trafficLevel === "heavy") return COLORS.brand;
+    if (trafficLevel === "moderate") return COLORS.warning;
+    return "#1f2937";
+  };
+
+  const withinGeofence = distanceToClient !== null && distanceToClient <= GEOFENCE_RADIUS_METERS;
 
   return (
     <View style={styles.container}>
@@ -424,7 +684,7 @@ const MapSalesMan = () => {
                       style={[
                         styles.markerCircle,
                         point.visitStatus && { backgroundColor: COLORS.success },
-                        isCurrentClient && { backgroundColor: COLORS.info },
+                        isCurrentClient && { backgroundColor: "#1f2937" },
                       ]}
                     >
                       {point.visitStatus ? (
@@ -439,12 +699,12 @@ const MapSalesMan = () => {
                       style={[
                         styles.markerArrow,
                         point.visitStatus && { borderTopColor: COLORS.success },
-                        isCurrentClient && { borderTopColor: COLORS.info },
+                        isCurrentClient && { borderTopColor: "#1f2937" },
                       ]}
                     />
                   </View>
                 </Marker>
-                {index === 0 && route[0].route.length > 1 && (
+                {!isTimerRunning && index === 0 && route[0].route.length > 1 && (
                   <MapViewDirections
                     origin={origin}
                     destination={{
@@ -468,49 +728,91 @@ const MapSalesMan = () => {
               </React.Fragment>
             );
           })}
+
+        {isTimerRunning && activeDestination && origin.latitude !== 0 && (
+          <MapViewDirections
+            origin={origin}
+            destination={{
+              latitude: activeDestination.latitude,
+              longitude: activeDestination.longitude,
+            }}
+            apikey={GOOGLE_API_KEY}
+            strokeColor={getRouteStrokeColor()}
+            strokeWidth={6}
+            mode="DRIVING"
+            precision="high"
+          />
+        )}
       </MapView>
 
       <SafeAreaView edges={["top"]} style={styles.topHeaderSafe}>
-        <View style={styles.topHeader}>
-          {(showRoute || showRoutes) && (
-            <TouchableOpacity
-              style={styles.backBtn}
-              onPress={() => showAllClients()}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="arrow-back" size={18} color={COLORS.text} />
-            </TouchableOpacity>
-          )}
-
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {getHeaderTitle()}
-            </Text>
-            <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {getHeaderSubtitle()}
-            </Text>
-          </View>
-
-                            {showClients && (
-                                <TouchableOpacity
-                                    style={styles.routesBtn}
-                                    onPress={showRoutesList}
-                                    activeOpacity={0.85}
-                                >
-                                    <Ionicons name="cube" size={16} color="#fff" />
-                                    <Text style={styles.routesBtnText}>Mis rutas</Text>
-                                </TouchableOpacity>
-                            )}
-          {isTimerRunning && (
-            <View style={styles.timerBadge}>
-              <View style={styles.timerDot} />
-              <Text style={styles.timerText}>{formatTime(timer)}</Text>
+        {isTimerRunning ? (
+          <View style={styles.etaPanel}>
+            <View style={styles.etaTopRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.etaLabel}>LLEGADA ESTIMADA</Text>
+                <View style={styles.etaTimeRow}>
+                  <Text style={styles.etaTime}>{durationInTraffic || "—"}</Text>
+                  {arrivalTime ? (
+                    <Text style={styles.etaClockText}>· {arrivalTime}</Text>
+                  ) : null}
+                </View>
+              </View>
+              <View style={styles.timerBadgeLarge}>
+                <View style={styles.timerDotLarge} />
+                <Text style={styles.timerTextLarge}>{formatTime(timer)}</Text>
+              </View>
             </View>
-          )}
-        </View>
+
+            <View style={styles.etaMetaRow}>
+              <View style={styles.etaMetaItem}>
+                <Ionicons name="navigate" size={12} color={COLORS.info} />
+                <Text style={styles.etaMetaText}>{distance || "—"}</Text>
+              </View>
+              <View style={[styles.trafficPill, { backgroundColor: getTrafficStyle(trafficLevel).bg }]}>
+                <View style={[styles.trafficDot, { backgroundColor: getTrafficStyle(trafficLevel).color }]} />
+                <Text style={[styles.trafficText, { color: getTrafficStyle(trafficLevel).color }]}>
+                  {getTrafficStyle(trafficLevel).label}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.topHeader}>
+            {(showRoute || showRoutes) && (
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => showAllClients()}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="arrow-back" size={18} color={COLORS.text} />
+              </TouchableOpacity>
+            )}
+
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {getHeaderTitle()}
+              </Text>
+              <Text style={styles.headerSubtitle} numberOfLines={1}>
+                {getHeaderSubtitle()}
+              </Text>
+            </View>
+
+            {showClients && (
+              <TouchableOpacity
+                style={styles.routesBtn}
+                onPress={showRoutesList}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="cube" size={16} color="#fff" />
+                <Text style={styles.routesBtnText}>Mis rutas</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </SafeAreaView>
 
-      {showClients && !showRoute && !showRoutes && (
+      {showClients && !showRoute && !showRoutes && !isTimerRunning && (
         <View style={styles.topActionsRow}>
           <View style={styles.searchWrapper}>
             <Ionicons name="search-outline" size={18} color={COLORS.textMid} />
@@ -537,7 +839,7 @@ const MapSalesMan = () => {
         </View>
       )}
 
-      {showClients && !showRoute && !showRoutes && filteredClients.length > 0 && (
+      {showClients && !showRoute && !showRoutes && !isTimerRunning && filteredClients.length > 0 && (
         <View style={styles.cardsWrapper}>
           <View style={styles.cardsHeaderRow}>
             <Text style={styles.cardsHeaderTitle}>Cerca de ti</Text>
@@ -829,17 +1131,32 @@ const MapSalesMan = () => {
           </View>
 
           <View style={styles.sheetStatsRow}>
-            {selectedClient.visitStatus ? (
+            {!isTimerRunning && distanceToClient !== null && (
+              <View
+                style={[
+                  styles.sheetStat,
+                  { backgroundColor: withinGeofence ? COLORS.successBg : COLORS.warningBg },
+                ]}
+              >
+                <Ionicons
+                  name={withinGeofence ? "location" : "navigate-outline"}
+                  size={12}
+                  color={withinGeofence ? COLORS.success : COLORS.warning}
+                />
+                <Text
+                  style={[
+                    styles.sheetStatText,
+                    { color: withinGeofence ? COLORS.success : COLORS.warning },
+                  ]}
+                >
+                  {formatDistance(distanceToClient)}
+                </Text>
+              </View>
+            )}
+            {selectedClient.visitStatus && (
               <View style={styles.sheetStat}>
                 <Ionicons name="checkmark-circle" size={14} color={COLORS.success} />
                 <Text style={styles.sheetStatText}>Ya visitado</Text>
-              </View>
-            ) : (
-              <View style={[styles.sheetStat, { backgroundColor: COLORS.infoBg }]}>
-                <Ionicons name="person" size={12} color={COLORS.info} />
-                <Text style={[styles.sheetStatText, { color: COLORS.info }]}>
-                  Cliente activo
-                </Text>
               </View>
             )}
             {isTimerRunning && (
@@ -853,21 +1170,40 @@ const MapSalesMan = () => {
           </View>
 
           {!isTimerRunning && !selectedClient.visitStatus && (
-            <TouchableOpacity
-              style={styles.startVisitButton}
-              onPress={() => handleTimerToggle(selectedClient, "Visita al cliente")}
-              disabled={loadingButton}
-              activeOpacity={0.9}
-            >
-              {loadingButton ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="play" size={16} color="#fff" />
-                  <Text style={styles.startVisitText}>Iniciar visita</Text>
-                </>
+            <>
+              {!withinGeofence && distanceToClient !== null && (
+                <View style={styles.geofenceWarning}>
+                  <Ionicons name="warning" size={14} color={COLORS.warning} />
+                  <Text style={styles.geofenceWarningText}>
+                    Debes estar a menos de {GEOFENCE_RADIUS_METERS}m del cliente
+                  </Text>
+                </View>
               )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.startVisitButton,
+                  !withinGeofence && styles.startVisitButtonDisabled,
+                ]}
+                onPress={() => handleStartVisit(selectedClient, "Visita al cliente")}
+                disabled={loadingButton || !withinGeofence}
+                activeOpacity={0.9}
+              >
+                {loadingButton ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name={withinGeofence ? "play" : "lock-closed"}
+                      size={16}
+                      color="#fff"
+                    />
+                    <Text style={styles.startVisitText}>
+                      {withinGeofence ? "Iniciar visita" : "Fuera de rango"}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </>
           )}
 
           {isTimerRunning && (
@@ -883,7 +1219,7 @@ const MapSalesMan = () => {
 
               <TouchableOpacity
                 style={styles.finishVisitButton}
-                onPress={() => handleTimerToggle(selectedClient, "Termina la visita")}
+                onPress={() => handleFinishVisit(selectedClient, "Termina la visita")}
                 disabled={loadingButton}
                 activeOpacity={0.9}
               >
@@ -900,6 +1236,14 @@ const MapSalesMan = () => {
           )}
         </View>
       )}
+
+      <Toast
+        visible={toast.visible}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        onHide={hideToast}
+      />
 
       {loading && (
         <View style={styles.loadingContainer}>
@@ -960,26 +1304,133 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginTop: 2,
   },
-  timerBadge: {
+  routesBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: COLORS.brand,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  routesBtnText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+
+  etaPanel: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  etaTopRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  etaLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: COLORS.textMid,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginBottom: 2,
+  },
+  etaTimeRow: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+  etaTime: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: COLORS.text,
+    fontVariant: ["tabular-nums"],
+  },
+  etaClockText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.textMid,
+    fontVariant: ["tabular-nums"],
+  },
+  timerBadgeLarge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     backgroundColor: COLORS.warningBg,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
   },
-  timerDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.warning,
-  },
-  timerText: {
-    fontSize: 12,
+  timerDotLarge: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.warning },
+  timerTextLarge: {
+    fontSize: 14,
     fontWeight: "800",
     color: COLORS.warning,
     fontVariant: ["tabular-nums"],
+  },
+  etaMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
+  etaMetaItem: { flexDirection: "row", alignItems: "center", gap: 5 },
+  etaMetaText: { fontSize: 13, fontWeight: "700", color: COLORS.text },
+  trafficPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  trafficDot: { width: 6, height: 6, borderRadius: 3 },
+  trafficText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
+
+  toast: {
+    position: "absolute",
+    top: 60,
+    left: 16,
+    right: 16,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
+    elevation: 14,
+    zIndex: 100,
+  },
+  toastIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  toastTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.text,
+  },
+  toastMessage: {
+    fontSize: 11,
+    color: COLORS.textMid,
+    fontWeight: "500",
+    marginTop: 1,
+    lineHeight: 15,
+  },
+  toastClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.borderLight,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   topActionsRow: {
@@ -1061,17 +1512,6 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 4,
   },
-      routesBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: COLORS.brand,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 10,
-    },
-    routesBtnText: { color: "#fff", fontSize: 12, fontWeight: "800" },
-
   markerText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   markerArrow: {
     width: 0,
@@ -1114,11 +1554,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textShadowColor: "rgba(255,255,255,0.9)",
     textShadowRadius: 4,
-  },
-  cardsHeaderLink: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: COLORS.brand,
   },
   cardsHeaderCount: {
     fontSize: 12,
@@ -1426,7 +1861,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  sheetStatsRow: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  sheetStatsRow: { flexDirection: "row", gap: 8, marginBottom: 14, flexWrap: "wrap" },
   sheetStat: {
     flexDirection: "row",
     alignItems: "center",
@@ -1444,6 +1879,24 @@ const styles = StyleSheet.create({
   },
   pulseDot: { width: 7, height: 7, borderRadius: 3.5 },
 
+  geofenceWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: COLORS.warningBg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  geofenceWarningText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.warning,
+    lineHeight: 15,
+  },
+
   startVisitButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1457,6 +1910,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 10,
     elevation: 4,
+  },
+  startVisitButtonDisabled: {
+    backgroundColor: COLORS.textLight,
+    shadowOpacity: 0,
   },
   finishVisitButton: {
     flexDirection: "row",

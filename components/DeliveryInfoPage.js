@@ -154,7 +154,7 @@ export default function DeliveryInfoPage() {
             <View style={styles.roleBadge}>
               <Ionicons name="briefcase" size={11} color={COLORS.brand} />
               <Text style={styles.roleBadgeText}>
-                {profile?.role === "SALES" ? "Vendedor" : profile?.role || "Vendedor"}
+                DISTRIBUIDOR
               </Text>
             </View>
 
