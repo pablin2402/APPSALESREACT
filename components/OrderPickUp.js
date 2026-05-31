@@ -25,6 +25,7 @@ import { API_URL } from "../config";
 import { AuthContext } from "../AuthContext";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import * as Location from "expo-location";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const COLORS = {
   brand: "#D3423E",
@@ -45,7 +46,7 @@ const COLORS = {
   dangerBg: "#fee2e2",
 };
 
-const IMAGE_MEDIA_TYPES = ["images"];
+const DELIVERY_REGISTERED_KEY = "mapdelivery_delivery_registered";
 
 export default function OrderPickUp() {
   const [date] = useState(new Date());
@@ -60,7 +61,8 @@ export default function OrderPickUp() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [origin, setOrigin] = useState({ latitude: 0, longitude: 0 });
-  const onFinishDelivery = route.params?.onFinishDelivery;
+
+  const onDeliveryRegistered = route.params?.onDeliveryRegistered;
   const client = route.params?.client;
   const routes = route.params?.route;
 
@@ -120,7 +122,7 @@ export default function OrderPickUp() {
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: IMAGE_MEDIA_TYPES,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
         allowsEditing: false,
       });
@@ -150,7 +152,7 @@ export default function OrderPickUp() {
 
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: IMAGE_MEDIA_TYPES,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
         allowsEditing: false,
       });
@@ -284,19 +286,27 @@ export default function OrderPickUp() {
         }
       );
       if (response.status === 200 || response.status === 201) {
-  showModal();
+        await AsyncStorage.setItem(DELIVERY_REGISTERED_KEY, "true");
 
-  await uploadRoute();
+        showModal();
 
-  if (onFinishDelivery) {
-    onFinishDelivery();
-  }
+        await uploadRoute();
 
-  setTimeout(() => {
-    navigation.navigate("MapDelivery");
-  }, 1200);
-}
-    } catch (error) {}
+        if (onDeliveryRegistered) {
+          try {
+            await onDeliveryRegistered();
+          } catch (e) { }
+        }
+
+        setTimeout(() => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate("MapScreenDelivery");
+          }
+        }, 1400);
+      }
+    } catch (error) { }
     setIsSaving(false);
   };
 
@@ -458,7 +468,6 @@ export default function OrderPickUp() {
         >
           <TouchableOpacity
             onPress={handlePay}
-            disabled={!canSubmit}
             style={[
               styles.submitBtn,
               !canSubmit && styles.submitBtnDisabled,
@@ -561,7 +570,7 @@ export default function OrderPickUp() {
               </View>
               <Text style={styles.successTitle}>¡Entrega registrada!</Text>
               <Text style={styles.successDesc}>
-                El pedido se entregó con éxito
+                Vuelve al mapa para finalizar el trayecto
               </Text>
             </Animated.View>
           </View>

@@ -131,7 +131,6 @@ export default function SalesManInfoPage() {
             </View>
           </SafeAreaView>
         </View>
-
         <ScrollView
           contentContainerStyle={{
             paddingHorizontal: 20,

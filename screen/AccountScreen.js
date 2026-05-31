@@ -268,8 +268,6 @@ export default function AccountScreen() {
               isLast
             />
           </View>
-
-
           <Text style={styles.versionText}>Versión 1.0.0</Text>
         </ScrollView>
         )}

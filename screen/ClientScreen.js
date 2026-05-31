@@ -1,4 +1,4 @@
-import React, { useEffect,useRef, useCallback, useState, useContext } from "react";
+import React, { useEffect, useRef, useCallback, useState, useContext } from "react";
 import axios from "axios";
 import { API_URL } from "../config";
 import { useNavigation } from "@react-navigation/native";
@@ -7,14 +7,11 @@ import {
   Text,
   TextInput,
   FlatList,
-  ActivityIndicator,
   TouchableOpacity,
   Image,
   StyleSheet,
   StatusBar,
   Animated,
-  LayoutAnimation,
-  UIManager,
   Easing,
 } from "react-native";
 import { useSafeAreaInsets, SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
@@ -39,6 +36,7 @@ const COLORS = {
   infoBg: "#eff6ff",
   dangerBg: "#fee2e2",
 };
+
 const ShimmerBlock = ({ width, height, style, radius = 8 }) => {
   const shimmer = useRef(new Animated.Value(0)).current;
 
@@ -85,21 +83,15 @@ const ShimmerBlock = ({ width, height, style, radius = 8 }) => {
   );
 };
 
-const SkeletonCard = () => (
+const SkeletonClientCard = () => (
   <View style={styles.skeletonCard}>
-    <View style={styles.skeletonTop}>
-      <ShimmerBlock width={120} height={18} radius={8} />
-      <ShimmerBlock width={80} height={22} radius={6} />
+    <ShimmerBlock width={54} height={54} radius={27} />
+    <View style={{ flex: 1, gap: 6 }}>
+      <ShimmerBlock width={150} height={14} radius={5} />
+      <ShimmerBlock width={200} height={11} radius={4} />
+      <ShimmerBlock width={100} height={18} radius={999} style={{ marginTop: 2 }} />
     </View>
-    <View style={styles.skeletonMiddle}>
-      <ShimmerBlock width={36} height={36} radius={18} />
-      <View style={{ flex: 1, gap: 6 }}>
-        <ShimmerBlock width={140} height={14} radius={6} />
-        <ShimmerBlock width={90} height={11} radius={5} />
-      </View>
-    </View>
-    <View style={styles.skeletonDivider} />
-    <ShimmerBlock width={100} height={20} radius={999} />
+    <ShimmerBlock width={32} height={32} radius={10} />
   </View>
 );
 
@@ -166,6 +158,7 @@ export default function ClientScreen() {
   const goToClientDetails = (client) => {
     navigation.navigate("ClientDetailsScreen", { client: client._id });
   };
+
   const getInitials = (name, lastName) => {
     return `${name?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
   };
@@ -189,10 +182,13 @@ export default function ClientScreen() {
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.heroTitle}>Mis clientes</Text>
                   <Text style={styles.heroSubtitle}>
-                    {salesData.length}{" "}
-                    {salesData.length === 1
-                      ? "cliente en esta página"
-                      : "clientes en esta página"}
+                    {loading
+                      ? "Cargando clientes..."
+                      : `${salesData.length} ${
+                          salesData.length === 1
+                            ? "cliente en esta página"
+                            : "clientes en esta página"
+                        }`}
                   </Text>
                 </View>
                 <View style={styles.heroIconBox}>
@@ -228,86 +224,90 @@ export default function ClientScreen() {
             </View>
           </SafeAreaView>
         </View>
-{loading && salesData.length === 0 ? (
+
+        {loading ? (
           <View
             style={{
               paddingHorizontal: 20,
-              paddingTop: 12,
-              paddingBottom: insets.bottom + 24,
+              paddingTop: 16,
+              paddingBottom: insets.bottom + 80,
             }}
           >
-            {[1, 2, 3, 4, 5].map((i) => (
-              <SkeletonCard key={i} />
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <SkeletonClientCard key={i} />
             ))}
           </View>
         ) : (
-        <FlatList
-          data={salesData}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingTop: 16,
-            paddingBottom: insets.bottom + 80,
-          }}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={48} color={COLORS.textLight} />
-              <Text style={styles.emptyTitle}>Sin clientes</Text>
-              <Text style={styles.emptyDesc}>
-                No encontramos clientes con esta búsqueda
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.clientCard}
-              onPress={() => goToClientDetails(item)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.avatarWrapper}>
-                {item.identificationImage ? (
-                  <Image
-                    source={{ uri: item.identificationImage }}
-                    style={styles.avatarImage}
-                  />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarInitials}>
-                      {getInitials(item.name, item.lastName)}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.avatarStatusDot} />
-              </View>
-
-              <View style={styles.clientInfo}>
-                <Text style={styles.clientName} numberOfLines={1}>
-                  {item.name} {item.lastName}
+          <FlatList
+            data={salesData}
+            keyExtractor={(item) => item._id}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 16,
+              paddingBottom: insets.bottom + 80,
+            }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIconWrap}>
+                  <Ionicons name="people-outline" size={36} color={COLORS.textLight} />
+                </View>
+                <Text style={styles.emptyTitle}>Sin clientes</Text>
+                <Text style={styles.emptyDesc}>
+                  No encontramos clientes con esta búsqueda
                 </Text>
-                <View style={styles.clientLocationRow}>
-                  <Ionicons name="location-sharp" size={11} color={COLORS.brand} />
-                  <Text style={styles.clientLocation} numberOfLines={2}>
-                    {item.client_location?.direction || "Sin dirección"}
-                  </Text>
+              </View>
+            }
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.clientCard}
+                onPress={() => goToClientDetails(item)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.avatarWrapper}>
+                  {item.identificationImage ? (
+                    <Image
+                      source={{ uri: item.identificationImage }}
+                      style={styles.avatarImage}
+                    />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Text style={styles.avatarInitials}>
+                        {getInitials(item.name, item.lastName)}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.avatarStatusDot} />
                 </View>
 
-                {item.phoneNumber && (
-                  <View style={styles.clientChip}>
-                    <Ionicons name="call-outline" size={10} color={COLORS.textMid} />
-                    <Text style={styles.clientChipText}>{item.phoneNumber}</Text>
+                <View style={styles.clientInfo}>
+                  <Text style={styles.clientName} numberOfLines={1}>
+                    {item.name} {item.lastName}
+                  </Text>
+                  <View style={styles.clientLocationRow}>
+                    <Ionicons name="location-sharp" size={11} color={COLORS.brand} />
+                    <Text style={styles.clientLocation} numberOfLines={2}>
+                      {item.client_location?.direction || "Sin dirección"}
+                    </Text>
                   </View>
-                )}
-              </View>
 
-              <View style={styles.chevronWrap}>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.brand} />
-              </View>
-            </TouchableOpacity>
-          )}
-        />
-  )}
-        {totalPages > 1 && (
+                  {item.phoneNumber && (
+                    <View style={styles.clientChip}>
+                      <Ionicons name="call-outline" size={10} color={COLORS.textMid} />
+                      <Text style={styles.clientChipText}>{item.phoneNumber}</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.chevronWrap}>
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.brand} />
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        )}
+
+        {!loading && totalPages > 1 && (
           <View style={[styles.paginationBar, { paddingBottom: insets.bottom + 10 }]}>
             <TouchableOpacity
               onPress={() => setPage((p) => Math.max(p - 1, 1))}
@@ -358,18 +358,6 @@ export default function ClientScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  loadingFull: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.bg,
-  },
-  loadingText: {
-    marginTop: 12,
-    color: COLORS.textMid,
-    fontSize: 13,
-    fontWeight: "500",
-  },
 
   heroWrapper: { position: "relative", paddingBottom: 16 },
   heroBg: {
@@ -528,11 +516,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 60,
   },
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.borderLight,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 14,
+  },
   emptyTitle: {
     fontSize: 15,
     fontWeight: "700",
     color: COLORS.text,
-    marginTop: 12,
+    marginTop: 4,
   },
   emptyDesc: {
     fontSize: 12,
@@ -579,28 +576,14 @@ const styles = StyleSheet.create({
   pageTextActive: { fontSize: 13, fontWeight: "800", color: "#fff" },
 
   skeletonCard: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#f3f4f6",
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.04)",
-  },
-  skeletonTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  skeletonMiddle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 14,
-  },
-  skeletonDivider: {
-    height: 1,
-    backgroundColor: "rgba(0,0,0,0.06)",
-    marginBottom: 14,
+    gap: 12,
   },
 });

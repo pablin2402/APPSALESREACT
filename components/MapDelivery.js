@@ -927,7 +927,7 @@ const MapDelivery = () => {
                                     activeOpacity={0.9}
                                 >
                                     <Ionicons name="navigate" size={16} color="#fff" />
-                                    <Text style={styles.primaryButtonText}>Iniciar trayecto</Text>
+                                    <Text style={styles.primaryButtonText}>Iniciar trayectos</Text>
                                 </TouchableOpacity>
                             )}
 

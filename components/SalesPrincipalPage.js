@@ -22,7 +22,6 @@ import MapViewDirections from "react-native-maps-directions";
 import { AuthContext } from "../AuthContext";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
-
 const { height, width } = Dimensions.get("window");
 
 const COLORS = {
@@ -409,7 +408,6 @@ export default function SalesPrincipalPage() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.brand} />
       <View style={styles.container}>
         <View style={styles.refreshBacker} />
-
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}

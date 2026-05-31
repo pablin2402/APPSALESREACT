@@ -22,7 +22,7 @@ import AddPayment from "../screen/AddPayment";
 import AddPayDeliver from "../components/AddPayDeliver";
 import DeliverPaymentScreen from "../components/DeliverPaymentScreen";
 import MapScreenDelivery from "../components/MapScreenDelivery";
-
+import MapScreenDeliveryRoute from "../screen/MapScreenDeliveryRoute";
 import OrderPickUp from "../components/OrderPickUp";
 import LocationTracker from "../components/LocationTracker";
 import PaymentScreen from "../screen/PaymentScreen";
@@ -118,21 +118,33 @@ function UserStack() {
                     headerTitle: '',
                     headerStyle: { shadowColor: 'transparent', elevation: 0 },
                 })} />
-<Stack.Screen
-                            name="MapScreenDelivery"
-                            component={MapScreenDelivery}
-                            options={({ navigation }) => ({
-                                headerLeft: () => (
-                                    <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
-                                        <Ionicons name="arrow-back" size={24} color="black" />
-                                    </TouchableOpacity>
-                                ),
-                                headerTitle: '',
-                                headerStyle: { shadowColor: 'transparent', elevation: 0 },
-                            })} />
+            <Stack.Screen
+                name="MapScreenDelivery"
+                component={MapScreenDelivery}
+                options={({ navigation }) => ({
+                    headerLeft: () => (
+                        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                            <Ionicons name="arrow-back" size={24} color="black" />
+                        </TouchableOpacity>
+                    ),
+                    headerTitle: '',
+                    headerStyle: { shadowColor: 'transparent', elevation: 0 },
+                })} />
             <Stack.Screen
                 name="MapScreenRoute"
                 component={MapScreenRoute}
+                options={({ navigation }) => ({
+                    headerLeft: () => (
+                        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                            <Ionicons name="arrow-back" size={24} color="black" />
+                        </TouchableOpacity>
+                    ),
+                    headerTitle: '',
+                    headerStyle: { shadowColor: 'transparent', elevation: 0 },
+                })} />
+                 <Stack.Screen
+                name="MapScreenDeliveryRoute"
+                component={MapScreenDeliveryRoute}
                 options={({ navigation }) => ({
                     headerLeft: () => (
                         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
@@ -294,7 +306,7 @@ export default function AppNavigator() {
                                 headerTitle: '',
                                 headerStyle: { shadowColor: 'transparent', elevation: 0 },
                             })} />
-                        
+
                         <Stack.Screen
                             name="SalesInformScreen"
                             component={SalesInformScreen}

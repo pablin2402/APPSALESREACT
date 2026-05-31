@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext, useRef } from "react";
 import {
   View,
   Text,
+  Image,
   TextInput,
   FlatList,
   TouchableOpacity,
@@ -115,33 +116,7 @@ const SkeletonCard = () => (
 );
 
 const ExpandedReceipt = ({ item, formatDate }) => {
-  const order = item.orderId || {};
-  const products = order.products || [];
-  const discount = order.disscount || 0;
-  const accountStatus = order.accountStatus || "—";
-  const dueDate = order.dueDate;
-  const totalAmount = Number(order.totalAmount || item.total || 0);
-
-  const formatShortDate = (d) => {
-    if (!d) return "—";
-    const date = new Date(d);
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
-
-  const getPayMethodStyle = (method) => {
-    if (method === "Contado")
-      return { color: COLORS.success, bg: COLORS.successBg, icon: "cash" };
-    if (method === "Crédito")
-      return { color: COLORS.info, bg: COLORS.infoBg, icon: "card" };
-    if (method === "Cheque")
-      return { color: COLORS.warning, bg: COLORS.warningBg, icon: "document-text" };
-    return { color: COLORS.textMid, bg: COLORS.borderLight, icon: "wallet" };
-  };
-
-  const method = getPayMethodStyle(accountStatus);
+  const image = item.saleImage;
 
   return (
     <View style={styles.receiptWrap}>
@@ -149,103 +124,44 @@ const ExpandedReceipt = ({ item, formatDate }) => {
 
       <View style={styles.receiptHeader}>
         <View style={styles.receiptIconBox}>
-          <Ionicons name="receipt" size={14} color={COLORS.brand} />
+          <Ionicons name="image" size={14} color={COLORS.brand} />
         </View>
-        <Text style={styles.receiptTitle}>Detalle del recibo</Text>
-      </View>
-
-      <View style={styles.receiptMetaRow}>
-        <View style={styles.receiptMetaItem}>
-          <Text style={styles.receiptMetaLabel}>Método de pago</Text>
-          <View
-            style={[styles.receiptMethodPill, { backgroundColor: method.bg }]}
-          >
-            <Ionicons name={method.icon} size={11} color={method.color} />
-            <Text style={[styles.receiptMethodText, { color: method.color }]}>
-              {accountStatus}
-            </Text>
-          </View>
-        </View>
-
-        {dueDate && (
-          <View style={styles.receiptMetaItem}>
-            <Text style={styles.receiptMetaLabel}>Vencimiento</Text>
-            <View style={styles.receiptDueChip}>
-              <Ionicons name="calendar" size={11} color={COLORS.text} />
-              <Text style={styles.receiptDueText}>{formatShortDate(dueDate)}</Text>
-            </View>
-          </View>
-        )}
-      </View>
-
-      {products.length > 0 && (
-        <View style={styles.productsSection}>
-          <Text style={styles.productsLabel}>
-            Productos ({products.length})
-          </Text>
-          {products.slice(0, 5).map((p, idx) => {
-            const subtotal = (p.precio || 0) * (p.cantidad || 0);
-            return (
-              <View
-                key={idx}
-                style={[
-                  styles.productRow,
-                  idx === Math.min(products.length, 5) - 1 &&
-                    products.length <= 5 && {
-                      borderBottomWidth: 0,
-                    },
-                ]}
-              >
-                <View style={styles.productQtyBadge}>
-                  <Text style={styles.productQtyText}>×{p.cantidad}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.productName} numberOfLines={1}>
-                    {p.nombre}
-                  </Text>
-                  <Text style={styles.productPrice}>
-                    Bs. {Number(p.precio || 0).toFixed(2)} c/u
-                  </Text>
-                </View>
-                <Text style={styles.productSubtotal}>
-                  Bs. {subtotal.toFixed(2)}
-                </Text>
-              </View>
-            );
-          })}
-          {products.length > 5 && (
-            <View style={styles.moreProducts}>
-              <Text style={styles.moreProductsText}>
-                +{products.length - 5} producto{products.length - 5 > 1 ? "s" : ""} más
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      <View style={styles.totalsCard}>
-        {discount > 0 && (
-          <View style={styles.totalsRow}>
-            <Text style={styles.totalsLabel}>Descuento</Text>
-            <Text style={[styles.totalsValue, { color: COLORS.success }]}>
-              -Bs. {Number(discount).toFixed(2)}
-            </Text>
-          </View>
-        )}
-        <View style={styles.totalsRow}>
-          <Text style={styles.totalsGrandLabel}>Total pagado</Text>
-          <Text style={styles.totalsGrandValue}>
-            Bs. {totalAmount.toFixed(2)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.receiptFooter}>
-        <Ionicons name="time-outline" size={11} color={COLORS.textLight} />
-        <Text style={styles.receiptFooterText}>
-          Registrado {formatDate(item.creationDate)}
+        <Text style={styles.receiptTitle}>
+          Comprobante de pago
         </Text>
       </View>
+
+      {image ? (
+        <View style={styles.receiptImageContainer}>
+          <Image
+            source={{ uri: image }}
+            style={styles.receiptImage}
+            resizeMode="cover"
+          />
+
+          <View style={styles.receiptFooter}>
+            <Ionicons
+              name="time-outline"
+              size={11}
+              color={COLORS.textLight}
+            />
+            <Text style={styles.receiptFooterText}>
+              Registrado {formatDate(item.creationDate)}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.noReceiptBox}>
+          <Ionicons
+            name="image-outline"
+            size={28}
+            color={COLORS.textLight}
+          />
+          <Text style={styles.noReceiptText}>
+            No hay comprobante disponible
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -274,17 +190,37 @@ const PaymentCard = ({ item, isExpanded, onToggle, formatDate, getPaymentStatusS
       activeOpacity={0.95}
       onPress={onToggle}
     >
-      <View style={styles.paymentTop}>
-        <View style={styles.paymentDateChip}>
-          <Ionicons name="calendar-outline" size={11} color={COLORS.textMid} />
-          <Text style={styles.paymentDateText}>
-            {formatDate(item.creationDate)}
-          </Text>
-        </View>
-        <Text style={styles.paymentAmount}>
-          Bs. {Number(item.total || 0).toFixed(2)}
+    <View style={styles.paymentTop}>
+  <View style={styles.paymentDateChip}>
+    <Ionicons
+      name="calendar-outline"
+      size={11}
+      color={COLORS.textMid}
+    />
+    <Text style={styles.paymentDateText}>
+      {formatDate(item.creationDate)}
+    </Text>
+  </View>
+
+  <View style={{ alignItems: "flex-end" }}>
+    <Text style={styles.paymentAmount}>
+      Bs. {Number(item.total || 0).toFixed(2)}
+    </Text>
+
+    {item.paymentStatus === "confirmado" && (
+      <View style={styles.confirmedBadge}>
+        <Ionicons
+          name="checkmark-circle"
+          size={12}
+          color="#fff"
+        />
+        <Text style={styles.confirmedBadgeText}>
+          Confirmado
         </Text>
       </View>
+    )}
+  </View>
+</View>
 
       <View style={styles.paymentMiddle}>
         <View style={styles.paymentAvatar}>
@@ -344,6 +280,7 @@ export default function PaymentScreen() {
   const [totalPages, setTotalPages] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
+  
   const [expandedId, setExpandedId] = useState(null);
 
   const range = 2;
@@ -874,6 +811,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     marginBottom: 8,
   },
+  confirmedBadge: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 4,
+  backgroundColor: COLORS.success,
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  borderRadius: 999,
+  marginTop: 6,
+},
+
+confirmedBadgeText: {
+  color: "#fff",
+  fontSize: 10,
+  fontWeight: "800",
+  letterSpacing: 0.3,
+},
   dateRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   dateInput: {
     flex: 1,
@@ -993,6 +947,33 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
   },
+  receiptImageContainer: {
+  marginTop: 6,
+},
+
+receiptImage: {
+  width: "100%",
+  height: 260,
+  borderRadius: 16,
+  backgroundColor: COLORS.borderLight,
+},
+
+noReceiptBox: {
+  paddingVertical: 30,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: COLORS.bg,
+  borderRadius: 16,
+  borderWidth: 1,
+  borderColor: COLORS.border,
+},
+
+noReceiptText: {
+  marginTop: 8,
+  fontSize: 12,
+  color: COLORS.textMid,
+  fontWeight: "600",
+},
   paymentStatusText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.4 },
 
   expandHint: {

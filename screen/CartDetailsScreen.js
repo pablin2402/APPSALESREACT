@@ -10,8 +10,10 @@ import {
   StatusBar,
   Modal,
   Keyboard,
-  TouchableWithoutFeedback,
-} from "react-native";
+TouchableWithoutFeedback,
+KeyboardAvoidingView,
+Platform,
+Pressable} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets, SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";

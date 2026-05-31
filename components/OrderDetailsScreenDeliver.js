@@ -1,361 +1,488 @@
-import React, { useEffect, useState, useContext, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
-import axios from "axios";
-import { API_URL } from "../config";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRoute } from "@react-navigation/native";
-import { useNavigation } from "@react-navigation/native";
-import { AuthContext } from "../AuthContext";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { calculateOrderPacking, calculateProductPacking } from "../utils/Routeoptimizermobile";
 
-export default function OrderDetailsScreenDeliver() {
-  const route = useRoute();
-  const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+const COLORS = {
+    brand: "#D3423E",
+    bg: "#f9fafb",
+    border: "#e5e7eb",
+    borderLight: "#f3f4f6",
+    text: "#111827",
+    textMid: "#6b7280",
+    textLight: "#9ca3af",
+    success: "#16a34a",
+    successBg: "#dcfce7",
+    warning: "#d97706",
+    warningBg: "#fef3c7",
+    info: "#2563eb",
+    infoBg: "#eff6ff",
+    danger: "#dc2626",
+    dangerBg: "#fee2e2",
+    boxFull: "#374151",
+    boxHalf: "#eab308",
+    boxLoose: "#3b82f6",
+};
 
-  const clientId = route.params?.orderId;
-  const productsList = route.params?.products;
-  const filesList = route.params?.files;
-  const [totalGeneral, setTotalGeneral] = useState(0);
-  const [totalDescuentos, setTotalDescuentos] = useState(0);
+const SingleOrderCard = ({ order, idx, totalOrders, defaultExpanded }) => {
+    const [expanded, setExpanded] = useState(defaultExpanded);
+    const packing = calculateOrderPacking(order);
+    const orderTotal = Number(order.totalAmount) || 0;
+    const accountStatus = order.accountStatus;
+    const isMultiple = totalOrders > 1;
 
-  const [setSalesData] = useState([]);
-  const [paymentsData, setPaymentsData] = useState([]);
+    const getAccountColor = () => {
+        if (accountStatus === "Crédito") return { bg: COLORS.warningBg, fg: COLORS.warning };
+        if (accountStatus === "Contado") return { bg: COLORS.successBg, fg: COLORS.success };
+        if (accountStatus === "Cheque") return { bg: COLORS.infoBg, fg: COLORS.info };
+        return { bg: COLORS.borderLight, fg: COLORS.textMid };
+    };
+    const accColor = getAccountColor();
 
-  const [totalPaid, setTotalPaid] = useState(0);
-  const [totalDebt, setTotalDebt] = useState(0);
-
-  const [activeTab, setActiveTab] = useState("products");
-  const { token, idOwner } = useContext(AuthContext);
-
-  useEffect(() => {
-    if (Array.isArray(productsList)) {
-      let total = 0;
-      let descuentos = 0;
-
-      productsList.forEach((product) => {
-        const precio = product.precio || 0;
-        const cantidad = product.cantidad || 1;
-        const descuento = product.descuento || 0;
-        descuentos += descuento * cantidad;
-        total += (precio - descuento) * cantidad;
-      });
-
-      setTotalGeneral(total);
-      setTotalDescuentos(descuentos);
-    }
-  }, [productsList]);
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await axios.post(API_URL + "/whatsapp/order/pay/list/id", {
-        orderId: clientId
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      setSalesData(response.data || []);
-    } catch (error) {
-      console.error("Error al cargar los productos:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [clientId]);
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-  const fetchPayments = useCallback(async () => {
-    try {
-      const response = await axios.post(API_URL + "/whatsapp/order/pay/id", {
-        id_client: filesList.clientId,
-        id_owner: idOwner,
-        orderId: clientId
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      const payments = response.data || [];
-      const totalPaidSum = payments.reduce((sum, payment) => sum + (payment.total || 0), 0);
-      const totalDebtInitial = payments.length > 0 ? payments[0].debt : 0;
-      setPaymentsData(payments);
-      setTotalPaid(totalPaidSum);
-      setTotalDebt(totalDebtInitial);
-    } catch (error) {
-      console.error("Error al obtener los pagos", error);
-    }
-  }, [filesList]);
-  useEffect(() => {
-    fetchPayments();
-  }, [fetchPayments]);
-  const formatAccountStatus = (status) => {
-    switch (status) {
-      case "pending":
-        return "Contado";
-      case "credito":
-        return "Crédito";
-      default:
-        return status;
-    }
-  };
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
-  const calculatedDebt = totalGeneral - totalPaid > 0 ? totalGeneral - totalPaid : 0;
-  const handlePay = () => {
-    navigation.navigate("AddPayDeliver", { client: filesList.clientId, order: clientId, debt: calculatedDebt });
-  };
-  return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={{ marginTop: 30 }}>
-        <Text style={styles.title}>
-          Cliente: <Text style={styles.highlight}>{filesList?.salesId?.fullName + " " + filesList?.salesId?.lastName}</Text>
-        </Text>
-        <Text style={styles.title}>
-          Nota de remisión: <Text style={styles.highlight}>{filesList?.receiveNumber}</Text>
-        </Text>
-        <Text style={styles.subtitle}>
-          Tipo de pago:{" "}
-          <Text style={styles.highlight}>{formatAccountStatus(filesList?.accountStatus)}</Text>
-        </Text>
-
-      </View>
-
-      <View style={[styles.tabContainer, { marginTop: 20 }]}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "products" && styles.activeTab]}
-          onPress={() => setActiveTab("products")}
-        >
-          <Text style={[styles.tabText, activeTab === "products" && styles.activeTabText]}>PRODUCTOS</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "payments" && styles.activeTab]}
-          onPress={() => setActiveTab("payments")}
-        >
-          <Text style={[styles.tabText, activeTab === "payments" && styles.activeTabText]}>PAGOS</Text>
-        </TouchableOpacity>
-      </View>
-
-      {activeTab === "products" && (
-        <View style={{ flex: 1 }}>
-          <FlatList
-            data={productsList}
-            keyExtractor={(item) => item.nombre}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.card}>
-                <View style={styles.cardContent}>
-                  <Text style={styles.rowText}>{item.nombre}</Text>
-                  <View style={styles.rowItem}>
-                    <Text style={styles.rowLabel}>Cantidad botella:</Text>
-                    <Text style={styles.rowValue}>{item.cantidad}</Text>
-                  </View>
-                  <View style={styles.rowItem}>
-                    <Text style={styles.rowLabel}>Precio:</Text>
-                    <Text style={styles.rowValue}>
-                      {item.precio ? `${item.precio.toFixed(2)} Bs.` : "No disponible"}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
-          <View style={{ marginTop: 15, marginBottom: 20 }}>
-            <View style={styles.row}>
-              <Text style={styles.label}>Saldo por pagar:</Text>
-              <Text style={styles.value}>Bs. {calculatedDebt.toFixed(2)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Total Pagado:</Text>
-              <Text style={styles.value}>Bs. {totalPaid.toFixed(2)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Total General:</Text>
-              <Text style={styles.value}>Bs. {totalGeneral.toFixed(2)}</Text>
-            </View>
-          </View>
-
-        </View>
-      )}
-
-      {activeTab === "payments" && (
-        <View style={{ flex: 1 }}>
-          <FlatList
-            data={paymentsData}
-            keyExtractor={(item) => item._id}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.card}>
-                <View style={styles.cardContent}>
-                  <Text style={styles.rowText}>{formatDate(item.creationDate)}</Text>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                    <Text style={styles.clientName2}>
-                      {(item.sales_id || item.delivery_id)?.fullName + " " + (item.sales_id || item.delivery_id)?.lastName}
-                    </Text>
-                    <Text style={styles.location}>Bs. {item.total?.toFixed(2) || "No disponible"}</Text>
-                  </View>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                    <View style={styles.location}></View>
-                    <View
-                      style={{
-                        backgroundColor: item.paymentStatus === "paid" ? "#27AE60" : "#E74C3C",
-                        borderRadius: 20,
-                        paddingVertical: 2,
-                        paddingHorizontal: 8,
-                        alignSelf: "flex-start",
-                        marginTop: 2,
-                        marginVertical: 4,
-                      }}
-                    >
-                      <Text style={{ color: "#FFF", fontWeight: "bold" }}>
-                        {item.paymentStatus === "paid" && "PAGADO"}
-                        {item.paymentStatus === "paidapproved" && "PAGO APROBADO"}
-                        {item.paymentStatus !== "paid" && item.paymentStatus !== "paidapproved" && item.paymentStatus}
-                      </Text>
+    return (
+        <View style={styles.orderCard}>
+            <TouchableOpacity
+                onPress={() => isMultiple && setExpanded(!expanded)}
+                activeOpacity={isMultiple ? 0.7 : 1}
+                style={styles.orderHeader}
+            >
+                {isMultiple && (
+                    <View style={styles.orderIndexBadge}>
+                        <Text style={styles.orderIndexText}>{idx + 1}</Text>
+                        <Text style={styles.orderIndexLabel}>de {totalOrders}</Text>
                     </View>
-                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                    <View style={styles.orderTitleRow}>
+                        <Text style={styles.orderTitle}>
+                            Pedido #{order.receiveNumber || "—"}
+                        </Text>
+                        {accountStatus && (
+                            <View style={[styles.accountBadge, { backgroundColor: accColor.bg }]}>
+                                <Text style={[styles.accountBadgeText, { color: accColor.fg }]}>
+                                    {accountStatus.toUpperCase()}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                    <Text style={styles.orderSubtitle}>
+                        {packing.physicalBoxes} caja{packing.physicalBoxes !== 1 ? "s" : ""} ·{" "}
+                        {packing.totalBottles} botella{packing.totalBottles !== 1 ? "s" : ""} ·{" "}
+                        {order.products?.length || 0} producto{order.products?.length !== 1 ? "s" : ""}
+                    </Text>
                 </View>
-              </TouchableOpacity>
+                <View style={styles.orderTotalCol}>
+                    <Text style={styles.orderTotalLabel}>Subtotal</Text>
+                    <Text style={styles.orderTotalValue}>Bs. {orderTotal.toFixed(2)}</Text>
+                </View>
+                {isMultiple && (
+                    <Ionicons
+                        name={expanded ? "chevron-up" : "chevron-down"}
+                        size={16}
+                        color={COLORS.textMid}
+                        style={{ marginLeft: 6 }}
+                    />
+                )}
+            </TouchableOpacity>
+
+            {(expanded || !isMultiple) && (
+                <View style={styles.orderBody}>
+                    <View style={styles.packingRow}>
+                        {packing.fullBoxes > 0 && (
+                            <View style={[styles.packingChip, { backgroundColor: COLORS.boxFull }]}>
+                                <Text style={styles.packingChipText}>{packing.fullBoxes} × 12</Text>
+                            </View>
+                        )}
+                        {packing.halfBoxes > 0 && (
+                            <View style={[styles.packingChip, { backgroundColor: COLORS.boxHalf }]}>
+                                <Text style={styles.packingChipText}>{packing.halfBoxes} × 6</Text>
+                            </View>
+                        )}
+                        {packing.looseBottles > 0 && (
+                            <View style={[styles.packingChip, { backgroundColor: COLORS.boxLoose }]}>
+                                <Text style={styles.packingChipText}>
+                                    {packing.looseBottles} suelta{packing.looseBottles !== 1 ? "s" : ""}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+
+                    <View style={styles.productsList}>
+                        {order.products?.map((product, pIdx) => {
+                            const pp = calculateProductPacking(product.cantidad);
+                            const subtotal = Number(product.cantidad) * Number(product.precio);
+                            return (
+                                <View key={product._id || pIdx} style={styles.productItem}>
+                                    <View style={styles.productQtyBadge}>
+                                        <Text style={styles.productQtyText}>{product.cantidad}</Text>
+                                    </View>
+                                    <View style={{ flex: 1, marginLeft: 10 }}>
+                                        <Text style={styles.productName} numberOfLines={2}>
+                                            {product.nombre}
+                                        </Text>
+                                        <View style={styles.productMeta}>
+                                            <Text style={styles.productPrice}>
+                                                Bs. {Number(product.precio).toFixed(2)} c/u
+                                            </Text>
+                                            <View style={styles.productPackingChips}>
+                                                {pp.fullBoxes > 0 && (
+                                                    <View style={[styles.miniChip, { backgroundColor: COLORS.boxFull }]}>
+                                                        <Text style={styles.miniChipText}>{pp.fullBoxes}×12</Text>
+                                                    </View>
+                                                )}
+                                                {pp.halfBoxes > 0 && (
+                                                    <View style={[styles.miniChip, { backgroundColor: COLORS.boxHalf }]}>
+                                                        <Text style={styles.miniChipText}>{pp.halfBoxes}×6</Text>
+                                                    </View>
+                                                )}
+                                                {pp.looseBottles > 0 && (
+                                                    <View style={[styles.miniChip, { backgroundColor: COLORS.boxLoose }]}>
+                                                        <Text style={styles.miniChipText}>{pp.looseBottles}s</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </View>
+                                    </View>
+                                    <Text style={styles.productSubtotal}>
+                                        Bs. {subtotal.toFixed(2)}
+                                    </Text>
+                                </View>
+                            );
+                        })}
+                    </View>
+                </View>
             )}
-          />
-          <View style={{ marginTop: 15, marginBottom: 20 }}>
-          <View style={styles.row}>
-              <Text style={styles.label}>Saldo por pagar:</Text>
-              <Text style={styles.value}> Bs. {calculatedDebt.toFixed(2)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Total Pagado:</Text>
-              <Text style={styles.value}>Bs. {totalPaid.toFixed(2)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Total General:</Text>
-              <Text style={styles.value}>Bs. {totalGeneral.toFixed(2)}</Text>
-            </View>
-            {totalGeneral > totalPaid && (
-              <TouchableOpacity
-                onPress={handlePay}
-                style={{
-                  marginTop: 20,
-                  backgroundColor: "#D3423E",
-                  paddingVertical: 15,
-                  borderRadius: 25,
-                  width: "100%",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ color: "white", fontWeight: "bold", fontSize: 20 }}>PAGAR</Text>
-              </TouchableOpacity>
-            )}
-          </View>
         </View>
-      )}
-    </View>
-  );
-}
+    );
+};
+
+const OrderDetailsCardScreen = ({ stop }) => {
+    if (!stop) return null;
+
+    const orders = stop.orders && Array.isArray(stop.orders) && stop.orders.length > 0
+        ? stop.orders
+        : (stop.products ? [stop] : []);
+
+    if (orders.length === 0) return null;
+
+    const grandTotal = orders.reduce((s, o) => s + (Number(o.totalAmount) || 0), 0);
+    const grandBoxes = orders.reduce((s, o) => s + calculateOrderPacking(o).physicalBoxes, 0);
+    const grandBottles = orders.reduce((s, o) => s + calculateOrderPacking(o).totalBottles, 0);
+    const isMultiple = orders.length > 1;
+
+    return (
+        <View style={styles.container}>
+            <View style={styles.summaryBar}>
+                <View style={styles.summaryLeft}>
+                    <View style={styles.summaryIcon}>
+                        <Ionicons name="receipt" size={14} color="#fff" />
+                    </View>
+                    <View>
+                        <Text style={styles.summaryTitle}>
+                            {isMultiple
+                                ? `${orders.length} pedidos del cliente`
+                                : "Detalle del pedido"
+                            }
+                        </Text>
+                        <Text style={styles.summarySubtitle}>
+                            {grandBoxes} caja{grandBoxes !== 1 ? "s" : ""} ·{" "}
+                            {grandBottles} botella{grandBottles !== 1 ? "s" : ""}
+                        </Text>
+                    </View>
+                </View>
+                <View style={styles.summaryStats}>
+                    <View style={[styles.summaryStatChip, { backgroundColor: "#fff" }]}>
+                        <Ionicons name="cube" size={9} color={COLORS.brand} />
+                        <Text style={[styles.summaryStatText, { color: COLORS.brand }]}>{grandBoxes}</Text>
+                    </View>
+                    <View style={[styles.summaryStatChip, { backgroundColor: COLORS.infoBg }]}>
+                        <Ionicons name="wine" size={9} color={COLORS.info} />
+                        <Text style={[styles.summaryStatText, { color: COLORS.info }]}>{grandBottles}</Text>
+                    </View>
+                </View>
+            </View>
+
+            <View style={styles.ordersStack}>
+                {orders.map((order, idx) => (
+                    <SingleOrderCard
+                        key={order._id || idx}
+                        order={order}
+                        idx={idx}
+                        totalOrders={orders.length}
+                        defaultExpanded={!isMultiple || idx === 0}
+                    />
+                ))}
+            </View>
+
+            <View style={styles.grandTotalCard}>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.grandTotalLabel}>
+                        {isMultiple ? "Total a cobrar al cliente" : "Total a cobrar"}
+                    </Text>
+                    <Text style={styles.grandTotalSublabel}>
+                        {isMultiple
+                            ? `Suma de los ${orders.length} pedidos`
+                            : `${grandBottles} botella${grandBottles !== 1 ? "s" : ""} en total`
+                        }
+                    </Text>
+                </View>
+                <Text style={styles.grandTotalAmount}>Bs. {grandTotal.toFixed(2)}</Text>
+            </View>
+        </View>
+    );
+};
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 16,
-  },
-  rowText: {
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  clientName2: {
-    fontSize: 18,
-    fontWeight: "normal",
-  },
-  location: {
-    fontSize: 18,
-  },
-  card: {
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#B0B0B0",
-  },
-  cardContent: {
-    flexDirection: "column",
-  },
-  tabContainer: {
-    flexDirection: "row",
-    marginBottom: 10,
-  },
-  tab: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: "white",
-    alignItems: "center",
-    borderRadius: 15,
-    marginHorizontal: 2,
-    borderWidth: 1,
-    borderColor: "#B0B0B0",
-  },
-  activeTab: {
-    backgroundColor: "#D3423E",
-  },
-  tabText: {
-    color: "black",
-    fontWeight: "bold",
-  },
-  activeTabText: {
-    color: "white",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1F2937",
-    marginBottom: 8,
-    textAlign: "left",
-  },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1F2937",
-    marginBottom: 8,
-    textAlign: "left",
-  },
-  highlight: {
-    fontSize: 20,
-    color: "#1F2937",
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 10,
-    marginVertical: 4,
-  },
-  label: {
-    fontWeight: "bold",
-    color: "#333",
-    fontSize: 16,
-  },
-  value: {
-    fontWeight: "bold",
-    color: "#333",
-    fontSize: 16,
-  },
-  rowItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 5,
-  },
-  rowLabel: {
-    fontSize: 16,
-    color: "#333",
-  },
-  rowValue: {
-    fontSize: 16,
-    color: "#333",
-    fontWeight: "bold",
-  },
+    container: { marginBottom: 14 },
+
+    summaryBar: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        backgroundColor: COLORS.dangerBg,
+        padding: 10,
+        borderRadius: 12,
+        marginBottom: 10,
+    },
+    summaryLeft: {
+        flexDirection: "row",
+        alignItems: "center",
+        flex: 1,
+    },
+    summaryIcon: {
+        width: 30, height: 30,
+        borderRadius: 8,
+        backgroundColor: COLORS.brand,
+        justifyContent: "center", alignItems: "center",
+        marginRight: 10,
+    },
+    summaryTitle: {
+        fontSize: 12,
+        fontWeight: "800",
+        color: COLORS.brand,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+    },
+    summarySubtitle: {
+        fontSize: 10,
+        color: COLORS.textMid,
+        fontWeight: "600",
+        marginTop: 1,
+    },
+    summaryStats: {
+        flexDirection: "row",
+        gap: 6,
+    },
+    summaryStatChip: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 3,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    summaryStatText: {
+        fontSize: 11,
+        fontWeight: "800",
+    },
+
+    ordersStack: {
+        gap: 8,
+    },
+
+    orderCard: {
+        backgroundColor: "#fff",
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: COLORS.borderLight,
+        overflow: "hidden",
+    },
+    orderHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 10,
+        backgroundColor: COLORS.bg,
+    },
+    orderIndexBadge: {
+        width: 36,
+        backgroundColor: COLORS.brand,
+        borderRadius: 8,
+        paddingVertical: 4,
+        alignItems: "center",
+        marginRight: 10,
+    },
+    orderIndexText: {
+        color: "#fff",
+        fontSize: 14,
+        fontWeight: "900",
+        lineHeight: 16,
+    },
+    orderIndexLabel: {
+        color: "rgba(255,255,255,0.85)",
+        fontSize: 8,
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: 0.3,
+        marginTop: -1,
+    },
+    orderTitleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        flexWrap: "wrap",
+    },
+    orderTitle: {
+        fontSize: 13,
+        fontWeight: "800",
+        color: COLORS.text,
+    },
+    accountBadge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    accountBadgeText: {
+        fontSize: 8,
+        fontWeight: "800",
+        letterSpacing: 0.3,
+    },
+    orderSubtitle: {
+        fontSize: 10,
+        color: COLORS.textMid,
+        fontWeight: "600",
+        marginTop: 2,
+    },
+    orderTotalCol: {
+        alignItems: "flex-end",
+        marginLeft: 8,
+    },
+    orderTotalLabel: {
+        fontSize: 9,
+        color: COLORS.textLight,
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: 0.3,
+    },
+    orderTotalValue: {
+        fontSize: 13,
+        fontWeight: "800",
+        color: COLORS.text,
+    },
+
+    orderBody: {
+        padding: 10,
+        gap: 8,
+    },
+    packingRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 5,
+    },
+    packingChip: {
+        paddingHorizontal: 7,
+        paddingVertical: 3,
+        borderRadius: 5,
+    },
+    packingChipText: {
+        fontSize: 9,
+        fontWeight: "800",
+        color: "#fff",
+        letterSpacing: 0.3,
+    },
+
+    productsList: {
+        gap: 6,
+    },
+    productItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: COLORS.bg,
+        padding: 8,
+        borderRadius: 8,
+    },
+    productQtyBadge: {
+        width: 34, height: 34,
+        borderRadius: 8,
+        backgroundColor: COLORS.dangerBg,
+        justifyContent: "center", alignItems: "center",
+    },
+    productQtyText: {
+        fontSize: 13,
+        fontWeight: "800",
+        color: COLORS.brand,
+    },
+    productName: {
+        fontSize: 12,
+        fontWeight: "700",
+        color: COLORS.text,
+        lineHeight: 15,
+    },
+    productMeta: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 5,
+        marginTop: 3,
+        flexWrap: "wrap",
+    },
+    productPrice: {
+        fontSize: 10,
+        color: COLORS.textMid,
+        fontWeight: "600",
+    },
+    productPackingChips: {
+        flexDirection: "row",
+        gap: 3,
+    },
+    miniChip: {
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        borderRadius: 3,
+    },
+    miniChipText: {
+        fontSize: 8,
+        fontWeight: "800",
+        color: "#fff",
+        letterSpacing: 0.2,
+    },
+    productSubtotal: {
+        fontSize: 12,
+        fontWeight: "800",
+        color: COLORS.text,
+        marginLeft: 6,
+    },
+
+    grandTotalCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: COLORS.brand,
+        padding: 14,
+        borderRadius: 14,
+        marginTop: 12,
+        shadowColor: COLORS.brand,
+        shadowOpacity: 0.25,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 10,
+        elevation: 4,
+    },
+    grandTotalLabel: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "rgba(255,255,255,0.85)",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    grandTotalSublabel: {
+        fontSize: 10,
+        color: "rgba(255,255,255,0.75)",
+        marginTop: 2,
+        fontWeight: "600",
+    },
+    grandTotalAmount: {
+        fontSize: 22,
+        fontWeight: "900",
+        color: "#fff",
+        letterSpacing: 0.3,
+    },
 });
+
+export default OrderDetailsCardScreen;

@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import { View, StyleSheet } from "react-native";
 import { AuthContext } from "../AuthContext";
 import MapSalesMan from "../components/MapSalesMan";
-import MapDelivery from "../components/MapDelivery";
+import MapScreenDelivery from "../components/MapScreenDelivery";
 
 
 export default function MapScreen() {
@@ -11,7 +11,7 @@ export default function MapScreen() {
     <View style={[styles.container]}>
           {role === "SALES" && <MapSalesMan />}
           {role === "ADMIN" && <MapSalesMan />}
-          {role === "DELIVERY" && <MapDelivery />}
+          {role === "DELIVERY" && <MapScreenDelivery />}
     </View>
   );
 }

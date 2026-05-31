@@ -30,6 +30,10 @@ import { AuthContext } from "../AuthContext";
 const { height } = Dimensions.get("window");
 
 const GEOFENCE_RADIUS_METERS = 300;
+const VISIT_DURATION_MIN = 15;
+const VISIT_DURATION_MAX = 30;
+const CAR_AVG_KMH = 35;
+const TRANSIT_AVG_KMH = 18;
 
 const COLORS = {
   brand: "#D3423E",
@@ -78,6 +82,148 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
+
+const optimizeRouteFromOrigin = (originLat, originLng, stops) => {
+  if (!stops || stops.length === 0) return [];
+  const unvisited = [...stops];
+  const ordered = [];
+  let currentLat = originLat;
+  let currentLng = originLng;
+
+  while (unvisited.length > 0) {
+    let nearestIdx = 0;
+    let nearestDist = Infinity;
+    for (let i = 0; i < unvisited.length; i++) {
+      const stop = unvisited[i];
+      const lat = parseFloat(stop.client_location?.latitud);
+      const lng = parseFloat(stop.client_location?.longitud);
+      if (!lat || !lng) continue;
+      const d = haversineDistance(currentLat, currentLng, lat, lng);
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearestIdx = i;
+      }
+    }
+    const next = unvisited.splice(nearestIdx, 1)[0];
+    const nextLat = parseFloat(next.client_location?.latitud);
+    const nextLng = parseFloat(next.client_location?.longitud);
+    ordered.push({ ...next, _distanceFromPrev: nearestDist });
+    currentLat = nextLat;
+    currentLng = nextLng;
+  }
+  return ordered;
+};
+
+const estimateRouteTotals = (orderedStops) => {
+  let totalDistanceM = 0;
+  for (const stop of orderedStops) {
+    if (stop._distanceFromPrev && stop._distanceFromPrev !== Infinity) {
+      totalDistanceM += stop._distanceFromPrev;
+    }
+  }
+  const totalDistanceKm = totalDistanceM / 1000;
+  const visitMinutesMin = orderedStops.length * VISIT_DURATION_MIN;
+  const visitMinutesMax = orderedStops.length * VISIT_DURATION_MAX;
+  const carTravelMinutes = (totalDistanceKm / CAR_AVG_KMH) * 60;
+  const transitTravelMinutes = (totalDistanceKm / TRANSIT_AVG_KMH) * 60;
+  return {
+    totalDistanceKm,
+    visitMinutesMin,
+    visitMinutesMax,
+    carTotalMin: Math.round(carTravelMinutes + visitMinutesMin),
+    carTotalMax: Math.round(carTravelMinutes + visitMinutesMax),
+    transitTotalMin: Math.round(transitTravelMinutes + visitMinutesMin),
+    transitTotalMax: Math.round(transitTravelMinutes + visitMinutesMax),
+  };
+};
+
+const formatMinutesRange = (minA, minB) => {
+  const fmt = (m) => {
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    return rem > 0 ? `${h}h ${rem}m` : `${h}h`;
+  };
+  return `${fmt(minA)} – ${fmt(minB)}`;
+};
+
+const ShimmerBlock = ({ width: w, height: h, style, radius = 8 }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmer]);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-150, 250],
+  });
+
+  return (
+    <View
+      style={[
+        {
+          width: w,
+          height: h,
+          borderRadius: radius,
+          backgroundColor: "#e5e7eb",
+          overflow: "hidden",
+        },
+        style,
+      ]}
+    >
+      <Animated.View
+        style={{
+          width: 100,
+          height: "100%",
+          backgroundColor: "rgba(255,255,255,0.6)",
+          transform: [{ translateX }, { skewX: "-20deg" }],
+        }}
+      />
+    </View>
+  );
+};
+
+const SkeletonHeader = () => (
+  <View style={styles.skeletonHeader}>
+    <View style={{ flex: 1, gap: 6 }}>
+      <ShimmerBlock width={110} height={16} radius={6} />
+      <ShimmerBlock width={150} height={11} radius={4} />
+    </View>
+    <ShimmerBlock width={90} height={32} radius={10} />
+  </View>
+);
+
+const SkeletonSearchBar = () => (
+  <View style={styles.skeletonSearchRow}>
+    <ShimmerBlock width="100%" height={46} radius={14} style={{ flex: 1 }} />
+    <ShimmerBlock width={46} height={46} radius={14} />
+  </View>
+);
+
+const SkeletonDeliveryCard = () => (
+  <View style={styles.skeletonCard}>
+    <ShimmerBlock width="100%" height={110} radius={0} />
+    <View style={{ padding: 12, gap: 8 }}>
+      <ShimmerBlock width={130} height={14} radius={5} />
+      <ShimmerBlock width={170} height={11} radius={4} />
+      <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.05)", marginVertical: 4 }} />
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+        <ShimmerBlock width={80} height={18} radius={999} />
+        <ShimmerBlock width={16} height={16} radius={4} />
+      </View>
+    </View>
+  </View>
+);
 
 const Toast = ({ visible, type, title, message, onHide }) => {
   const slideAnim = useRef(new Animated.Value(-120)).current;
@@ -175,6 +321,10 @@ const MapSalesMan = () => {
 
   const [distanceToClient, setDistanceToClient] = useState(null);
 
+  const [optimizedStops, setOptimizedStops] = useState([]);
+  const [routeEstimates, setRouteEstimates] = useState(null);
+  const [showRouteSummary, setShowRouteSummary] = useState(false);
+
   const [toast, setToast] = useState({ visible: false, type: "info", title: "", message: "" });
 
   const showToast = (type, title, message) => {
@@ -228,8 +378,10 @@ const MapSalesMan = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setRoute(response.data);
+      return response.data;
     } catch (error) {
       showToast("error", "Error al cargar ruta", "Intenta de nuevo");
+      return null;
     }
   };
 
@@ -356,7 +508,6 @@ const MapSalesMan = () => {
         setTrafficLevel(level);
       }
     } catch (error) {
-      // silencioso - no mostramos toast por cada refresh fallido
     }
   };
 
@@ -440,6 +591,61 @@ const MapSalesMan = () => {
       showToast("success", "Visita finalizada", `Duración: ${visitTime}`);
     } catch (error) {
       showToast("error", "Error al finalizar", "Tus datos se guardarán cuando haya conexión");
+    } finally {
+      setLoadingButton(false);
+    }
+  };
+
+  const handleStartRoute = async (item) => {
+    setLoadingButton(true);
+    try {
+      setRouteId(item._id);
+      const routeData = await getRoutesById(item._id);
+
+      let userLocation = origin;
+      if (!userLocation || userLocation.latitude === 0) {
+        const fresh = await getUserLocation();
+        if (fresh) userLocation = fresh;
+      }
+
+      const stops = routeData?.[0]?.route || [];
+      const pending = stops.filter((s) => !s.visitStatus);
+
+      if (pending.length > 0 && userLocation?.latitude) {
+        const ordered = optimizeRouteFromOrigin(
+          userLocation.latitude,
+          userLocation.longitude,
+          pending
+        );
+        const completed = stops.filter((s) => s.visitStatus);
+        const newOrdered = [...completed, ...ordered];
+        setOptimizedStops(newOrdered);
+        const estimates = estimateRouteTotals(ordered);
+        setRouteEstimates(estimates);
+
+        if (mapRef.current && ordered.length > 0) {
+          const coords = [
+            userLocation,
+            ...ordered.map((s) => ({
+              latitude: parseFloat(s.client_location.latitud),
+              longitude: parseFloat(s.client_location.longitud),
+            })),
+          ];
+          mapRef.current.fitToCoordinates(coords, {
+            edgePadding: { top: 200, right: 60, bottom: 380, left: 60 },
+            animated: true,
+          });
+        }
+      } else {
+        setOptimizedStops(stops);
+        setRouteEstimates(null);
+      }
+
+      startMapping();
+      setShowRouteSummary(true);
+      showToast("success", "Ruta optimizada", "Ordenada desde tu ubicación actual");
+    } catch (error) {
+      showToast("error", "Error al iniciar ruta", "Intenta de nuevo");
     } finally {
       setLoadingButton(false);
     }
@@ -588,6 +794,7 @@ const MapSalesMan = () => {
     setShowClients(true);
     setShowRoute(false);
     setShowRoutes(false);
+    setShowRouteSummary(false);
   };
 
   const startMapping = () => {
@@ -611,7 +818,7 @@ const MapSalesMan = () => {
   };
 
   const getHeaderSubtitle = () => {
-    if (showRoute) return `${route?.[0]?.route?.length || 0} paradas en esta ruta`;
+    if (showRoute) return `${optimizedStops.length || route?.[0]?.route?.length || 0} paradas en esta ruta`;
     if (showRoutes) return `${listRoute?.length || 0} rutas disponibles`;
     return `${filteredClients.length} ${filteredClients.length === 1 ? "cliente" : "clientes"} cerca`;
   };
@@ -629,6 +836,47 @@ const MapSalesMan = () => {
   };
 
   const withinGeofence = distanceToClient !== null && distanceToClient <= GEOFENCE_RADIUS_METERS;
+
+  const displayStops = optimizedStops.length > 0 ? optimizedStops : route?.[0]?.route || [];
+  const priorityStopId = (() => {
+    if (!displayStops || displayStops.length === 0) return null;
+    const firstPending = displayStops.find((s) => !s.visitStatus);
+    return firstPending?.client_location?._id || null;
+  })();
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: COLORS.bg }]} />
+
+        <SafeAreaView edges={["top"]} style={styles.topHeaderSafe}>
+          <View style={styles.topHeader}>
+            <SkeletonHeader />
+          </View>
+        </SafeAreaView>
+
+        <View style={styles.topActionsRow}>
+          <SkeletonSearchBar />
+        </View>
+
+        <View style={styles.cardsWrapper}>
+          <View style={styles.cardsHeaderRow}>
+            <ShimmerBlock width={120} height={16} radius={5} />
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.cardsContainer}
+            scrollEnabled={false}
+          >
+            <SkeletonDeliveryCard />
+            <SkeletonDeliveryCard />
+            <SkeletonDeliveryCard />
+          </ScrollView>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -655,16 +903,22 @@ const MapSalesMan = () => {
         {!showClients &&
           showRoute &&
           !showRoutes &&
-          route?.length > 0 &&
-          route[0].route?.map((point, index) => {
+          displayStops?.length > 0 &&
+          displayStops.map((point, index) => {
             const isCurrentClient =
               isTimerRunning &&
-              selectedClient?.client_location._id === point.client_location._id;
+              selectedClient?.client_location?._id === point.client_location._id;
+            const isPriority =
+              !isTimerRunning && point.client_location._id === priorityStopId;
+
+            let markerBg = COLORS.brand;
+            if (point.visitStatus) markerBg = COLORS.success;
+            if (isPriority) markerBg = COLORS.warning;
+            if (isCurrentClient) markerBg = "#1f2937";
 
             return (
               <React.Fragment key={index}>
                 <Marker
-                  key={index}
                   coordinate={{
                     latitude: parseFloat(point.client_location.latitud),
                     longitude: parseFloat(point.client_location.longitud),
@@ -683,14 +937,20 @@ const MapSalesMan = () => {
                     <View
                       style={[
                         styles.markerCircle,
-                        point.visitStatus && { backgroundColor: COLORS.success },
-                        isCurrentClient && { backgroundColor: "#1f2937" },
+                        { backgroundColor: markerBg },
+                        isPriority && {
+                          borderColor: "#fff",
+                          borderWidth: 3,
+                          shadowOpacity: 0.5,
+                        },
                       ]}
                     >
                       {point.visitStatus ? (
                         <Ionicons name="checkmark" size={14} color="#fff" />
                       ) : isCurrentClient ? (
                         <Ionicons name="navigate" size={12} color="#fff" />
+                      ) : isPriority ? (
+                        <Ionicons name="flash" size={13} color="#fff" />
                       ) : (
                         <Text style={styles.markerText}>{index + 1}</Text>
                       )}
@@ -698,36 +958,42 @@ const MapSalesMan = () => {
                     <View
                       style={[
                         styles.markerArrow,
-                        point.visitStatus && { borderTopColor: COLORS.success },
-                        isCurrentClient && { borderTopColor: "#1f2937" },
+                        { borderTopColor: markerBg },
                       ]}
                     />
                   </View>
                 </Marker>
-                {!isTimerRunning && index === 0 && route[0].route.length > 1 && (
-                  <MapViewDirections
-                    origin={origin}
-                    destination={{
-                      latitude: parseFloat(
-                        route[0].route[route[0].route.length - 1].client_location.latitud
-                      ),
-                      longitude: parseFloat(
-                        route[0].route[route[0].route.length - 1].client_location.longitud
-                      ),
-                    }}
-                    waypoints={route[0].route.slice(0, -1).map((point) => ({
-                      latitude: parseFloat(point.client_location.latitud),
-                      longitude: parseFloat(point.client_location.longitud),
-                    }))}
-                    optimizeWaypoints={true}
-                    apikey={GOOGLE_API_KEY}
-                    strokeColor="#111827"
-                    strokeWidth={4}
-                  />
-                )}
               </React.Fragment>
             );
           })}
+
+        {!isTimerRunning &&
+          showRoute &&
+          origin.latitude !== 0 &&
+          displayStops.filter((s) => !s.visitStatus).length > 0 && (
+            <MapViewDirections
+              origin={origin}
+              destination={(() => {
+                const pending = displayStops.filter((s) => !s.visitStatus);
+                const last = pending[pending.length - 1];
+                return {
+                  latitude: parseFloat(last.client_location.latitud),
+                  longitude: parseFloat(last.client_location.longitud),
+                };
+              })()}
+              waypoints={(() => {
+                const pending = displayStops.filter((s) => !s.visitStatus);
+                return pending.slice(0, -1).map((s) => ({
+                  latitude: parseFloat(s.client_location.latitud),
+                  longitude: parseFloat(s.client_location.longitud),
+                }));
+              })()}
+              optimizeWaypoints={false}
+              apikey={GOOGLE_API_KEY}
+              strokeColor={COLORS.brand}
+              strokeWidth={5}
+            />
+          )}
 
         {isTimerRunning && activeDestination && origin.latitude !== 0 && (
           <MapViewDirections
@@ -808,6 +1074,63 @@ const MapSalesMan = () => {
                 <Text style={styles.routesBtnText}>Mis rutas</Text>
               </TouchableOpacity>
             )}
+          </View>
+        )}
+
+        {showRoute && !isTimerRunning && showRouteSummary && routeEstimates && (
+          <View style={styles.routeSummaryPanel}>
+            <View style={styles.routeSummaryHeader}>
+              <View style={styles.routeSummaryIcon}>
+                <Ionicons name="flash" size={16} color={COLORS.brand} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.routeSummaryTitle}>Ruta optimizada</Text>
+                <Text style={styles.routeSummarySubtitle}>
+                  Ordenada desde tu ubicación · {routeEstimates.totalDistanceKm.toFixed(1)} km
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.routeSummaryClose}
+                onPress={() => setShowRouteSummary(false)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={16} color={COLORS.textMid} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.routeSummaryDivider} />
+
+            <View style={styles.transportRow}>
+              <View style={styles.transportCard}>
+                <View style={[styles.transportIcon, { backgroundColor: COLORS.infoBg }]}>
+                  <Ionicons name="car-sport" size={16} color={COLORS.info} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.transportLabel}>Auto</Text>
+                  <Text style={styles.transportTime}>
+                    {formatMinutesRange(routeEstimates.carTotalMin, routeEstimates.carTotalMax)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.transportCard}>
+                <View style={[styles.transportIcon, { backgroundColor: COLORS.warningBg }]}>
+                  <Ionicons name="bus" size={16} color={COLORS.warning} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.transportLabel}>Transporte público</Text>
+                  <Text style={styles.transportTime}>
+                    {formatMinutesRange(routeEstimates.transitTotalMin, routeEstimates.transitTotalMax)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.visitNoteRow}>
+              <Ionicons name="time-outline" size={11} color={COLORS.textMid} />
+              <Text style={styles.visitNoteText}>
+                {VISIT_DURATION_MIN}–{VISIT_DURATION_MAX} min por parada
+              </Text>
+            </View>
           </View>
         )}
       </SafeAreaView>
@@ -928,12 +1251,9 @@ const MapSalesMan = () => {
                   <TouchableOpacity
                     key={index}
                     style={styles.routeCard}
-                    onPress={() => {
-                      setRouteId(item._id);
-                      getRoutesById(item._id);
-                      startMapping();
-                    }}
+                    onPress={() => handleStartRoute(item)}
                     activeOpacity={0.85}
+                    disabled={loadingButton}
                   >
                     <View style={styles.routeCardHeader}>
                       <View style={styles.routeIconBox}>
@@ -972,8 +1292,14 @@ const MapSalesMan = () => {
                     </View>
 
                     <View style={styles.routeCta}>
-                      <Text style={styles.routeCtaText}>Iniciar ruta</Text>
-                      <Ionicons name="arrow-forward" size={14} color="#fff" />
+                      {loadingButton ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <>
+                          <Text style={styles.routeCtaText}>Iniciar ruta</Text>
+                          <Ionicons name="arrow-forward" size={14} color="#fff" />
+                        </>
+                      )}
                     </View>
                   </TouchableOpacity>
                 );
@@ -993,13 +1319,12 @@ const MapSalesMan = () => {
         </View>
       )}
 
-      {showRoute && route?.length > 0 && !isTimerRunning && (
+      {showRoute && displayStops?.length > 0 && !isTimerRunning && (
         <View style={styles.cardsWrapper}>
           <View style={styles.cardsHeaderRow}>
-            <Text style={styles.cardsHeaderTitle}>Paradas de la ruta</Text>
+            <Text style={styles.cardsHeaderTitle}>Paradas optimizadas</Text>
             <Text style={styles.cardsHeaderCount}>
-              {route[0].route?.filter((p) => p.visitStatus).length}/
-              {route[0].route?.length}
+              {displayStops.filter((p) => p.visitStatus).length}/{displayStops.length}
             </Text>
           </View>
 
@@ -1011,14 +1336,16 @@ const MapSalesMan = () => {
             snapToInterval={236}
             snapToAlignment="start"
           >
-            {route[0].route?.map((item, index) => {
+            {displayStops.map((item, index) => {
               const visited = item.visitStatus;
+              const isPriority = item.client_location._id === priorityStopId;
               return (
                 <TouchableOpacity
                   key={index}
                   style={[
                     styles.deliveryCard,
                     visited && { borderWidth: 2, borderColor: COLORS.success },
+                    isPriority && { borderWidth: 2, borderColor: COLORS.warning },
                   ]}
                   onPress={() => centerMapOnClient(item)}
                   activeOpacity={0.85}
@@ -1030,7 +1357,13 @@ const MapSalesMan = () => {
                       }}
                       style={styles.deliveryImage}
                     />
-                    <View style={styles.stopNumberBadge}>
+                    <View
+                      style={[
+                        styles.stopNumberBadge,
+                        isPriority && { backgroundColor: COLORS.warning },
+                        visited && { backgroundColor: COLORS.success },
+                      ]}
+                    >
                       <Text style={styles.stopNumberText}>{index + 1}</Text>
                     </View>
                     <View
@@ -1038,6 +1371,8 @@ const MapSalesMan = () => {
                         styles.imageBadge,
                         visited
                           ? { backgroundColor: COLORS.success }
+                          : isPriority
+                          ? { backgroundColor: COLORS.warning }
                           : { backgroundColor: "#fff" },
                       ]}
                     >
@@ -1048,13 +1383,20 @@ const MapSalesMan = () => {
                             Visitado
                           </Text>
                         </>
+                      ) : isPriority ? (
+                        <>
+                          <Ionicons name="flash" size={10} color="#fff" />
+                          <Text style={[styles.imageBadgeText, { color: "#fff" }]}>
+                            Empezar aquí
+                          </Text>
+                        </>
                       ) : (
                         <>
                           <View
-                            style={[styles.imageBadgeDot, { backgroundColor: COLORS.warning }]}
+                            style={[styles.imageBadgeDot, { backgroundColor: COLORS.textMid }]}
                           />
                           <Text
-                            style={[styles.imageBadgeText, { color: COLORS.warning }]}
+                            style={[styles.imageBadgeText, { color: COLORS.textMid }]}
                           >
                             Pendiente
                           </Text>
@@ -1075,10 +1417,19 @@ const MapSalesMan = () => {
                     </View>
                     <View style={styles.cardDivider} />
                     <View style={styles.cardFooter}>
-                      <View style={styles.metaChip}>
-                        <Ionicons name="flag-outline" size={10} color={COLORS.textMid} />
-                        <Text style={styles.metaChipText}>Parada {index + 1}</Text>
-                      </View>
+                      {item._distanceFromPrev != null && item._distanceFromPrev !== Infinity ? (
+                        <View style={styles.metaChip}>
+                          <Ionicons name="navigate-outline" size={10} color={COLORS.textMid} />
+                          <Text style={styles.metaChipText}>
+                            {formatDistance(item._distanceFromPrev)}
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={styles.metaChip}>
+                          <Ionicons name="flag-outline" size={10} color={COLORS.textMid} />
+                          <Text style={styles.metaChipText}>Parada {index + 1}</Text>
+                        </View>
+                      )}
                       <Ionicons name="chevron-forward" size={16} color={COLORS.brand} />
                     </View>
                   </View>
@@ -1167,6 +1518,16 @@ const MapSalesMan = () => {
                 </Text>
               </View>
             )}
+            {!isTimerRunning &&
+              !selectedClient.visitStatus &&
+              selectedClient.client_location?._id === priorityStopId && (
+                <View style={[styles.sheetStat, { backgroundColor: COLORS.warningBg }]}>
+                  <Ionicons name="flash" size={12} color={COLORS.warning} />
+                  <Text style={[styles.sheetStatText, { color: COLORS.warning }]}>
+                    Sugerido empezar aquí
+                  </Text>
+                </View>
+              )}
           </View>
 
           {!isTimerRunning && !selectedClient.visitStatus && (
@@ -1209,15 +1570,6 @@ const MapSalesMan = () => {
           {isTimerRunning && (
             <View style={{ gap: 8 }}>
               <TouchableOpacity
-                style={styles.orderButton}
-                onPress={navigate}
-                activeOpacity={0.9}
-              >
-                <Ionicons name="bag-outline" size={16} color={COLORS.brand} />
-                <Text style={styles.orderButtonText}>Tomar pedido</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
                 style={styles.finishVisitButton}
                 onPress={() => handleFinishVisit(selectedClient, "Termina la visita")}
                 disabled={loadingButton}
@@ -1244,15 +1596,6 @@ const MapSalesMan = () => {
         message={toast.message}
         onHide={hideToast}
       />
-
-      {loading && (
-        <View style={styles.loadingContainer}>
-          <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color={COLORS.brand} />
-            <Text style={styles.loadingText}>Cargando...</Text>
-          </View>
-        </View>
-      )}
     </View>
   );
 };
@@ -1314,6 +1657,125 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   routesBtnText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+
+  skeletonHeader: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  skeletonSearchRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  skeletonCard: {
+    width: 224,
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+
+  routeSummaryPanel: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  routeSummaryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  routeSummaryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: COLORS.dangerBg,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  routeSummaryTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: COLORS.text,
+  },
+  routeSummarySubtitle: {
+    fontSize: 11,
+    color: COLORS.textMid,
+    fontWeight: "500",
+    marginTop: 1,
+  },
+  routeSummaryClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.borderLight,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  routeSummaryDivider: {
+    height: 1,
+    backgroundColor: COLORS.borderLight,
+    marginVertical: 12,
+  },
+  transportRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  transportCard: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: COLORS.bg,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  transportIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  transportLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: COLORS.textMid,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  transportTime: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.text,
+    marginTop: 1,
+    fontVariant: ["tabular-nums"],
+  },
+  visitNoteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
+  visitNoteText: {
+    fontSize: 10,
+    color: COLORS.textMid,
+    fontWeight: "600",
+  },
 
   etaPanel: {
     marginHorizontal: 16,
@@ -1951,32 +2413,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 0.3,
-  },
-
-  loadingContainer: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.85)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 50,
-  },
-  loadingCard: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderRadius: 16,
-    alignItems: "center",
-    gap: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  loadingText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: COLORS.textMid,
   },
 });
 

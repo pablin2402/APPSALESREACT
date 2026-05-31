@@ -264,7 +264,6 @@ export default function OrderDetailsScreen() {
             </View>
           </SafeAreaView>
         </View>
-
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={{
@@ -550,7 +549,6 @@ export default function OrderDetailsScreen() {
          
           )}
         </ScrollView>
-
         {activeTab === "payments" && totalGeneral > totalPaid && (
           <View style={[styles.payBtnWrapper, { paddingBottom: insets.bottom + 12 }]}>
             <TouchableOpacity

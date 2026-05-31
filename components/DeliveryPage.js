@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useContext } from "react";
+import React, { useEffect, useCallback, useRef,useState, useContext } from "react";
 import axios from "axios";
 import { API_URL } from "../config";
 import { useNavigation } from "@react-navigation/native";
@@ -12,9 +12,12 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
+    RefreshControl,
   StatusBar,
   Platform,
   PermissionsAndroid,
+    Animated,
+  Easing,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
@@ -49,7 +52,116 @@ const getProgressColor = (pct) => {
   if (pct >= 70) return COLORS.warning;
   return COLORS.brand;
 };
+const ShimmerBlock = ({ width: w, height: h, style, radius = 8 }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
 
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(shimmer, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmer]);
+
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-150, 250],
+  });
+
+  return (
+    <View
+      style={[
+        {
+          width: w,
+          height: h,
+          borderRadius: radius,
+          backgroundColor: "#e5e7eb",
+          overflow: "hidden",
+        },
+        style,
+      ]}
+    >
+      <Animated.View
+        style={{
+          width: 100,
+          height: "100%",
+          backgroundColor: "rgba(255,255,255,0.6)",
+          transform: [{ translateX }, { skewX: "-20deg" }],
+        }}
+      />
+    </View>
+  );
+};
+const SkeletonHero = () => (
+  <View style={styles.skeletonHero}>
+    <View style={styles.skeletonHeroTop}>
+      <ShimmerBlock width={44} height={44} radius={22} />
+      <View style={{ flex: 1, marginLeft: 12, gap: 6 }}>
+        <ShimmerBlock width={50} height={11} radius={5} />
+        <ShimmerBlock width={140} height={16} radius={6} />
+      </View>
+    </View>
+    <ShimmerBlock width={180} height={11} radius={5} style={{ marginBottom: 16 }} />
+    <View style={{ flexDirection: "row", gap: 8 }}>
+      {[1, 2, 3].map((i) => (
+        <View key={i} style={styles.skeletonKpi}>
+          <ShimmerBlock width={30} height={30} radius={10} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <ShimmerBlock width={45} height={9} radius={4} />
+            <ShimmerBlock width={28} height={14} radius={5} />
+          </View>
+        </View>
+      ))}
+    </View>
+  </View>
+);
+const SkeletonSection = ({ children }) => (
+  <View style={styles.skeletonSectionWrap}>{children}</View>
+);
+const SkeletonMapBlock = () => (
+  <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+    <View style={{ marginBottom: 12 }}>
+      <ShimmerBlock width={120} height={18} radius={6} style={{ marginBottom: 6 }} />
+      <ShimmerBlock width={160} height={11} radius={5} />
+    </View>
+    <ShimmerBlock width="100%" height={height * 0.26} radius={18} />
+  </View>
+);
+const SkeletonOrderCard = () => (
+  <View style={styles.skeletonOrderCard}>
+    <View style={styles.skeletonOrderTop}>
+      <ShimmerBlock width={100} height={18} radius={6} />
+      <ShimmerBlock width={70} height={20} radius={6} />
+    </View>
+    <ShimmerBlock width={180} height={15} radius={5} style={{ marginBottom: 6 }} />
+    <ShimmerBlock width={110} height={11} radius={5} style={{ marginBottom: 12 }} />
+    <View style={styles.skeletonOrderDivider} />
+    <View style={styles.skeletonOrderBottom}>
+      <ShimmerBlock width={40} height={11} radius={5} />
+      <View style={{ flexDirection: "row", gap: 6 }}>
+        <ShimmerBlock width={70} height={18} radius={999} />
+        <ShimmerBlock width={70} height={18} radius={999} />
+      </View>
+    </View>
+  </View>
+);
+const SkeletonObjectiveItem = ({ isLast }) => (
+  <View style={[styles.skeletonObjItem, !isLast && styles.skeletonObjBorder]}>
+    <View style={styles.skeletonObjTop}>
+      <View style={{ flex: 1, gap: 5 }}>
+        <ShimmerBlock width={120} height={14} radius={5} />
+        <ShimmerBlock width={90} height={11} radius={4} />
+      </View>
+      <ShimmerBlock width={50} height={20} radius={999} />
+    </View>
+    <ShimmerBlock width="100%" height={6} radius={999} />
+  </View>
+);
 const MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
   { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
@@ -67,7 +179,6 @@ const MAP_STYLE = [
   { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
 ];
 const { height, width } = Dimensions.get("window");
-
 export default function DeliveryPage() {
   const navigation = useNavigation();
   const [filteredData, setFilteredData] = useState([]);
@@ -82,6 +193,7 @@ export default function DeliveryPage() {
   const { token, idOwner, salesId } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const requestLocationPermission = async () => {
     if (Platform.OS === "android") {
@@ -212,13 +324,57 @@ export default function DeliveryPage() {
     const d = new Date(s);
     return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
   };
-  if (loading) {
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await Promise.all([
+        fetchProfile(),
+        startRoute(),
+      ]);
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+    useEffect(() => {
+      const loadData = async () => {
+        try {
+          await Promise.all([
+            fetchProfile(),
+            startRoute(),
+          ]);
+        } catch (error) {
+          console.error("Error cargando datos:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadData();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+ if (loading) {
     return (
       <SafeAreaProvider>
-        <SafeAreaView style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.brand} />
-          <Text style={styles.loadingText}>Cargando tu día...</Text>
-        </SafeAreaView>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.brand} />
+        <View style={styles.container}>
+          <SafeAreaView edges={["top"]} style={{ backgroundColor: COLORS.brand }}>
+            <SkeletonHero />
+          </SafeAreaView>
+          <SkeletonMapBlock />
+          <SkeletonSection>
+            <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+              <View style={{ marginBottom: 12 }}>
+                <ShimmerBlock width={160} height={18} radius={6} style={{ marginBottom: 6 }} />
+                <ShimmerBlock width={140} height={11} radius={5} />
+              </View>
+              <ShimmerBlock width="100%" height={46} radius={14} style={{ marginBottom: 12 }} />
+              <SkeletonOrderCard />
+              <SkeletonOrderCard />
+            </View>
+          </SkeletonSection>
+        </View>
       </SafeAreaProvider>
     );
   }
@@ -226,9 +382,20 @@ export default function DeliveryPage() {
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.brand} />
       <View style={styles.container}>
+        <View style={styles.refreshBacker} />
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+                      <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#fff"
+                        colors={["#fff"]}
+                        progressBackgroundColor={COLORS.brand}
+                        progressViewOffset={Platform.OS === "android" ? 20 : 0}
+                      />
+                    }
         >
           <View style={styles.heroWrapper}>
             <View style={styles.heroBg} />
@@ -483,7 +650,6 @@ export default function DeliveryPage() {
     </SafeAreaProvider>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   loadingContainer: {
@@ -491,6 +657,74 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.bg,
+  },
+
+  refreshBacker: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 200,
+    backgroundColor: COLORS.brand,
+    zIndex: -1,
+  },
+  skeletonHero: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+    backgroundColor: COLORS.brand,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+  skeletonHeroTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  skeletonKpi: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 14,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  skeletonSectionWrap: {},
+  skeletonOrderCard: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+  skeletonOrderTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  skeletonOrderDivider: {
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    marginVertical: 10,
+  },
+  skeletonOrderBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  skeletonObjItem: { paddingVertical: 10 },
+  skeletonObjBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.06)",
+  },
+  skeletonObjTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
   },
   loadingText: {
     marginTop: 12,

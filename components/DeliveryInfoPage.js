@@ -183,7 +183,7 @@ export default function DeliveryInfoPage() {
               iconColor={COLORS.warning}
               title="Mi Ruta"
               subtitle="Ver las rutas del día"
-              onPress={() => navigation.navigate("MapScreenDelivery")}
+              onPress={() => navigation.navigate("MapScreenDeliveryRoute")}
               isLast
             />
           </View>

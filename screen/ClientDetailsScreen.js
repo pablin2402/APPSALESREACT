@@ -117,6 +117,7 @@ export default function ClientDetailsScreen() {
 
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [filterLoading, setFilterLoading] = useState(false);
   const [salesData, setSalesData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
 
@@ -167,8 +168,12 @@ export default function ClientDetailsScreen() {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setSalesData(response.data.orders || []);
-      setFilteredData(response.data.orders || []);
+     const sortedOrders = (response.data.orders || []).sort(
+  (a, b) => new Date(b.creationDate) - new Date(a.creationDate)
+);
+
+setSalesData(sortedOrders);
+setFilteredData(sortedOrders);
       setTotalPages(parseInt(response.data.totalPages || 1));
     } catch (error) {
       console.error("Error al obtener las ventas", error);
@@ -189,18 +194,39 @@ export default function ClientDetailsScreen() {
     return `${day}/${month}/${year}`;
   };
 
-  const filterData = () => {
-    let filtered = salesData;
-    if (startDate && endDate) {
-      filtered = filtered.filter((item) => {
-        const itemDate = new Date(item.creationDate);
-        return itemDate >= new Date(startDate) && itemDate <= new Date(endDate);
-      });
-    }
-    setFilteredData(filtered);
+const filterData = async () => {
+  try {
+    setFilterLoading(true);
     setShowFilters(false);
-  };
 
+    const response = await axios.post(
+      API_URL + "/whatsapp/order/id/user",
+      {
+        id_owner: idOwner,
+        id_client: clientId,
+        page: 1,
+        limit: 5,
+        startDate: startDate.toISOString().split("T")[0],
+        endDate: endDate.toISOString().split("T")[0],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    setPage(1);
+
+    setSalesData(response.data.orders || []);
+    setFilteredData(response.data.orders || []);
+    setTotalPages(response.data.totalPages || 1);
+  } catch (error) {
+    console.log(error);
+  } finally {
+    setFilterLoading(false);
+  }
+};
   const handleRowClick = (item) => {
     navigation.navigate("OrderDetailsScreen", {
       products: item.products,
@@ -261,8 +287,7 @@ export default function ClientDetailsScreen() {
             </View>
           </SafeAreaView>
         </View>
-  {loading  ? (
-          <View
+{loading || filterLoading ? (          <View
             style={{
               paddingHorizontal: 20,
               paddingTop: 12,
@@ -526,8 +551,8 @@ export default function ClientDetailsScreen() {
               </TouchableOpacity>
             );
           }}
-          ListFooterComponent={
-            totalPages > 1 ? (
+         ListFooterComponent={
+  !filterLoading && totalPages > 1 ? (
               <View style={styles.pagination}>
                 <TouchableOpacity
                   onPress={() => setPage((p) => Math.max(p - 1, 1))}

@@ -167,10 +167,10 @@ const MapScreenRoute = () => {
     setLoading(true);
     try {
       const response = await axios.post(
-        API_URL + "/whatsapp/salesman/list/route",
+        API_URL + "/whatsapp/delivery/list/route",
         {
           id_owner: idOwner,
-          salesMan: salesId,
+          delivery: salesId,
           startDate: sDate,
           endDate: eDate,
           status: detailsFilter,
