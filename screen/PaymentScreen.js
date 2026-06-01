@@ -25,32 +25,11 @@ import {
 } from "react-native-safe-area-context";
 import { AuthContext } from "../AuthContext";
 import { useNavigation } from "@react-navigation/native";
+import { COLORS, styles } from "../styles/PaymentScreenStyle";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-const COLORS = {
-  brand: "#D3423E",
-  brandDark: "#bb3330",
-  bg: "#f9fafb",
-  card: "#ffffff",
-  cardSoft: "#f3f4f6",
-  border: "#e5e7eb",
-  borderLight: "#f3f4f6",
-  text: "#111827",
-  textMid: "#6b7280",
-  textLight: "#9ca3af",
-  success: "#16a34a",
-  successBg: "#dcfce7",
-  warning: "#d97706",
-  warningBg: "#fef3c7",
-  info: "#2563eb",
-  infoBg: "#eff6ff",
-  danger: "#dc2626",
-  dangerBg: "#fee2e2",
-};
-
 const ShimmerBlock = ({ width, height, style, radius = 8 }) => {
   const shimmer = useRef(new Animated.Value(0)).current;
 
@@ -190,37 +169,37 @@ const PaymentCard = ({ item, isExpanded, onToggle, formatDate, getPaymentStatusS
       activeOpacity={0.95}
       onPress={onToggle}
     >
-    <View style={styles.paymentTop}>
-  <View style={styles.paymentDateChip}>
-    <Ionicons
-      name="calendar-outline"
-      size={11}
-      color={COLORS.textMid}
-    />
-    <Text style={styles.paymentDateText}>
-      {formatDate(item.creationDate)}
-    </Text>
-  </View>
+      <View style={styles.paymentTop}>
+        <View style={styles.paymentDateChip}>
+          <Ionicons
+            name="calendar-outline"
+            size={11}
+            color={COLORS.textMid}
+          />
+          <Text style={styles.paymentDateText}>
+            {formatDate(item.creationDate)}
+          </Text>
+        </View>
 
-  <View style={{ alignItems: "flex-end" }}>
-    <Text style={styles.paymentAmount}>
-      Bs. {Number(item.total || 0).toFixed(2)}
-    </Text>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={styles.paymentAmount}>
+            Bs. {Number(item.total || 0).toFixed(2)}
+          </Text>
 
-    {item.paymentStatus === "confirmado" && (
-      <View style={styles.confirmedBadge}>
-        <Ionicons
-          name="checkmark-circle"
-          size={12}
-          color="#fff"
-        />
-        <Text style={styles.confirmedBadgeText}>
-          Confirmado
-        </Text>
+          {item.paymentStatus === "confirmado" && (
+            <View style={styles.confirmedBadge}>
+              <Ionicons
+                name="checkmark-circle"
+                size={12}
+                color="#fff"
+              />
+              <Text style={styles.confirmedBadgeText}>
+                Confirmado
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
-    )}
-  </View>
-</View>
 
       <View style={styles.paymentMiddle}>
         <View style={styles.paymentAvatar}>
@@ -280,7 +259,7 @@ export default function PaymentScreen() {
   const [totalPages, setTotalPages] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
-  
+
   const [expandedId, setExpandedId] = useState(null);
 
   const range = 2;
@@ -636,47 +615,40 @@ export default function PaymentScreen() {
             )}
             ListFooterComponent={
               totalPages > 1 ? (
-                <View style={styles.pagination}>
-                  <TouchableOpacity
-                    onPress={() => setPage((p) => Math.max(p - 1, 1))}
-                    disabled={page === 1}
-                    style={[styles.pageNavBtn, page === 1 && styles.pageNavBtnDisabled]}
-                  >
-                    <Ionicons
-                      name="chevron-back"
-                      size={16}
-                      color={page === 1 ? COLORS.textLight : COLORS.brand}
-                    />
-                  </TouchableOpacity>
-
-                  {pagesToShow.map((num) => (
+                <View style={[styles.paginationBar, { marginBottom: insets.bottom + 12 }]}>
+                  <View style={styles.paginationInner}>
                     <TouchableOpacity
-                      key={num}
-                      onPress={() => setPage(num)}
-                      style={[styles.pageBtn, page === num && styles.pageBtnActive]}
+                      onPress={() => setPage((p) => Math.max(p - 1, 1))}
+                      disabled={page === 1}
+                      style={[styles.pageNavBtn, page === 1 && styles.pageNavBtnDisabled]}
+                      activeOpacity={0.8}
                     >
-                      <Text
-                        style={page === num ? styles.pageTextActive : styles.pageText}
-                      >
-                        {num}
-                      </Text>
+                      <Ionicons name="chevron-back" size={16} color={page === 1 ? COLORS.textLight : COLORS.brand} />
                     </TouchableOpacity>
-                  ))}
-
-                  <TouchableOpacity
-                    onPress={() => setPage((p) => Math.min(p + 1, totalPages))}
-                    disabled={page === totalPages}
-                    style={[
-                      styles.pageNavBtn,
-                      page === totalPages && styles.pageNavBtnDisabled,
-                    ]}
-                  >
-                    <Ionicons
-                      name="chevron-forward"
-                      size={16}
-                      color={page === totalPages ? COLORS.textLight : COLORS.brand}
-                    />
-                  </TouchableOpacity>
+                    <View style={styles.pageDotsRow}>
+                      {pagesToShow.map((num) => (
+                        <TouchableOpacity
+                          key={num}
+                          onPress={() => setPage(num)}
+                          style={[styles.pageBtn, page === num && styles.pageBtnActive]}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={page === num ? styles.pageTextActive : styles.pageText}>
+                            {num}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setPage((p) => Math.min(p + 1, totalPages))}
+                      disabled={page === totalPages}
+                      style={[styles.pageNavBtn, page === totalPages && styles.pageNavBtnDisabled]}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="chevron-forward" size={16} color={page === totalPages ? COLORS.textLight : COLORS.brand} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.pageCounter}>Página {page} de {totalPages}</Text>
                 </View>
               ) : null
             }
@@ -688,535 +660,3 @@ export default function PaymentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-
-  heroWrapper: { position: "relative", paddingBottom: 20 },
-  heroBg: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: COLORS.brand,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  heroContent: { paddingHorizontal: 20, paddingTop: 8 },
-  heroTop: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  heroTitle: { color: "#fff", fontSize: 20, fontWeight: "800" },
-  heroSubtitle: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 12,
-    fontWeight: "500",
-    marginTop: 1,
-  },
-
-  kpiRow: { flexDirection: "row", gap: 8 },
-  kpiCard: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  kpiIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  kpiLabel: { fontSize: 10, color: COLORS.textMid, fontWeight: "600" },
-  kpiValue: { fontSize: 14, color: COLORS.text, fontWeight: "800", marginTop: -1 },
-
-  filterBar: {
-    flexDirection: "row",
-    paddingHorizontal: 20,
-    marginTop: 16,
-    gap: 10,
-  },
-  searchBox: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#fff",
-    paddingHorizontal: 14,
-    height: 46,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: COLORS.text,
-    paddingVertical: 0,
-  },
-  filterToggle: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: COLORS.brand,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-  },
-  filterToggleActive: {
-    backgroundColor: COLORS.brand,
-    borderColor: COLORS.brand,
-  },
-  filterDot: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.brand,
-  },
-
-  filtersPanel: {
-    marginHorizontal: 20,
-    marginTop: 10,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  filterLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: COLORS.textMid,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 8,
-  },
-  confirmedBadge: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 4,
-  backgroundColor: COLORS.success,
-  paddingHorizontal: 8,
-  paddingVertical: 4,
-  borderRadius: 999,
-  marginTop: 6,
-},
-
-confirmedBadgeText: {
-  color: "#fff",
-  fontSize: 10,
-  fontWeight: "800",
-  letterSpacing: 0.3,
-},
-  dateRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  dateInput: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    backgroundColor: COLORS.bg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  dateInputText: { fontSize: 12, fontWeight: "700", color: COLORS.text },
-  dateArrow: { paddingHorizontal: 2 },
-
-  filterActions: { flexDirection: "row", gap: 8, marginTop: 14 },
-  clearBtn: {
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: COLORS.bg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  clearBtnText: { fontSize: 12, fontWeight: "700", color: COLORS.textMid },
-  applyBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 11,
-    borderRadius: 12,
-    backgroundColor: COLORS.brand,
-  },
-  applyBtnText: { color: "#fff", fontSize: 13, fontWeight: "800" },
-
-  paymentCard: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.04)",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  paymentCardActive: {
-    backgroundColor: "#fff",
-    borderColor: COLORS.brand,
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  paymentTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  paymentDateChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(255,255,255,0.7)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  paymentDateText: { fontSize: 10, color: COLORS.textMid, fontWeight: "600" },
-  paymentAmount: { fontSize: 22, fontWeight: "800", color: COLORS.text },
-
-  paymentMiddle: { flexDirection: "row", alignItems: "center", gap: 10 },
-  paymentAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.dangerBg,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  paymentAvatarText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: COLORS.brand,
-    letterSpacing: 0.5,
-  },
-  paymentClient: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: COLORS.text,
-    marginBottom: 1,
-  },
-  paymentNote: { fontSize: 11, color: COLORS.textMid, fontWeight: "600" },
-
-  paymentDivider: {
-    height: 1,
-    backgroundColor: "rgba(0,0,0,0.06)",
-    marginVertical: 10,
-  },
-
-  paymentBottom: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  paymentStatusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  receiptImageContainer: {
-  marginTop: 6,
-},
-
-receiptImage: {
-  width: "100%",
-  height: 260,
-  borderRadius: 16,
-  backgroundColor: COLORS.borderLight,
-},
-
-noReceiptBox: {
-  paddingVertical: 30,
-  alignItems: "center",
-  justifyContent: "center",
-  backgroundColor: COLORS.bg,
-  borderRadius: 16,
-  borderWidth: 1,
-  borderColor: COLORS.border,
-},
-
-noReceiptText: {
-  marginTop: 8,
-  fontSize: 12,
-  color: COLORS.textMid,
-  fontWeight: "600",
-},
-  paymentStatusText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.4 },
-
-  expandHint: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  expandHintText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: COLORS.brand,
-    letterSpacing: 0.3,
-  },
-
-  receiptWrap: { marginTop: 12 },
-  receiptDivider: {
-    height: 1,
-    backgroundColor: "rgba(0,0,0,0.08)",
-    marginBottom: 14,
-    borderStyle: "dashed",
-  },
-  receiptHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  receiptIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: COLORS.dangerBg,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  receiptTitle: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: COLORS.text,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-
-  receiptMetaRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 14,
-  },
-  receiptMetaItem: { flex: 1 },
-  receiptMetaLabel: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: COLORS.textMid,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 4,
-  },
-  receiptMethodPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-    alignSelf: "flex-start",
-  },
-  receiptMethodText: {
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  receiptDueChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: COLORS.bg,
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  receiptDueText: { fontSize: 11, fontWeight: "700", color: COLORS.text },
-
-  productsSection: { marginBottom: 12 },
-  productsLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: COLORS.textMid,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 8,
-  },
-  productRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.04)",
-  },
-  productQtyBadge: {
-    minWidth: 36,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: COLORS.brand,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  productQtyText: { fontSize: 10, fontWeight: "800", color: "#fff" },
-  productName: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: COLORS.text,
-    marginBottom: 1,
-  },
-  productPrice: {
-    fontSize: 10,
-    color: COLORS.textMid,
-    fontWeight: "600",
-  },
-  productSubtotal: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: COLORS.text,
-  },
-  moreProducts: {
-    paddingTop: 8,
-    alignItems: "center",
-  },
-  moreProductsText: {
-    fontSize: 11,
-    color: COLORS.textMid,
-    fontWeight: "700",
-  },
-
-  totalsCard: {
-    backgroundColor: COLORS.bg,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  totalsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  totalsLabel: { fontSize: 12, color: COLORS.textMid, fontWeight: "600" },
-  totalsValue: { fontSize: 13, fontWeight: "800" },
-  totalsGrandLabel: { fontSize: 13, color: COLORS.text, fontWeight: "800" },
-  totalsGrandValue: { fontSize: 17, fontWeight: "800", color: COLORS.text },
-
-  receiptFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingTop: 4,
-  },
-  receiptFooterText: {
-    fontSize: 10,
-    color: COLORS.textLight,
-    fontWeight: "600",
-  },
-
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: COLORS.text,
-    marginTop: 12,
-  },
-  emptyDesc: {
-    fontSize: 12,
-    color: COLORS.textMid,
-    marginTop: 4,
-    textAlign: "center",
-  },
-
-  pagination: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 16,
-  },
-  pageNavBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  pageNavBtnDisabled: { opacity: 0.5 },
-  pageBtn: {
-    minWidth: 36,
-    height: 36,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  pageBtnActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
-  pageText: { fontSize: 13, fontWeight: "700", color: COLORS.textMid },
-  pageTextActive: { fontSize: 13, fontWeight: "800", color: "#fff" },
-
-  skeletonCard: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.04)",
-  },
-  skeletonTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  skeletonMiddle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 14,
-  },
-  skeletonDivider: {
-    height: 1,
-    backgroundColor: "rgba(0,0,0,0.06)",
-    marginBottom: 14,
-  },
-});

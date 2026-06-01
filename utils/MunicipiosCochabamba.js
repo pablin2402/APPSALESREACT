@@ -3,6 +3,10 @@ import { Ionicons } from "@expo/vector-icons";
 const MUNI_COLOR = "#475569";
 const MUNI_COLOR_LIGHT = "#64748B";
 import { CERCADO_OSM, VINTO, SACABA, QUILLACOLLO, TIQUIPAYA, COLCAPIRHUA } from "./CitiesCoordinates";
+import barImg from "../icons/bar.png";
+import supermercadoImg from "../icons/supermercado.png";
+import tenedorImg from "../icons/tenedor.png";
+import tiendaImg from "../icons/tienda.png";
 
 function buildPolygon(data) {
 
@@ -216,7 +220,6 @@ export const getMunicipioForPoint = (lat, lng) => {
     if (minDistance < 0.15) return closest;
     return null;
 };
-
 export const groupClientsByMunicipio = (clients) => {
     const groups = {};
 
@@ -242,7 +245,6 @@ export const groupClientsByMunicipio = (clients) => {
 
     return groups;
 };
-// Algoritmo ray-casting para verificar si un punto cae dentro de un polígono
 function pointInPolygon(lat,lng,polygon){
 
     let inside=false;
@@ -273,7 +275,6 @@ function pointInPolygon(lat,lng,polygon){
 
     return inside;
 }
-
 export function getMunicipio(lat,lng){
 
     const lat0 = Number(lat);
@@ -318,8 +319,6 @@ export function inferZoneFromClient(client) {
   }
   return "Cercado";
 }
-
-
 const CATEGORY_NORMALIZE = (raw) => {
   if (!raw) return "default";
   const s = raw.toString().toLowerCase().trim();
@@ -337,72 +336,17 @@ const CATEGORY_NORMALIZE = (raw) => {
 };
 
 export const CATEGORY_CONFIG = {
-  bar: {
-    label: "Bar",
-    icon: "beer",
-    color: "#7C3AED",
-    bg: "#EFE9FF",
-  },
-  restaurante: {
-    label: "Restaurante",
-    icon: "restaurant",
-    color: "#DC2626",
-    bg: "#FEECEC",
-  },
-  snack: {
-    label: "Snack",
-    icon: "fast-food",
-    color: "#EA580C",
-    bg: "#FFEDD5",
-  },
-  supermercado: {
-    label: "Supermercado",
-    icon: "cart",
-    color: "#0891B2",
-    bg: "#E0F7FA",
-  },
-  mayorista: {
-    label: "Mayorista",
-    icon: "business",
-    color: "#1F2937",
-    bg: "#E5E7EB",
-  },
-  licoreria: {
-    label: "Licorería",
-    icon: "wine",
-    color: "#9333EA",
-    bg: "#F3E8FF",
-  },
-  tienda: {
-    label: "Tienda",
-    icon: "storefront",
-    color: "#16A34A",
-    bg: "#DCFCE7",
-  },
-  kiosko: {
-    label: "Kiosko",
-    icon: "cube",
-    color: "#0EA5E9",
-    bg: "#E0F2FE",
-  },
-  hotel: {
-    label: "Hotel",
-    icon: "bed",
-    color: "#7C2D12",
-    bg: "#FEF3C7",
-  },
-  discoteca: {
-    label: "Discoteca",
-    icon: "musical-notes",
-    color: "#DB2777",
-    bg: "#FCE7F3",
-  },
-  default: {
-    label: "Negocio",
-    icon: "storefront",
-    color: "#6B7280",
-    bg: "#F3F4F6",
-  },
+  bar:          { label: "Bar",          icon: "beer",          color: "#7C3AED", bg: "#EFE9FF",     image: require("../icons/bar.png") },
+  restaurante:  { label: "Restaurante",  icon: "restaurant",    color: "#DC2626", bg: "#FEECEC", image: tenedorImg },
+  snack:        { label: "Snack",        icon: "fast-food",     color: "#EA580C", bg: "#FFEDD5", image: tenedorImg },
+  supermercado: { label: "Supermercado", icon: "cart",          color: "#0891B2", bg: "#E0F7FA", image: supermercadoImg },
+  mayorista:    { label: "Mayorista",    icon: "business",      color: "#1F2937", bg: "#E5E7EB", image: supermercadoImg },
+  licoreria:    { label: "Licorería",    icon: "wine",          color: "#9333EA", bg: "#F3E8FF", image: tiendaImg },
+  tienda:       { label: "Tienda",       icon: "storefront",    color: "#16A34A", bg: "#DCFCE7", image: tiendaImg },
+  kiosko:       { label: "Kiosko",       icon: "cube",          color: "#0EA5E9", bg: "#E0F2FE", image: tiendaImg },
+  hotel:        { label: "Hotel",        icon: "bed",           color: "#7C2D12", bg: "#FEF3C7", image: tiendaImg },
+  discoteca:    { label: "Discoteca",    icon: "musical-notes", color: "#DB2777", bg: "#FCE7F3", image: require("../icons/bar.png") },
+  default:      { label: "Negocio",      icon: "storefront",    color: "#6B7280", bg: "#F3F4F6", image: tiendaImg },
 };
 
 export function getCategoryConfig(userCategory) {
@@ -438,7 +382,6 @@ export function buildStackingPlan(route) {
     }
     const c = byClientMap.get(key);
 
-    // Cada pedido tiene productos
     const productos = stop.productos || stop.products || stop.order?.products || [];
     for (const p of productos) {
       const qty = Number(p.quantity || p.qty || 0);

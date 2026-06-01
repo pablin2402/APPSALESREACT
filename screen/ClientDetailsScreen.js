@@ -308,6 +308,7 @@ const filterData = async () => {
           }}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
+            !client ? null : (
             <>
               <View style={styles.profileCard}>
                 <View style={styles.avatarWrapper}>
@@ -467,6 +468,7 @@ const filterData = async () => {
                 Pedidos {filteredData.length > 0 && `(${filteredData.length})`}
               </Text>
             </>
+            )
           }
           ListEmptyComponent={
             loading ? (
@@ -551,52 +553,45 @@ const filterData = async () => {
               </TouchableOpacity>
             );
           }}
-         ListFooterComponent={
-  !filterLoading && totalPages > 1 ? (
-              <View style={styles.pagination}>
-                <TouchableOpacity
-                  onPress={() => setPage((p) => Math.max(p - 1, 1))}
-                  disabled={page === 1}
-                  style={[styles.pageNavBtn, page === 1 && styles.pageNavBtnDisabled]}
-                >
-                  <Ionicons
-                    name="chevron-back"
-                    size={16}
-                    color={page === 1 ? COLORS.textLight : COLORS.brand}
-                  />
-                </TouchableOpacity>
-
-                {pagesToShow.map((num) => (
-                  <TouchableOpacity
-                    key={num}
-                    onPress={() => setPage(num)}
-                    style={[styles.pageBtn, page === num && styles.pageBtnActive]}
-                  >
-                    <Text
-                      style={page === num ? styles.pageTextActive : styles.pageText}
-                    >
-                      {num}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-
-                <TouchableOpacity
-                  onPress={() => setPage((p) => Math.min(p + 1, totalPages))}
-                  disabled={page === totalPages}
-                  style={[
-                    styles.pageNavBtn,
-                    page === totalPages && styles.pageNavBtnDisabled,
-                  ]}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={16}
-                    color={page === totalPages ? COLORS.textLight : COLORS.brand}
-                  />
-                </TouchableOpacity>
-              </View>
-            ) : null
-          }
+          ListFooterComponent={
+                       totalPages > 1 ? (
+                         <View style={[styles.paginationBar, { marginBottom: insets.bottom + 12 }]}>
+                           <View style={styles.paginationInner}>
+                             <TouchableOpacity
+                               onPress={() => setPage((p) => Math.max(p - 1, 1))}
+                               disabled={page === 1}
+                               style={[styles.pageNavBtn, page === 1 && styles.pageNavBtnDisabled]}
+                               activeOpacity={0.8}
+                             >
+                               <Ionicons name="chevron-back" size={16} color={page === 1 ? COLORS.textLight : COLORS.brand} />
+                             </TouchableOpacity>
+                             <View style={styles.pageDotsRow}>
+                               {pagesToShow.map((num) => (
+                                 <TouchableOpacity
+                                   key={num}
+                                   onPress={() => setPage(num)}
+                                   style={[styles.pageBtn, page === num && styles.pageBtnActive]}
+                                   activeOpacity={0.8}
+                                 >
+                                   <Text style={page === num ? styles.pageTextActive : styles.pageText}>
+                                     {num}
+                                   </Text>
+                                 </TouchableOpacity>
+                               ))}
+                             </View>
+                             <TouchableOpacity
+                               onPress={() => setPage((p) => Math.min(p + 1, totalPages))}
+                               disabled={page === totalPages}
+                               style={[styles.pageNavBtn, page === totalPages && styles.pageNavBtnDisabled]}
+                               activeOpacity={0.8}
+                             >
+                               <Ionicons name="chevron-forward" size={16} color={page === totalPages ? COLORS.textLight : COLORS.brand} />
+                             </TouchableOpacity>
+                           </View>
+                           <Text style={styles.pageCounter}>Página {page} de {totalPages}</Text>
+                         </View>
+                       ) : null
+                     }
           keyboardShouldPersistTaps="handled"
         />
          )}
@@ -967,36 +962,66 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  pagination: {
+paginationBar: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  paginationInner: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    gap: 6,
-    marginTop: 16,
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  pageDotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   pageNavBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: COLORS.dangerBg,
     justifyContent: "center",
     alignItems: "center",
   },
-  pageNavBtnDisabled: { opacity: 0.5 },
+  pageNavBtnDisabled: {
+    backgroundColor: COLORS.borderLight,
+    opacity: 0.5,
+  },
   pageBtn: {
-    minWidth: 36,
-    height: 36,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    minWidth: 38,
+    height: 38,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: COLORS.borderLight,
     justifyContent: "center",
     alignItems: "center",
   },
-  pageBtnActive: { backgroundColor: COLORS.brand, borderColor: COLORS.brand },
+  pageBtnActive: {
+    backgroundColor: COLORS.brand,
+    shadowColor: COLORS.brand,
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 8,
+    elevation: 4,
+  },
   pageText: { fontSize: 13, fontWeight: "700", color: COLORS.textMid },
   pageTextActive: { fontSize: 13, fontWeight: "800", color: "#fff" },
+  pageCounter: {
+    textAlign: "center",
+    fontSize: 11,
+    fontWeight: "600",
+    color: COLORS.textMid,
+  },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef,useState, useContext } from "react";
+import React, { useEffect, useCallback, useRef, useState, useContext } from "react";
 import axios from "axios";
 import { API_URL } from "../config";
 import { useNavigation } from "@react-navigation/native";
@@ -12,11 +12,11 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
-    RefreshControl,
+  RefreshControl,
   StatusBar,
   Platform,
   PermissionsAndroid,
-    Animated,
+  Animated,
   Easing,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
@@ -24,6 +24,7 @@ import MapViewDirections from "react-native-maps-directions";
 import { GOOGLE_API_KEY } from "../config";
 import { AuthContext } from "../AuthContext";
 import { Ionicons } from "@expo/vector-icons";
+import { INITIAL_ADDRESS, MAP_STYLE } from "../utils/MapUtils";
 
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 const COLORS = {
@@ -162,22 +163,7 @@ const SkeletonObjectiveItem = ({ isLast }) => (
     <ShimmerBlock width="100%" height={6} radius={999} />
   </View>
 );
-const MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
-  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
-  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#e5f3e5" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-  { featureType: "road.arterial", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#ffd6d4" }] },
-  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#D3423E" }] },
-  { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
-];
+
 const { height, width } = Dimensions.get("window");
 export default function DeliveryPage() {
   const navigation = useNavigation();
@@ -194,7 +180,7 @@ export default function DeliveryPage() {
   const [loading, setLoading] = useState(true);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
+  const mapRef = useRef(null);
   const requestLocationPermission = async () => {
     if (Platform.OS === "android") {
       const granted = await PermissionsAndroid.request(
@@ -229,7 +215,6 @@ export default function DeliveryPage() {
       if (response.status === 200) {
         setId(response.data._id);
         setProfile(response.data);
-        await startRoute();
       }
     } catch (error) {
       console.error("Error al obtener los datos:", error);
@@ -262,7 +247,18 @@ export default function DeliveryPage() {
   };
 
   useEffect(() => {
-    fetchProfile();
+    const init = async () => {
+      try {
+        await fetchProfile();
+        await startRoute();
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     if (searchTerm.trim() === "") {
@@ -327,34 +323,16 @@ export default function DeliveryPage() {
   const onRefresh = async () => {
     try {
       setRefreshing(true);
-      await Promise.all([
-        fetchProfile(),
-        startRoute(),
-      ]);
+      await fetchProfile();
+      await startRoute();
     } catch (e) {
-      console.log(e);
+      console.error(e);
     } finally {
       setRefreshing(false);
     }
   };
-    useEffect(() => {
-      const loadData = async () => {
-        try {
-          await Promise.all([
-            fetchProfile(),
-            startRoute(),
-          ]);
-        } catch (error) {
-          console.error("Error cargando datos:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      loadData();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
- if (loading) {
+  if (loading) {
     return (
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.brand} />
@@ -387,15 +365,15 @@ export default function DeliveryPage() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
-                      <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor="#fff"
-                        colors={["#fff"]}
-                        progressBackgroundColor={COLORS.brand}
-                        progressViewOffset={Platform.OS === "android" ? 20 : 0}
-                      />
-                    }
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#fff"
+              colors={["#fff"]}
+              progressBackgroundColor={COLORS.brand}
+              progressViewOffset={Platform.OS === "android" ? 20 : 0}
+            />
+          }
         >
           <View style={styles.heroWrapper}>
             <View style={styles.heroBg} />
@@ -460,16 +438,13 @@ export default function DeliveryPage() {
             {locationPermissionGranted && (
               <View style={styles.mapWrapper}>
                 <MapView
-                  provider={PROVIDER_GOOGLE}
                   style={styles.map}
-                  initialRegion={{
-                    latitude: -17.38156252481452,
-                    longitude: -66.1613705009222,
-                    latitudeDelta: 0.04,
-                    longitudeDelta: 0.04,
-                  }}
+                  ref={mapRef}
+                  customMapStyle={MAP_STYLE}
+                  provider={PROVIDER_GOOGLE}
+                  initialRegion={INITIAL_ADDRESS}
                   showsUserLocation={true}
-                  showsMyLocationButton={false}
+                  showsMyLocationButton={true}
                 >
                   {route?.[0]?.route?.map((point, index) => (
                     <Marker
@@ -631,7 +606,7 @@ export default function DeliveryPage() {
                     </TouchableOpacity>
                   );
                 }))
-              ) : (
+            ) : (
               <View style={styles.emptyState}>
                 <Ionicons
                   name="search-outline"

@@ -1,22 +1,16 @@
 import React, { useEffect, useState, useRef, useContext, useMemo } from "react";
 import {
-    View,
-    Text,
-    ScrollView,
-    TouchableOpacity,
-    Image,
-    TextInput,
-    ActivityIndicator,
-    StyleSheet,
-    Dimensions,
-    StatusBar,
+    View, Text, ScrollView, TouchableOpacity, Image, TextInput,
+    ActivityIndicator, Dimensions, StatusBar,
+    Animated, Easing, StyleSheet
 } from "react-native";
-import MapView, { Marker, Polygon } from "react-native-maps";
+import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 
 import axios from "axios";
 import { API_URL, GOOGLE_API_KEY } from "../config";
+import { INITIAL_ADDRESS, MAP_STYLE } from "../utils/MapUtils";
 
 import MapViewDirections from "react-native-maps-directions";
 import * as Location from "expo-location";
@@ -34,34 +28,15 @@ import {
     calculateRouteSummary,
     consolidateOrdersByClient,
 } from "../utils/Routeoptimizermobile";
+import { ShimmerBlock, SkeletonHeader, SkeletonStopCard } from "../utils/MapSkeleton";
 
 import {
     MUNICIPIOS_COCHABAMBA,
     inferZoneFromClient,
     getCategoryConfig,
 } from "../utils/MunicipiosCochabamba";
-
+import { COLORS, styles } from "../styles/MapScreenDeliveryStyle";
 const { width, height } = Dimensions.get("window");
-
-const COLORS = {
-    brand: "#D3423E",
-    brandDark: "#bb3330",
-    bg: "#f9fafb",
-    card: "#ffffff",
-    border: "#e5e7eb",
-    borderLight: "#f3f4f6",
-    text: "#111827",
-    textMid: "#6b7280",
-    textLight: "#9ca3af",
-    success: "#16a34a",
-    successBg: "#dcfce7",
-    warning: "#d97706",
-    warningBg: "#fef3c7",
-    info: "#2563eb",
-    infoBg: "#eff6ff",
-    danger: "#dc2626",
-    dangerBg: "#fee2e2",
-};
 
 const STORAGE_KEYS = {
     routeId: "mapdelivery_route_id",
@@ -72,27 +47,9 @@ const STORAGE_KEYS = {
     deliveryRegistered: "mapdelivery_delivery_registered",
     startTimestamp: "mapdelivery_start_ts",
 };
-
-const MAP_STYLE = [
-    { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
-    { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-    { elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
-    { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
-    { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
-    { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
-    { featureType: "poi", stylers: [{ visibility: "off" }] },
-    { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-    { featureType: "road.arterial", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
-    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#ffd6d4" }] },
-    { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
-    { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
-];
-
 const ALL_ZONES_KEY = "__ALL__";
-
 const MapScreenDelivery = () => {
     const { startTimer, stopTimer } = useContext(TimerContext);
-
     const [clients, setClients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [origin, setOrigin] = useState({ latitude: 0, longitude: 0 });
@@ -130,9 +87,7 @@ const MapScreenDelivery = () => {
 
     const [showStackingPlan, setShowStackingPlan] = useState(false);
 
-    // Filtro de zona
     const [selectedZone, setSelectedZone] = useState(ALL_ZONES_KEY);
-    const [showZonePicker, setShowZonePicker] = useState(false);
     const [showPolygons, setShowPolygons] = useState(true);
 
     const routeSummary = useMemo(
@@ -193,13 +148,13 @@ const MapScreenDelivery = () => {
                 [STORAGE_KEYS.isTimerRunning, "true"],
                 [STORAGE_KEYS.startTimestamp, String(Date.now())],
             ]);
-        } catch (e) {}
+        } catch (e) { }
     };
 
     const clearActiveTrip = async () => {
         try {
             await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
-        } catch (e) {}
+        } catch (e) { }
     };
 
     const startRouteToday = async () => {
@@ -217,7 +172,7 @@ const MapScreenDelivery = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             setListRoute(response.data.data);
-        } catch (error) {}
+        } catch (error) { }
     };
 
     const getRoutesById = async (value) => {
@@ -228,7 +183,6 @@ const MapScreenDelivery = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             setRoute(response.data);
-            console.log(response.data)
             return response.data;
         } catch (error) {
             return null;
@@ -269,7 +223,7 @@ const MapScreenDelivery = () => {
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
             }
-        } catch (error) {}
+        } catch (error) { }
     };
 
     const uploadProgressRoute = async () => {
@@ -279,7 +233,7 @@ const MapScreenDelivery = () => {
                 { id_owner: idOwner, _id: routeId },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-        } catch (error) {}
+        } catch (error) { }
     };
 
     async function getUserLocation() {
@@ -496,7 +450,7 @@ const MapScreenDelivery = () => {
                         try {
                             const dest = JSON.parse(storedDestStr);
                             if (dest) setActiveDestination(dest);
-                        } catch (e) {}
+                        } catch (e) { }
                     }
 
                     const storedClientLocId = map[STORAGE_KEYS.selectedClientLocId];
@@ -521,7 +475,7 @@ const MapScreenDelivery = () => {
                         setDeliveryRegistered(true);
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
         };
         init();
     }, []);
@@ -535,7 +489,7 @@ const MapScreenDelivery = () => {
                         setDeliveryRegistered(true);
                         if (routeId) await getRoutesById(routeId);
                     }
-                } catch (e) {}
+                } catch (e) { }
             };
             checkRegisteredFlag();
         }, [deliveryRegistered, routeId])
@@ -729,58 +683,80 @@ const MapScreenDelivery = () => {
 
     const isAlreadyDelivered = selectedStop?.visitStatus1 === "LLego al destino";
     const hasStackingPlan = showRoute && route?.[0] && routeSummary?.totalBoxes > 0;
-
-    const zoneCfg = selectedZone === ALL_ZONES_KEY
-        ? { name: "Todas las zonas", color: COLORS.brand, bgLight: COLORS.dangerBg }
-        : MUNICIPIOS_COCHABAMBA[selectedZone];
-
+    if (loading) {
+        return (
+            <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+                <SafeAreaView edges={["top"]} style={styles.topSafe}>
+                    <View style={styles.topHeader}>
+                        <SkeletonHeader />
+                    </View>
+                    <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
+                        <View style={{ flexDirection: "row", gap: 10 }}>
+                            <ShimmerBlock height={46} radius={14} style={{ flex: 1 }} />
+                        </View>
+                    </View>
+                </SafeAreaView>
+                <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: 20 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, marginBottom: 10 }}>
+                        <ShimmerBlock width={120} height={16} radius={5} />
+                        <ShimmerBlock width={40} height={20} radius={999} />
+                    </View>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+                        scrollEnabled={false}
+                    >
+                        <SkeletonStopCard />
+                        <SkeletonStopCard />
+                        <SkeletonStopCard />
+                    </ScrollView>
+                </View>
+            </View>
+        );
+    }
     return (
         <SafeAreaProvider>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
             <View style={styles.container}>
                 <MapView
-                    ref={mapRef}
                     style={StyleSheet.absoluteFillObject}
                     customMapStyle={MAP_STYLE}
-                    initialRegion={{
-                        latitude: -17.38156252481452,
-                        longitude: -66.1613705009222,
-                        latitudeDelta: 0.09,
-                        longitudeDelta: 0.04,
-                    }}
+                    provider={PROVIDER_GOOGLE}
+                    initialRegion={INITIAL_ADDRESS}
                     showsUserLocation={true}
                     showsMyLocationButton={false}
                 >
                     {showClients && !showRoute && showPolygons &&
-Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
+                        Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
 
-    if (!m.paths) return null;
+                            if (!m.paths) return null;
 
-    const isSelected = selectedZone === key;
-    const isFiltered =
-        selectedZone !== ALL_ZONES_KEY && !isSelected;
+                            const isSelected = selectedZone === key;
+                            const isFiltered =
+                                selectedZone !== ALL_ZONES_KEY && !isSelected;
 
-    return (
-        <Polygon
-            key={key}
-            coordinates={m.paths.map(p => ({
-                latitude: p.lat,
-                longitude: p.lng,
-            }))}
-            strokeColor={
-                isFiltered ? `${m.strokeColor}40` : m.strokeColor
-            }
-            fillColor={
-                isSelected
-                    ? `${m.fillColor}30`
-                    : (isFiltered
-                        ? `${m.fillColor}08`
-                        : `${m.fillColor}15`)
-            }
-            strokeWidth={isSelected ? 3 : 1.5}
-        />
-    );
-})}
+                            return (
+                                <Polygon
+                                    key={key}
+                                    coordinates={m.paths.map(p => ({
+                                        latitude: p.lat,
+                                        longitude: p.lng,
+                                    }))}
+                                    strokeColor={
+                                        isFiltered ? `${m.strokeColor}40` : m.strokeColor
+                                    }
+                                    fillColor={
+                                        isSelected
+                                            ? `${m.fillColor}30`
+                                            : (isFiltered
+                                                ? `${m.fillColor}08`
+                                                : `${m.fillColor}15`)
+                                    }
+                                    strokeWidth={isSelected ? 3 : 1.5}
+                                />
+                            );
+                        })}
 
                     {showClients && !showRoute &&
                         filteredClients.map((client, index) => (
@@ -1147,13 +1123,14 @@ Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
                 </SafeAreaView>
 
                 {showClients && !showRoute && !showRoutes && !isTimerRunning ? (
-                    <View style={[styles.cardsWrapper, { bottom: insets.bottom + 20 }]}>
+                    <View style={styles.cardsWrapper}>
+
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
                             contentContainerStyle={styles.cardsContainer}
                             decelerationRate="fast"
-                            snapToInterval={width * 0.78 + 12}
+                            snapToInterval={236}
                             snapToAlignment="start"
                         >
                             {filteredClients.length === 0 ? (
@@ -1172,22 +1149,31 @@ Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
                                     return (
                                         <TouchableOpacity
                                             key={item._id || index}
-                                            style={styles.clientCard}
+                                            style={styles.deliveryCard}
                                             onPress={() => openClientSheet(item)}
-                                            activeOpacity={0.9}
+                                            activeOpacity={0.85}
                                         >
-                                            <View style={[styles.clientAvatar, { backgroundColor: cfg.bg }]}>
+                                            <View style={styles.deliveryImageWrapper}>
                                                 {item.identificationImage ? (
-                                                    <Image
-                                                        source={{ uri: item.identificationImage }}
-                                                        style={styles.clientAvatarImg}
-                                                    />
+                                                    <View style={styles.deliveryImageWrapper}>
+                                                        <Image
+                                                            source={{
+                                                                uri: item.identificationImage || "https://via.placeholder.com/300",
+                                                            }}
+                                                            style={styles.deliveryImage}
+                                                        />
+                                                        <View style={styles.imageBadge}>
+                                                            <View style={styles.imageBadgeDot} />
+                                                            <Text style={styles.imageBadgeText}>Activo</Text>
+                                                        </View>
+                                                    </View>
+
                                                 ) : (
                                                     <Ionicons name={cfg.icon} size={22} color={cfg.color} />
                                                 )}
                                             </View>
-                                            <View style={styles.clientInfo}>
-                                                <Text style={styles.clientName} numberOfLines={1}>
+                                            <View style={styles.deliveryInfo}>
+                                                <Text tyle={styles.deliveryName} numberOfLines={1}>
                                                     {item.client_location?.sucursalName ||
                                                         `${item.name} ${item.lastName}`}
                                                 </Text>
@@ -1223,11 +1209,19 @@ Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
                                                         </View>
                                                     )}
                                                 </View>
-                                                <View style={styles.clientAddressRow}>
-                                                    <Ionicons name="location-sharp" size={11} color={COLORS.brand} />
-                                                    <Text style={styles.clientAddress} numberOfLines={1}>
+                                                <View style={styles.locationRow}>
+                                                    <Ionicons name="location-sharp" size={12} color={COLORS.brand} />
+                                                    <Text style={styles.deliveryAddress} numberOfLines={1}>
                                                         {item.client_location?.direction}
                                                     </Text>
+                                                </View>
+                                                <View style={styles.cardDivider} />
+                                                <View style={styles.cardFooter}>
+                                                    <View style={styles.metaChip}>
+                                                        <Ionicons name="time-outline" size={10} color={COLORS.textMid} />
+                                                        <Text style={styles.metaChipText}>Disponible</Text>
+                                                    </View>
+                                                    <Ionicons name="chevron-forward" size={16} color={COLORS.brand} />
                                                 </View>
                                             </View>
                                         </TouchableOpacity>
@@ -1255,8 +1249,8 @@ Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
                                         progress >= 100
                                             ? COLORS.success
                                             : progress >= 50
-                                            ? COLORS.warning
-                                            : COLORS.brand;
+                                                ? COLORS.warning
+                                                : COLORS.brand;
                                     return (
                                         <TouchableOpacity
                                             key={index}
@@ -1391,7 +1385,6 @@ Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
                     )
                 )}
 
-                {/* BOTTOM SHEET */}
                 {modality && selectedStop && (
                     <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 16 }]}>
                         <View style={styles.modalHandle} />
@@ -1578,16 +1571,6 @@ Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
                         </View>
                     </View>
                 )}
-
-                {loading && (
-                    <View style={styles.loadingOverlay}>
-                        <View style={styles.loadingCard}>
-                            <ActivityIndicator size="large" color={COLORS.brand} />
-                            <Text style={styles.loadingText}>Cargando mapa...</Text>
-                        </View>
-                    </View>
-                )}
-
                 <StackingPlanSheet
                     visible={showStackingPlan}
                     onClose={() => setShowStackingPlan(false)}
@@ -1598,718 +1581,4 @@ Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
         </SafeAreaProvider>
     );
 };
-
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.bg },
-
-    topSafe: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 },
-    topHeader: {
-        marginHorizontal: 16,
-        marginTop: 8,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        backgroundColor: "#fff",
-        borderRadius: 18,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-        shadowColor: "#000",
-        shadowOpacity: 0.12,
-        shadowOffset: { width: 0, height: 6 },
-        shadowRadius: 14,
-        elevation: 6,
-    },
-    backBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: COLORS.borderLight,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    headerTitle: { fontSize: 16, fontWeight: "800", color: COLORS.text },
-    headerSubtitle: { fontSize: 11, color: COLORS.textMid, fontWeight: "500", marginTop: 2 },
-    routesBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: COLORS.brand,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 10,
-    },
-    routesBtnText: { color: "#fff", fontSize: 12, fontWeight: "800" },
-
-    loadingPlanBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        backgroundColor: COLORS.brand,
-        paddingHorizontal: 10,
-        paddingVertical: 7,
-        borderRadius: 12,
-        shadowColor: COLORS.brand,
-        shadowOpacity: 0.3,
-        shadowOffset: { width: 0, height: 3 },
-        shadowRadius: 6,
-        elevation: 4,
-    },
-    loadingPlanIcon: {
-        width: 26,
-        height: 26,
-        borderRadius: 8,
-        backgroundColor: "rgba(255,255,255,0.25)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    loadingPlanBtnText: {
-        color: "#fff",
-        fontSize: 13,
-        fontWeight: "800",
-        lineHeight: 14,
-    },
-    loadingPlanBtnSubtext: {
-        color: "rgba(255,255,255,0.85)",
-        fontSize: 9,
-        fontWeight: "700",
-        marginTop: 1,
-        textTransform: "uppercase",
-        letterSpacing: 0.3,
-    },
-
-    etaPanel: {
-        marginHorizontal: 16,
-        marginTop: 8,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        backgroundColor: "#fff",
-        borderRadius: 20,
-        shadowColor: "#000",
-        shadowOpacity: 0.18,
-        shadowOffset: { width: 0, height: 8 },
-        shadowRadius: 18,
-        elevation: 10,
-    },
-    etaTopRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-    etaLabel: {
-        fontSize: 10,
-        fontWeight: "800",
-        color: COLORS.textMid,
-        letterSpacing: 0.5,
-        textTransform: "uppercase",
-        marginBottom: 2,
-    },
-    etaTimeRow: { flexDirection: "row", alignItems: "baseline", gap: 6 },
-    etaTime: {
-        fontSize: 26,
-        fontWeight: "800",
-        color: COLORS.text,
-        fontVariant: ["tabular-nums"],
-    },
-    etaClockText: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: COLORS.textMid,
-        fontVariant: ["tabular-nums"],
-    },
-    timerBadgeLarge: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: COLORS.warningBg,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
-    },
-    timerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.warning },
-    timerTextLarge: {
-        fontSize: 14,
-        fontWeight: "800",
-        color: COLORS.warning,
-        fontVariant: ["tabular-nums"],
-    },
-    etaMetaRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: COLORS.borderLight,
-    },
-    etaMetaItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-    etaMetaText: { fontSize: 13, fontWeight: "700", color: COLORS.text },
-    trafficPill: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 5,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 999,
-    },
-    trafficDot: { width: 6, height: 6, borderRadius: 3 },
-    trafficText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
-
-    searchWrap: { paddingHorizontal: 16, marginTop: 8 },
-    searchBox: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        backgroundColor: "#fff",
-        paddingHorizontal: 14,
-        height: 46,
-        borderRadius: 14,
-        shadowColor: "#000",
-        shadowOpacity: 0.1,
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 10,
-        elevation: 4,
-    },
-    searchInput: { flex: 1, fontSize: 14, color: COLORS.text, paddingVertical: 0 },
-
-    zoneChipsWrap: { marginTop: 8 },
-    zoneChipsContent: { paddingHorizontal: 16, gap: 6, paddingVertical: 2 },
-    zoneChip: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 5,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        backgroundColor: "#fff",
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowOffset: { width: 0, height: 2 },
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    zoneDot: { width: 8, height: 8, borderRadius: 4 },
-    zoneChipText: { fontSize: 12, fontWeight: "700", color: COLORS.text },
-    zoneChipBadge: {
-        backgroundColor: COLORS.borderLight,
-        paddingHorizontal: 6,
-        paddingVertical: 1,
-        borderRadius: 10,
-        minWidth: 22,
-        alignItems: "center",
-    },
-    zoneChipBadgeText: { fontSize: 10, fontWeight: "800", color: COLORS.textMid },
-    togglePolyChip: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        backgroundColor: COLORS.dangerBg,
-        borderWidth: 1,
-        borderColor: COLORS.brand,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-
-    markerWrapper: { alignItems: "center" },
-    markerCircle: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 2,
-        borderColor: "#fff",
-        shadowColor: "#000",
-        shadowOpacity: 0.3,
-        shadowOffset: { width: 0, height: 2 },
-        shadowRadius: 3,
-        elevation: 4,
-    },
-    markerText: { color: "#fff", fontWeight: "800", fontSize: 13 },
-    markerArrow: {
-        width: 0,
-        height: 0,
-        borderLeftWidth: 6,
-        borderRightWidth: 6,
-        borderTopWidth: 7,
-        borderLeftColor: "transparent",
-        borderRightColor: "transparent",
-        marginTop: -2,
-    },
-    multiOrderBadge: {
-        position: "absolute",
-        top: -4,
-        right: -8,
-        backgroundColor: COLORS.warning,
-        minWidth: 16,
-        height: 16,
-        borderRadius: 8,
-        paddingHorizontal: 3,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 1.5,
-        borderColor: "#fff",
-    },
-    multiOrderBadgeText: {
-        color: "#fff",
-        fontSize: 9,
-        fontWeight: "900",
-    },
-
-    cardsWrapper: { position: "absolute", left: 0, right: 0 },
-    cardsContainer: { paddingHorizontal: 16, paddingVertical: 4, gap: 12 },
-    emptyScrollContainer: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 16 },
-
-    clientCard: {
-        width: width * 0.78,
-        backgroundColor: "#fff",
-        borderRadius: 18,
-        padding: 12,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        shadowColor: "#000",
-        shadowOpacity: 0.12,
-        shadowOffset: { width: 0, height: 6 },
-        shadowRadius: 14,
-        elevation: 6,
-    },
-    clientAvatar: {
-        width: 54,
-        height: 54,
-        borderRadius: 27,
-        justifyContent: "center",
-        alignItems: "center",
-        overflow: "hidden",
-    },
-    clientAvatarImg: { width: "100%", height: "100%" },
-    clientInfo: { flex: 1 },
-    clientName: { fontSize: 14, fontWeight: "800", color: COLORS.text, marginBottom: 4 },
-    clientChipsRow: { flexDirection: "row", gap: 4, marginBottom: 4, flexWrap: "wrap" },
-    miniChip: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 3,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 5,
-    },
-    miniChipText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.3 },
-    zoneDotMini: { width: 5, height: 5, borderRadius: 2.5 },
-    clientAddressRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-    clientAddress: { flex: 1, fontSize: 11, color: COLORS.textMid, fontWeight: "500" },
-
-    routeCard: {
-        width: width * 0.78,
-        backgroundColor: "#fff",
-        borderRadius: 18,
-        padding: 14,
-        shadowColor: "#000",
-        shadowOpacity: 0.12,
-        shadowOffset: { width: 0, height: 6 },
-        shadowRadius: 14,
-        elevation: 6,
-    },
-    routeCardTop: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
-    routeIconBox: {
-        width: 38,
-        height: 38,
-        borderRadius: 12,
-        backgroundColor: COLORS.dangerBg,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    routeCardTitle: { fontSize: 14, fontWeight: "800", color: COLORS.text, marginBottom: 2 },
-    routeCardDate: { fontSize: 11, color: COLORS.textMid, fontWeight: "600" },
-    progressPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-    progressPillText: { fontSize: 11, fontWeight: "800" },
-    progressTrack: {
-        height: 6,
-        backgroundColor: COLORS.borderLight,
-        borderRadius: 999,
-        overflow: "hidden",
-        marginBottom: 10,
-    },
-    progressFill: { height: "100%", borderRadius: 999 },
-    routeCardFooter: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: COLORS.borderLight,
-    },
-    routeCardFooterText: { fontSize: 11, fontWeight: "700", color: COLORS.brand },
-
-    emptyCard: {
-        width: width - 32,
-        backgroundColor: "#fff",
-        borderRadius: 18,
-        padding: 24,
-        alignItems: "center",
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 10,
-        elevation: 4,
-    },
-    emptyCardTitle: { fontSize: 14, fontWeight: "800", color: COLORS.text, marginTop: 10 },
-    emptyCardSubtitle: {
-        fontSize: 12,
-        color: COLORS.textMid,
-        marginTop: 4,
-        textAlign: "center",
-    },
-    emptyHorizontalCard: {
-        width: width - 32,
-        paddingVertical: 28,
-        alignItems: "center",
-        backgroundColor: "#fff",
-        borderRadius: 18,
-    },
-    emptyHorizontalText: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: COLORS.textMid,
-        marginTop: 8,
-    },
-
-    stopCard: {
-        width: width * 0.78,
-        backgroundColor: "#fff",
-        borderRadius: 18,
-        padding: 14,
-        shadowColor: "#000",
-        shadowOpacity: 0.12,
-        shadowOffset: { width: 0, height: 6 },
-        shadowRadius: 14,
-        elevation: 6,
-    },
-    stopHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 8,
-    },
-    stopNumberBadge: {
-        width: 28,
-        height: 28,
-        borderRadius: 10,
-        backgroundColor: COLORS.brand,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    stopNumberText: { color: "#fff", fontSize: 13, fontWeight: "800" },
-    statusPill: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 999,
-    },
-    statusPillText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.4 },
-    stopName: { fontSize: 14, fontWeight: "800", color: COLORS.text, marginBottom: 4 },
-    stopAddressRow: { flexDirection: "row", alignItems: "flex-start", gap: 4, marginBottom: 8 },
-    stopAddress: {
-        flex: 1,
-        fontSize: 11,
-        color: COLORS.textMid,
-        fontWeight: "500",
-        lineHeight: 15,
-    },
-    stopFooter: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        paddingTop: 6,
-        borderTopWidth: 1,
-        borderTopColor: COLORS.borderLight,
-    },
-    stopMultiBadge: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 3,
-        backgroundColor: COLORS.warning,
-        paddingHorizontal: 6,
-        paddingVertical: 3,
-        borderRadius: 6,
-    },
-    stopMultiBadgeText: {
-        color: "#fff",
-        fontSize: 9,
-        fontWeight: "800",
-        letterSpacing: 0.3,
-    },
-    stopBoxesBadge: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 3,
-        backgroundColor: COLORS.dangerBg,
-        paddingHorizontal: 6,
-        paddingVertical: 3,
-        borderRadius: 6,
-    },
-    stopBoxesBadgeText: {
-        color: COLORS.brand,
-        fontSize: 10,
-        fontWeight: "800",
-    },
-    stopTotal: {
-        marginLeft: "auto",
-        fontSize: 12,
-        fontWeight: "800",
-        color: COLORS.text,
-    },
-
-    bottomSheet: {
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "#fff",
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
-        paddingHorizontal: 20,
-        paddingTop: 10,
-        maxHeight: height * 0.88,
-        shadowColor: "#000",
-        shadowOpacity: 0.2,
-        shadowOffset: { width: 0, height: -6 },
-        shadowRadius: 16,
-        elevation: 12,
-    },
-    modalHandle: {
-        alignSelf: "center",
-        width: 40,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: COLORS.border,
-        marginBottom: 16,
-    },
-    bottomSheetHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        marginBottom: 14,
-    },
-    bottomSheetAvatar: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: COLORS.dangerBg,
-        justifyContent: "center",
-        alignItems: "center",
-        overflow: "hidden",
-    },
-    bottomSheetAvatarImg: { width: "100%", height: "100%" },
-    bottomSheetAvatarText: {
-        fontSize: 16,
-        fontWeight: "800",
-        color: COLORS.brand,
-        letterSpacing: 0.5,
-    },
-    bottomSheetName: { fontSize: 16, fontWeight: "800", color: COLORS.text },
-    bottomSheetAddressRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        marginTop: 3,
-    },
-    bottomSheetAddress: { flex: 1, fontSize: 12, color: COLORS.textMid, fontWeight: "500" },
-    bottomSheetChipsRow: { flexDirection: "row", gap: 4, marginTop: 4, flexWrap: "wrap" },
-    bottomSheetMultiBadge: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        backgroundColor: COLORS.dangerBg,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 6,
-    },
-    bottomSheetMultiText: {
-        fontSize: 10,
-        fontWeight: "800",
-        color: COLORS.brand,
-        letterSpacing: 0.3,
-    },
-    bottomSheetClose: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: COLORS.borderLight,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-
-    clientInfoPanel: {
-        backgroundColor: COLORS.bg,
-        borderRadius: 14,
-        padding: 14,
-        marginBottom: 12,
-    },
-    clientInfoLabel: {
-        fontSize: 10,
-        fontWeight: "800",
-        color: COLORS.textMid,
-        textTransform: "uppercase",
-        letterSpacing: 0.4,
-        marginBottom: 10,
-    },
-    clientInfoRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        paddingVertical: 6,
-    },
-    clientInfoText: { fontSize: 12, color: COLORS.text, fontWeight: "600" },
-    noOrdersInfo: {
-        marginTop: 10,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: COLORS.infoBg,
-        paddingHorizontal: 10,
-        paddingVertical: 8,
-        borderRadius: 10,
-    },
-    noOrdersText: {
-        flex: 1,
-        fontSize: 11,
-        color: COLORS.info,
-        fontWeight: "600",
-    },
-
-    tripInfoRow: { flexDirection: "row", gap: 8, marginBottom: 14 },
-    tripInfoCard: {
-        flex: 1,
-        backgroundColor: COLORS.bg,
-        borderRadius: 14,
-        padding: 12,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-    },
-    tripInfoIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    tripInfoLabel: {
-        fontSize: 10,
-        fontWeight: "700",
-        color: COLORS.textMid,
-        textTransform: "uppercase",
-        letterSpacing: 0.4,
-    },
-    tripInfoValue: { fontSize: 13, fontWeight: "800", color: COLORS.text, marginTop: 1 },
-
-    registeredBanner: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        backgroundColor: COLORS.successBg,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        borderRadius: 12,
-        marginBottom: 12,
-    },
-    registeredBannerText: {
-        flex: 1,
-        fontSize: 12,
-        fontWeight: "800",
-        color: COLORS.success,
-        lineHeight: 16,
-    },
-
-    bottomSheetActions: { gap: 8, paddingTop: 8 },
-    primaryButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        paddingVertical: 14,
-        borderRadius: 14,
-        backgroundColor: COLORS.info,
-        shadowColor: COLORS.info,
-        shadowOpacity: 0.3,
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 10,
-        elevation: 4,
-    },
-    successButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        paddingVertical: 14,
-        borderRadius: 14,
-        backgroundColor: COLORS.success,
-        shadowColor: COLORS.success,
-        shadowOpacity: 0.3,
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 10,
-        elevation: 4,
-    },
-    brandButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        paddingVertical: 14,
-        borderRadius: 14,
-        backgroundColor: COLORS.brand,
-        shadowColor: COLORS.brand,
-        shadowOpacity: 0.3,
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 10,
-        elevation: 4,
-    },
-    primaryButtonText: {
-        color: "#fff",
-        fontSize: 14,
-        fontWeight: "800",
-        letterSpacing: 0.3,
-    },
-
-    deliveredChip: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        backgroundColor: COLORS.successBg,
-        paddingVertical: 14,
-        borderRadius: 14,
-    },
-    deliveredChipText: {
-        color: COLORS.success,
-        fontSize: 13,
-        fontWeight: "800",
-        letterSpacing: 0.3,
-    },
-
-    loadingOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: "rgba(255,255,255,0.7)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    loadingCard: {
-        backgroundColor: "#fff",
-        paddingVertical: 24,
-        paddingHorizontal: 30,
-        borderRadius: 18,
-        alignItems: "center",
-        shadowColor: "#000",
-        shadowOpacity: 0.15,
-        shadowOffset: { width: 0, height: 6 },
-        shadowRadius: 14,
-        elevation: 6,
-    },
-    loadingText: {
-        marginTop: 12,
-        color: COLORS.textMid,
-        fontSize: 13,
-        fontWeight: "600",
-    },
-});
-
 export default MapScreenDelivery;

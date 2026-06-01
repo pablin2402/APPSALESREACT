@@ -1,0 +1,30 @@
+export const MAP_STYLE = [
+    { elementType: "geometry", stylers: [{ color: "#f5f5f3" }] },
+    { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#6b6b6b" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }, { weight: 2 }] },
+    { featureType: "poi", stylers: [{ visibility: "off" }] },
+    { featureType: "transit", stylers: [{ visibility: "off" }] },
+    { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#e3ece3" }] },
+    { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#8aa88a" }] },
+    { featureType: "administrative", elementType: "geometry", stylers: [{ visibility: "off" }] },
+    { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
+    { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
+    { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#8a4a48" }] },
+    { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
+    { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#fafafa" }] },
+    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#f0d9d8" }] },
+    { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#e8c4c2" }] },
+    { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
+    { featureType: "water", elementType: "geometry", stylers: [{ color: "#c9dcea" }] },
+    { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#7a9bb5" }] },
+    { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#eef0ec" }] },
+];
+
+export const INITIAL_ADDRESS = {
+    latitude: -17.38156252481452,
+    longitude: -66.1613705009222,
+    latitudeDelta: 0.04,
+    longitudeDelta: 0.04,
+};

@@ -47,7 +47,6 @@ export default function PrincipalScreen() {
   };
 
   useEffect(() => {
-    // Se espera 1 segundo antes de solicitar permisos (puedes ajustar el delay)
     const timeout = setTimeout(() => {
       requestLocationPermission();
     }, 1000);

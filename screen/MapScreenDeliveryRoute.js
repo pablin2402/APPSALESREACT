@@ -12,7 +12,7 @@ import {
   Animated,
   Easing,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { useNavigation } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { GOOGLE_API_KEY, API_URL } from "../config";
@@ -22,6 +22,7 @@ import * as Location from "expo-location";
 import { useSafeAreaInsets, SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../AuthContext";
+import { INITIAL_ADDRESS, MAP_STYLE } from "../utils/MapUtils";
 
 const { width, height } = Dimensions.get("window");
 
@@ -45,20 +46,6 @@ const COLORS = {
   dangerBg: "#fee2e2",
 };
 
-const MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
-  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
-  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-  { featureType: "road.arterial", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#ffd6d4" }] },
-  { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
-];
 
 const ShimmerBlock = ({ width: w, height: h, style, radius = 8 }) => {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -324,12 +311,8 @@ const MapScreenRoute = () => {
             ref={mapRef}
             style={StyleSheet.absoluteFillObject}
             customMapStyle={MAP_STYLE}
-            initialRegion={{
-              latitude: -17.38156252481452,
-              longitude: -66.1613705009222,
-              latitudeDelta: 0.09,
-              longitudeDelta: 0.04,
-            }}
+            provider={PROVIDER_GOOGLE}
+            initialRegion={INITIAL_ADDRESS}
             showsUserLocation={true}
             showsMyLocationButton={false}
           >

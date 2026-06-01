@@ -14,7 +14,7 @@ import {
   Animated,
   Easing,
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
@@ -26,7 +26,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import ClientMarker from "../components/ClientMarker";
 import { TimerContext } from "../components/TimerContext";
 import { AuthContext } from "../AuthContext";
-
+import {ShimmerBlock, SkeletonSearchBar, SkeletonHeader, SkeletonStopCard} from "../utils/MapSkeleton";
+import { COLORS, styles } from "../styles/MapSalesManStyle";
+import { INITIAL_ADDRESS, MAP_STYLE } from "../utils/MapUtils";
+import {
+    MUNICIPIOS_COCHABAMBA,
+    inferZoneFromClient,
+} from "../utils/MunicipiosCochabamba";
 const { height } = Dimensions.get("window");
 
 const GEOFENCE_RADIUS_METERS = 300;
@@ -35,40 +41,7 @@ const VISIT_DURATION_MAX = 30;
 const CAR_AVG_KMH = 35;
 const TRANSIT_AVG_KMH = 18;
 
-const COLORS = {
-  brand: "#D3423E",
-  brandDark: "#bb3330",
-  bg: "#f9fafb",
-  card: "#ffffff",
-  border: "#e5e7eb",
-  borderLight: "#f3f4f6",
-  text: "#111827",
-  textMid: "#6b7280",
-  textLight: "#9ca3af",
-  success: "#16a34a",
-  successBg: "#dcfce7",
-  warning: "#d97706",
-  warningBg: "#fef3c7",
-  info: "#2563eb",
-  infoBg: "#eff6ff",
-  danger: "#D3423E",
-  dangerBg: "#fee2e2",
-};
 
-const MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
-  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
-  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-  { featureType: "road.arterial", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#ffd6d4" }] },
-  { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
-];
 
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
   if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
@@ -146,84 +119,6 @@ const formatMinutesRange = (minA, minB) => {
   };
   return `${fmt(minA)} – ${fmt(minB)}`;
 };
-
-const ShimmerBlock = ({ width: w, height: h, style, radius = 8 }) => {
-  const shimmer = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(shimmer, {
-        toValue: 1,
-        duration: 1200,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [shimmer]);
-
-  const translateX = shimmer.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-150, 250],
-  });
-
-  return (
-    <View
-      style={[
-        {
-          width: w,
-          height: h,
-          borderRadius: radius,
-          backgroundColor: "#e5e7eb",
-          overflow: "hidden",
-        },
-        style,
-      ]}
-    >
-      <Animated.View
-        style={{
-          width: 100,
-          height: "100%",
-          backgroundColor: "rgba(255,255,255,0.6)",
-          transform: [{ translateX }, { skewX: "-20deg" }],
-        }}
-      />
-    </View>
-  );
-};
-
-const SkeletonHeader = () => (
-  <View style={styles.skeletonHeader}>
-    <View style={{ flex: 1, gap: 6 }}>
-      <ShimmerBlock width={110} height={16} radius={6} />
-      <ShimmerBlock width={150} height={11} radius={4} />
-    </View>
-    <ShimmerBlock width={90} height={32} radius={10} />
-  </View>
-);
-
-const SkeletonSearchBar = () => (
-  <View style={styles.skeletonSearchRow}>
-    <ShimmerBlock width="100%" height={46} radius={14} style={{ flex: 1 }} />
-    <ShimmerBlock width={46} height={46} radius={14} />
-  </View>
-);
-
-const SkeletonDeliveryCard = () => (
-  <View style={styles.skeletonCard}>
-    <ShimmerBlock width="100%" height={110} radius={0} />
-    <View style={{ padding: 12, gap: 8 }}>
-      <ShimmerBlock width={130} height={14} radius={5} />
-      <ShimmerBlock width={170} height={11} radius={4} />
-      <View style={{ height: 1, backgroundColor: "rgba(0,0,0,0.05)", marginVertical: 4 }} />
-      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <ShimmerBlock width={80} height={18} radius={999} />
-        <ShimmerBlock width={16} height={16} radius={4} />
-      </View>
-    </View>
-  </View>
-);
 
 const Toast = ({ visible, type, title, message, onHide }) => {
   const slideAnim = useRef(new Animated.Value(-120)).current;
@@ -325,8 +220,9 @@ const MapSalesMan = () => {
   const [routeEstimates, setRouteEstimates] = useState(null);
   const [showRouteSummary, setShowRouteSummary] = useState(false);
 
-  const [toast, setToast] = useState({ visible: false, type: "info", title: "", message: "" });
-
+const [toast, setToast] = useState({ visible: false, type: "info", title: "", message: "" });
+  const [selectedZone, setSelectedZone] = useState("__ALL__");
+  const [showPolygons, setShowPolygons] = useState(true);
   const showToast = (type, title, message) => {
     setToast({ visible: true, type, title, message: message || "" });
   };
@@ -679,12 +575,33 @@ const MapSalesMan = () => {
     }
   };
 
-  const handleSearch = (text) => {
-    const filtered = clients.filter((client) =>
-      `${client.name} ${client.lastName}`.toLowerCase().includes(text.toLowerCase())
-    );
-    setFilteredClients(filtered);
+const [searchText, setSearchText] = useState("");
+
+  const applyFilters = (text, zone, allClients) => {
+    let arr = allClients.map(c => ({ ...c, __zone: inferZoneFromClient(c) }));
+    if (zone !== "__ALL__") arr = arr.filter(c => c.__zone === zone);
+    if (text.trim()) {
+      const q = text.toLowerCase();
+      arr = arr.filter(c => `${c.name} ${c.lastName}`.toLowerCase().includes(q));
+    }
+    setFilteredClients(arr);
   };
+
+  const handleSearch = (text) => {
+    setSearchText(text);
+    applyFilters(text, selectedZone, clients);
+  };
+
+  const handleZoneChange = (zone) => {
+    setSelectedZone(zone);
+    applyFilters(searchText, zone, clients);
+  };
+
+  const zoneCount = clients.reduce((acc, c) => {
+    const z = inferZoneFromClient(c);
+    acc[z] = (acc[z] || 0) + 1;
+    return acc;
+  }, {});
 
   useEffect(() => {
     let isMounted = true;
@@ -869,9 +786,9 @@ const MapSalesMan = () => {
             contentContainerStyle={styles.cardsContainer}
             scrollEnabled={false}
           >
-            <SkeletonDeliveryCard />
-            <SkeletonDeliveryCard />
-            <SkeletonDeliveryCard />
+            <SkeletonStopCard />
+            <SkeletonStopCard />
+            <SkeletonStopCard />
           </ScrollView>
         </View>
       </View>
@@ -894,6 +811,22 @@ const MapSalesMan = () => {
         showsUserLocation={true}
         showsMyLocationButton={false}
       >
+       {showClients && !showRoute && showPolygons &&
+          Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
+            if (!m.paths || m.paths.length === 0) return null;
+            const isSelected = selectedZone === key;
+            const isFiltered = selectedZone !== "__ALL__" && !isSelected;
+            return (
+              <Polygon
+                key={key}
+                coordinates={m.paths.map(p => ({ latitude: p.lat, longitude: p.lng }))}
+                strokeColor={isFiltered ? `${m.strokeColor}40` : m.strokeColor}
+                fillColor={isSelected ? `${m.fillColor}30` : isFiltered ? `${m.fillColor}08` : `${m.fillColor}15`}
+                strokeWidth={isSelected ? 3 : 1.5}
+              />
+            );
+          })}
+
         {showClients &&
           !showRoute &&
           filteredClients.map((client, index) => (
@@ -1136,38 +1069,82 @@ const MapSalesMan = () => {
       </SafeAreaView>
 
       {showClients && !showRoute && !showRoutes && !isTimerRunning && (
-        <View style={styles.topActionsRow}>
-          <View style={styles.searchWrapper}>
-            <Ionicons name="search-outline" size={18} color={COLORS.textMid} />
-            <TextInput
-              style={styles.searchInputModern}
-              placeholder="Buscar cliente..."
-              placeholderTextColor={COLORS.textLight}
-              onChangeText={handleSearch}
-            />
+        <View style={[styles.topActionsRow, { flexDirection: "column", gap: 8 }]}>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <View style={styles.searchWrapper}>
+              <Ionicons name="search-outline" size={18} color={COLORS.textMid} />
+              <TextInput
+                style={styles.searchInputModern}
+                placeholder="Buscar cliente..."
+                placeholderTextColor={COLORS.textLight}
+                onChangeText={handleSearch}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.routesFab}
+              onPress={() => showRoutesList()}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="navigate" size={18} color="#fff" />
+              {listRoute?.length > 0 && (
+                <View style={styles.routesFabBadge}>
+                  <Text style={styles.routesFabBadgeText}>{listRoute.length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={styles.routesFab}
-            onPress={() => showRoutesList()}
-            activeOpacity={0.9}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 0, gap: 6, paddingVertical: 2 }}
           >
-            <Ionicons name="navigate" size={18} color="#fff" />
-            {listRoute?.length > 0 && (
-              <View style={styles.routesFabBadge}>
-                <Text style={styles.routesFabBadgeText}>{listRoute.length}</Text>
+            <TouchableOpacity
+              onPress={() => handleZoneChange("__ALL__")}
+              style={[{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "#fff", borderRadius: 999, borderWidth: 1, borderColor: COLORS.border },
+                selectedZone === "__ALL__" && { backgroundColor: COLORS.brand, borderColor: COLORS.brand }]}
+            >
+              <Ionicons name="apps" size={11} color={selectedZone === "__ALL__" ? "#fff" : COLORS.textMid} />
+              <Text style={{ fontSize: 12, fontWeight: "700", color: selectedZone === "__ALL__" ? "#fff" : COLORS.text }}>Todas</Text>
+              <View style={{ backgroundColor: selectedZone === "__ALL__" ? "rgba(255,255,255,0.25)" : COLORS.borderLight, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10, minWidth: 22, alignItems: "center" }}>
+                <Text style={{ fontSize: 10, fontWeight: "800", color: selectedZone === "__ALL__" ? "#fff" : COLORS.textMid }}>{clients.length}</Text>
               </View>
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+
+            {Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
+              const isSelected = selectedZone === key;
+              const count = zoneCount[key] || 0;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  onPress={() => handleZoneChange(key)}
+                  style={[{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "#fff", borderRadius: 999, borderWidth: 1, borderColor: COLORS.border },
+                    isSelected && { backgroundColor: m.color, borderColor: m.color }]}
+                >
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isSelected ? "#fff" : m.color }} />
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: isSelected ? "#fff" : COLORS.text }}>{m.name}</Text>
+                  <View style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.25)" : COLORS.borderLight, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10, minWidth: 22, alignItems: "center" }}>
+                    <Text style={{ fontSize: 10, fontWeight: "800", color: isSelected ? "#fff" : COLORS.textMid }}>{count}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+
+            <TouchableOpacity
+              onPress={() => setShowPolygons(!showPolygons)}
+              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: showPolygons ? COLORS.dangerBg : "#fff", borderWidth: 1, borderColor: showPolygons ? COLORS.brand : COLORS.border, justifyContent: "center", alignItems: "center" }}
+            >
+              <Ionicons name={showPolygons ? "eye" : "eye-off"} size={12} color={showPolygons ? COLORS.brand : COLORS.textMid} />
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       )}
-
-      {showClients && !showRoute && !showRoutes && !isTimerRunning && filteredClients.length > 0 && (
+     {showClients && !showRoute && !showRoutes && !isTimerRunning && filteredClients.length > 0 && (
         <View style={styles.cardsWrapper}>
           <View style={styles.cardsHeaderRow}>
             <Text style={styles.cardsHeaderTitle}>Cerca de ti</Text>
           </View>
-
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -1185,9 +1162,7 @@ const MapSalesMan = () => {
               >
                 <View style={styles.deliveryImageWrapper}>
                   <Image
-                    source={{
-                      uri: item.identificationImage || "https://via.placeholder.com/300",
-                    }}
+                    source={{ uri: item.identificationImage || "https://via.placeholder.com/300" }}
                     style={styles.deliveryImage}
                   />
                   <View style={styles.imageBadge}>
@@ -1195,7 +1170,6 @@ const MapSalesMan = () => {
                     <Text style={styles.imageBadgeText}>Activo</Text>
                   </View>
                 </View>
-
                 <View style={styles.deliveryInfo}>
                   <Text style={styles.deliveryName} numberOfLines={1}>
                     {item.name} {item.lastName}
@@ -1229,7 +1203,6 @@ const MapSalesMan = () => {
               {listRoute?.length || 0}
             </Text>
           </View>
-
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -1241,12 +1214,7 @@ const MapSalesMan = () => {
               listRoute.map((item, index) => {
                 const progress = item.progress || 0;
                 const progressColor =
-                  progress >= 100
-                    ? COLORS.success
-                    : progress >= 50
-                    ? COLORS.warning
-                    : COLORS.brand;
-
+                  progress >= 100 ? COLORS.success : progress >= 50 ? COLORS.warning : COLORS.brand;
                 return (
                   <TouchableOpacity
                     key={index}
@@ -1261,36 +1229,19 @@ const MapSalesMan = () => {
                       </View>
                       <View style={styles.routeBadge}>
                         <Ionicons name="calendar-outline" size={10} color={COLORS.textMid} />
-                        <Text style={styles.routeBadgeText}>
-                          {formatDate(item.startDate)}
-                        </Text>
+                        <Text style={styles.routeBadgeText}>{formatDate(item.startDate)}</Text>
                       </View>
                     </View>
-
-                    <Text style={styles.routeCardTitle} numberOfLines={2}>
-                      {item.details}
-                    </Text>
-
+                    <Text style={styles.routeCardTitle} numberOfLines={2}>{item.details}</Text>
                     <View style={styles.routeProgressSection}>
                       <View style={styles.routeProgressTop}>
                         <Text style={styles.routeProgressLabel}>Progreso</Text>
-                        <Text style={[styles.routeProgressPct, { color: progressColor }]}>
-                          {progress}%
-                        </Text>
+                        <Text style={[styles.routeProgressPct, { color: progressColor }]}>{progress}%</Text>
                       </View>
                       <View style={styles.progressTrack}>
-                        <View
-                          style={[
-                            styles.progressFill,
-                            {
-                              width: `${Math.min(progress, 100)}%`,
-                              backgroundColor: progressColor,
-                            },
-                          ]}
-                        />
+                        <View style={[styles.progressFill, { width: `${Math.min(progress, 100)}%`, backgroundColor: progressColor }]} />
                       </View>
                     </View>
-
                     <View style={styles.routeCta}>
                       {loadingButton ? (
                         <ActivityIndicator size="small" color="#fff" />
@@ -1310,9 +1261,7 @@ const MapSalesMan = () => {
                   <Ionicons name="map-outline" size={32} color={COLORS.textLight} />
                 </View>
                 <Text style={styles.emptyCardTextTitle}>Sin rutas asignadas</Text>
-                <Text style={styles.emptyCardTextSubtitle}>
-                  No hay rutas disponibles para hoy
-                </Text>
+                <Text style={styles.emptyCardTextSubtitle}>No hay rutas disponibles para hoy</Text>
               </View>
             )}
           </ScrollView>
@@ -1599,821 +1548,4 @@ const MapSalesMan = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  map: { ...StyleSheet.absoluteFillObject },
-
-  topHeaderSafe: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  topHeader: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.borderLight,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: COLORS.text,
-    letterSpacing: -0.3,
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: COLORS.textMid,
-    fontWeight: "500",
-    marginTop: 2,
-  },
-  routesBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: COLORS.brand,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  routesBtnText: { color: "#fff", fontSize: 12, fontWeight: "800" },
-
-  skeletonHeader: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  skeletonSearchRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  skeletonCard: {
-    width: 224,
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.04)",
-  },
-
-  routeSummaryPanel: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  routeSummaryHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  routeSummaryIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: COLORS.dangerBg,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  routeSummaryTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: COLORS.text,
-  },
-  routeSummarySubtitle: {
-    fontSize: 11,
-    color: COLORS.textMid,
-    fontWeight: "500",
-    marginTop: 1,
-  },
-  routeSummaryClose: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.borderLight,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  routeSummaryDivider: {
-    height: 1,
-    backgroundColor: COLORS.borderLight,
-    marginVertical: 12,
-  },
-  transportRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  transportCard: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: COLORS.bg,
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  transportIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  transportLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: COLORS.textMid,
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  transportTime: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: COLORS.text,
-    marginTop: 1,
-    fontVariant: ["tabular-nums"],
-  },
-  visitNoteRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  visitNoteText: {
-    fontSize: 10,
-    color: COLORS.textMid,
-    fontWeight: "600",
-  },
-
-  etaPanel: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 18,
-    elevation: 10,
-  },
-  etaTopRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  etaLabel: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: COLORS.textMid,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    marginBottom: 2,
-  },
-  etaTimeRow: { flexDirection: "row", alignItems: "baseline", gap: 6 },
-  etaTime: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: COLORS.text,
-    fontVariant: ["tabular-nums"],
-  },
-  etaClockText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: COLORS.textMid,
-    fontVariant: ["tabular-nums"],
-  },
-  timerBadgeLarge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: COLORS.warningBg,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  timerDotLarge: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.warning },
-  timerTextLarge: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: COLORS.warning,
-    fontVariant: ["tabular-nums"],
-  },
-  etaMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  etaMetaItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  etaMetaText: { fontSize: 13, fontWeight: "700", color: COLORS.text },
-  trafficPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  trafficDot: { width: 6, height: 6, borderRadius: 3 },
-  trafficText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
-
-  toast: {
-    position: "absolute",
-    top: 60,
-    left: 16,
-    right: 16,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 20,
-    elevation: 14,
-    zIndex: 100,
-  },
-  toastIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  toastTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: COLORS.text,
-  },
-  toastMessage: {
-    fontSize: 11,
-    color: COLORS.textMid,
-    fontWeight: "500",
-    marginTop: 1,
-    lineHeight: 15,
-  },
-  toastClose: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.borderLight,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  topActionsRow: {
-    position: "absolute",
-    top: 76,
-    left: 16,
-    right: 16,
-    zIndex: 9,
-    flexDirection: "row",
-    gap: 10,
-  },
-  searchWrapper: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#fff",
-    paddingHorizontal: 14,
-    height: 46,
-    borderRadius: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  searchInputModern: {
-    flex: 1,
-    fontSize: 14,
-    color: COLORS.text,
-    paddingVertical: 0,
-  },
-  routesFab: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: COLORS.brand,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: COLORS.brand,
-    shadowOpacity: 0.4,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  routesFabBadge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    paddingHorizontal: 4,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: COLORS.brand,
-  },
-  routesFabBadgeText: {
-    color: COLORS.brand,
-    fontSize: 10,
-    fontWeight: "800",
-  },
-
-  markerWrapper: { alignItems: "center" },
-  markerCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.brand,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  markerText: { color: "#fff", fontWeight: "800", fontSize: 13 },
-  markerArrow: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 7,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderTopColor: COLORS.brand,
-    marginTop: -2,
-  },
-
-  cardsWrapper: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: 20,
-    zIndex: 5,
-  },
-  routesListWrapper: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: 20,
-    zIndex: 5,
-  },
-  cardsHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
-  cardsHeaderTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: COLORS.text,
-    textShadowColor: "rgba(255,255,255,0.9)",
-    textShadowRadius: 4,
-  },
-  cardsHeaderCount: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: COLORS.brand,
-    backgroundColor: COLORS.dangerBg,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  cardsContainer: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  emptyScrollContainer: {
-    paddingHorizontal: 16,
-    width: "100%",
-  },
-
-  deliveryCard: {
-    width: 224,
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  deliveryImageWrapper: {
-    position: "relative",
-    height: 110,
-    backgroundColor: COLORS.borderLight,
-  },
-  deliveryImage: { width: "100%", height: "100%" },
-  imageBadge: {
-    position: "absolute",
-    top: 10,
-    left: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#fff",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  imageBadgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.success,
-  },
-  imageBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: COLORS.success,
-  },
-  stopNumberBadge: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: COLORS.brand,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  stopNumberText: { color: "#fff", fontWeight: "800", fontSize: 12 },
-  deliveryInfo: { padding: 12 },
-  deliveryName: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: COLORS.text,
-    marginBottom: 6,
-  },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  deliveryAddress: {
-    flex: 1,
-    fontSize: 11,
-    color: COLORS.textMid,
-    fontWeight: "500",
-  },
-  cardDivider: {
-    height: 1,
-    backgroundColor: COLORS.borderLight,
-    marginVertical: 10,
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  metaChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: COLORS.borderLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  metaChipText: { fontSize: 10, fontWeight: "600", color: COLORS.textMid },
-
-  routeCard: {
-    width: 260,
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  routeCardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  routeIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: COLORS.dangerBg,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  routeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: COLORS.borderLight,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  routeBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: COLORS.textMid,
-  },
-  routeCardTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: COLORS.text,
-    marginBottom: 12,
-    lineHeight: 19,
-  },
-  routeProgressSection: { marginBottom: 12 },
-  routeProgressTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  routeProgressLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: COLORS.textMid,
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  routeProgressPct: { fontSize: 13, fontWeight: "800" },
-  progressTrack: {
-    height: 6,
-    backgroundColor: COLORS.borderLight,
-    borderRadius: 999,
-    overflow: "hidden",
-  },
-  progressFill: { height: "100%", borderRadius: 999 },
-  routeCta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: COLORS.brand,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  routeCtaText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "800",
-    letterSpacing: 0.3,
-  },
-
-  emptyCard: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  emptyIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.borderLight,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  emptyCardTextTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: COLORS.text,
-    marginBottom: 2,
-  },
-  emptyCardTextSubtitle: {
-    fontSize: 12,
-    color: COLORS.textMid,
-    fontWeight: "500",
-    textAlign: "center",
-  },
-
-  bottomSheet: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    backgroundColor: "#fff",
-    borderRadius: 22,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 20,
-    elevation: 10,
-    zIndex: 20,
-  },
-  sheetHandle: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.border,
-    marginBottom: 14,
-  },
-  sheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
-  },
-  sheetAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.dangerBg,
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-  },
-  sheetAvatarImg: { width: "100%", height: "100%" },
-  sheetAvatarText: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: COLORS.brand,
-    letterSpacing: 0.5,
-  },
-  sheetClientName: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: COLORS.text,
-    marginBottom: 2,
-  },
-  sheetAddressRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 4,
-  },
-  sheetAddress: {
-    flex: 1,
-    fontSize: 12,
-    color: COLORS.textMid,
-    fontWeight: "500",
-    lineHeight: 16,
-  },
-  sheetCloseIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.borderLight,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sheetStatsRow: { flexDirection: "row", gap: 8, marginBottom: 14, flexWrap: "wrap" },
-  sheetStat: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: COLORS.successBg,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  sheetStatText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: COLORS.success,
-    fontVariant: ["tabular-nums"],
-  },
-  pulseDot: { width: 7, height: 7, borderRadius: 3.5 },
-
-  geofenceWarning: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: COLORS.warningBg,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  geofenceWarningText: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: "700",
-    color: COLORS.warning,
-    lineHeight: 15,
-  },
-
-  startVisitButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: COLORS.brand,
-    paddingVertical: 14,
-    borderRadius: 14,
-    shadowColor: COLORS.brand,
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  startVisitButtonDisabled: {
-    backgroundColor: COLORS.textLight,
-    shadowOpacity: 0,
-  },
-  finishVisitButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: COLORS.success,
-    paddingVertical: 14,
-    borderRadius: 14,
-    shadowColor: COLORS.success,
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  startVisitText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 0.3,
-  },
-  orderButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: COLORS.brand,
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  orderButtonText: {
-    color: COLORS.brand,
-    fontSize: 13,
-    fontWeight: "800",
-    letterSpacing: 0.3,
-  },
-});
-
 export default MapSalesMan;

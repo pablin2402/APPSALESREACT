@@ -22,6 +22,7 @@ import { GOOGLE_API_KEY } from "../config";
 import MapViewDirections from "react-native-maps-directions";
 import * as Location from "expo-location";
 import { Marker } from "react-native-maps";
+import { MAP_STYLE, INITIAL_ADDRESS } from "../utils/MapUtils";
 
 import { useSafeAreaInsets, SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -53,20 +54,7 @@ const COLORS = {
     dangerBg: "#fee2e2",
 };
 
-const MAP_STYLE = [
-    { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
-    { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-    { elementType: "labels.text.fill", stylers: [{ color: "#9ca3af" }] },
-    { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
-    { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
-    { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
-    { featureType: "poi", stylers: [{ visibility: "off" }] },
-    { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-    { featureType: "road.arterial", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
-    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#ffd6d4" }] },
-    { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
-    { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbeafe" }] },
-];
+
 
 const MapDelivery = () => {
     const { startTimer, stopTimer } = useContext(TimerContext);
@@ -421,8 +409,6 @@ const MapDelivery = () => {
     };
     const centerMapOnClient2 = (client) => {
         setSelectedClient(client);
-        //setOrderId(client._id)
-        // setModal(true);
         mapRef.current?.animateToRegion({
             latitude: client.client_location.latitud,
             longitude: client.client_location.longitud,
@@ -512,15 +498,11 @@ const MapDelivery = () => {
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
             <View style={styles.container}>
                 <MapView
-                    ref={mapRef}
+                    provider={PROVIDER_GOOGLE}
+
                     style={StyleSheet.absoluteFillObject}
                     customMapStyle={MAP_STYLE}
-                    initialRegion={{
-                        latitude: -17.38156252481452,
-                        longitude: -66.1613705009222,
-                        latitudeDelta: 0.09,
-                        longitudeDelta: 0.04
-                    }}
+                    initialRegion={INITIAL_ADDRESS}
                     showsUserLocation={true}
                     showsMyLocationButton={false}
                 >
@@ -944,8 +926,8 @@ const MapDelivery = () => {
                                         <Ionicons name="cube" size={16} color="#fff" />
                                         <Text style={styles.primaryButtonText}>Registrar entrega</Text>
                                     </TouchableOpacity>
-                                    <br/>
-                                    <br/>
+                                    <br />
+                                    <br />
                                     <TouchableOpacity
                                         style={styles.successButton}
                                         onPress={() => {

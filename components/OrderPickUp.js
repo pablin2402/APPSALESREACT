@@ -256,9 +256,6 @@ export default function OrderPickUp() {
         { headers, timeout: 15000 }
       );
     } catch (error) {
-      console.log("UPLOAD ROUTE ERROR:", error?.response?.status);
-      console.log("DATA:", error?.response?.data);
-      console.log("MSG:", error?.message);
     }
   };
 
