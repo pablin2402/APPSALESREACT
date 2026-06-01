@@ -1,4 +1,4 @@
-import React, { useEffect,useRef, useState, useCallback, useContext } from "react";
+import React, { useEffect, useRef, useState, useCallback, useContext } from "react";
 import {
   View,
   Text,
@@ -123,6 +123,8 @@ export default function ClientDetailsScreen() {
 
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
+  const [activeFilter, setActiveFilter] = useState(null);
+  
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -155,34 +157,39 @@ export default function ClientDetailsScreen() {
     fetchClientData();
   }, [fetchClientData]);
 
-  const fetchSalesData = useCallback(async () => {
+const fetchSalesData = useCallback(async () => {
     setLoading(true);
     try {
+      const payload = {
+        id_owner: idOwner,
+        id_client: clientId,
+        page: page,
+        limit: 5,
+      };
+      if (activeFilter) {
+        payload.startDate = activeFilter.startDate;
+        payload.endDate = activeFilter.endDate;
+      }
       const response = await axios.post(
         API_URL + "/whatsapp/order/id/user",
-        {
-          id_owner: idOwner,
-          id_client: clientId,
-          page: page,
-          limit: 5,
-        },
+        payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-     const sortedOrders = (response.data.orders || []).sort(
-  (a, b) => new Date(b.creationDate) - new Date(a.creationDate)
-);
+      const sortedOrders = (response.data.orders || []).sort(
+        (a, b) => new Date(b.creationDate) - new Date(a.creationDate)
+      );
 
-setSalesData(sortedOrders);
-setFilteredData(sortedOrders);
+      setSalesData(sortedOrders);
+      setFilteredData(sortedOrders);
       setTotalPages(parseInt(response.data.totalPages || 1));
     } catch (error) {
       console.error("Error al obtener las ventas", error);
     } finally {
       setLoading(false);
     }
-  }, [clientId, page, idOwner, token]);
+}, [clientId, page, idOwner, token, activeFilter]);  
 
-  useEffect(() => {
+useEffect(() => {
     fetchSalesData();
   }, [fetchSalesData]);
 
@@ -199,6 +206,15 @@ const filterData = async () => {
     setFilterLoading(true);
     setShowFilters(false);
 
+    const pad = (n) => String(n).padStart(2, "0");
+    const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const filter = {
+      startDate: fmt(startDate),
+      endDate: fmt(endDate),
+    };
+    setActiveFilter(filter);
+    setPage(1);
+
     const response = await axios.post(
       API_URL + "/whatsapp/order/id/user",
       {
@@ -206,27 +222,26 @@ const filterData = async () => {
         id_client: clientId,
         page: 1,
         limit: 5,
-        startDate: startDate.toISOString().split("T")[0],
-        endDate: endDate.toISOString().split("T")[0],
+        ...filter,
       },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    setPage(1);
+      setPage(1);
 
-    setSalesData(response.data.orders || []);
-    setFilteredData(response.data.orders || []);
-    setTotalPages(response.data.totalPages || 1);
-  } catch (error) {
-    console.log(error);
-  } finally {
-    setFilterLoading(false);
-  }
-};
+      setSalesData(response.data.orders || []);
+      setFilteredData(response.data.orders || []);
+      setTotalPages(response.data.totalPages || 1);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setFilterLoading(false);
+    }
+  };
   const handleRowClick = (item) => {
     navigation.navigate("OrderDetailsScreen", {
       products: item.products,
@@ -278,8 +293,8 @@ const filterData = async () => {
                   activeOpacity={0.85}
                 >
                   <Ionicons
-                    name="calendar"
-                    size={16}
+                    name="options-outline"
+                    size={18}
                     color={showFilters ? COLORS.brand : "#fff"}
                   />
                 </TouchableOpacity>
@@ -287,122 +302,122 @@ const filterData = async () => {
             </View>
           </SafeAreaView>
         </View>
-{loading || filterLoading ? (          <View
-            style={{
-              paddingHorizontal: 20,
-              paddingTop: 12,
-              paddingBottom: insets.bottom + 24,
-            }}
-          >
-            {[1, 2, 3, 4, 5].map((i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </View>
-        ) : (
-        <FlatList
-          data={filteredData}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={{
+        {loading || filterLoading ? (<View
+          style={{
             paddingHorizontal: 20,
+            paddingTop: 12,
             paddingBottom: insets.bottom + 24,
           }}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            !client ? null : (
-            <>
-              <View style={styles.profileCard}>
-                <View style={styles.avatarWrapper}>
-                  {client.identificationImage ? (
-                    <Image
-                      source={{ uri: client.identificationImage }}
-                      style={styles.avatarImage}
-                    />
-                  ) : (
-                    <View style={styles.avatarPlaceholder}>
-                      <Text style={styles.avatarInitials}>
-                        {getInitials(client.name, client.lastName)}
-                      </Text>
+        >
+          {[1, 2, 3, 4, 5].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </View>
+        ) : (
+          <FlatList
+            data={filteredData}
+            keyExtractor={(item) => item._id}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingBottom: insets.bottom + 24,
+            }}
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              !client ? null : (
+                <>
+                  <View style={styles.profileCard}>
+                    <View style={styles.avatarWrapper}>
+                      {client.identificationImage ? (
+                        <Image
+                          source={{ uri: client.identificationImage }}
+                          style={styles.avatarImage}
+                        />
+                      ) : (
+                        <View style={styles.avatarPlaceholder}>
+                          <Text style={styles.avatarInitials}>
+                            {getInitials(client.name, client.lastName)}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.avatarStatusDot} />
                     </View>
-                  )}
-                  <View style={styles.avatarStatusDot} />
-                </View>
 
-                <Text style={styles.clientName}>
-                  {client.name} {client.lastName}
-                </Text>
-
-                {client.company && (
-                  <View style={styles.companyChip}>
-                    <Ionicons name="business" size={11} color={COLORS.brand} />
-                    <Text style={styles.companyChipText}>{client.company}</Text>
-                  </View>
-                )}
-
-                <View style={styles.profileDivider} />
-
-                <View style={styles.profileInfoRow}>
-                  <View style={[styles.profileInfoIcon, { backgroundColor: COLORS.warningBg }]}>
-                    <Ionicons name="location" size={14} color={COLORS.warning} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.profileInfoLabel}>Dirección</Text>
-                    <Text style={styles.profileInfoValue} numberOfLines={2}>
-                      {client.client_location?.direction || "No disponible"}
+                    <Text style={styles.clientName}>
+                      {client.name} {client.lastName}
                     </Text>
-                  </View>
-                </View>
 
-                {client.phoneNumber && (
-                  <View style={[styles.profileInfoRow, { marginTop: 8 }]}>
-                    <View style={[styles.profileInfoIcon, { backgroundColor: COLORS.successBg }]}>
-                      <Ionicons name="call" size={14} color={COLORS.success} />
+                    {client.company && (
+                      <View style={styles.companyChip}>
+                        <Ionicons name="business" size={11} color={COLORS.brand} />
+                        <Text style={styles.companyChipText}>{client.company}</Text>
+                      </View>
+                    )}
+
+                    <View style={styles.profileDivider} />
+
+                    <View style={styles.profileInfoRow}>
+                      <View style={[styles.profileInfoIcon, { backgroundColor: COLORS.warningBg }]}>
+                        <Ionicons name="location" size={14} color={COLORS.warning} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.profileInfoLabel}>Dirección</Text>
+                        <Text style={styles.profileInfoValue} numberOfLines={2}>
+                          {client.client_location?.direction || "No disponible"}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.profileInfoLabel}>Teléfono</Text>
-                      <Text style={styles.profileInfoValue}>
-                        {client.phoneNumber}
-                      </Text>
+
+                    {client.phoneNumber && (
+                      <View style={[styles.profileInfoRow, { marginTop: 8 }]}>
+                        <View style={[styles.profileInfoIcon, { backgroundColor: COLORS.successBg }]}>
+                          <Ionicons name="call" size={14} color={COLORS.success} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.profileInfoLabel}>Teléfono</Text>
+                          <Text style={styles.profileInfoValue}>
+                            {client.phoneNumber}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.kpiRow}>
+                    <View style={styles.kpiCard}>
+                      <View style={[styles.kpiIcon, { backgroundColor: COLORS.infoBg }]}>
+                        <Ionicons name="bag-handle" size={14} color={COLORS.info} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.kpiLabel}>Pedidos</Text>
+                        <Text style={styles.kpiValue}>{totalOrders}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.kpiCard}>
+                      <View style={[styles.kpiIcon, { backgroundColor: COLORS.successBg }]}>
+                        <Ionicons name="checkmark-circle" size={14} color={COLORS.success} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.kpiLabel}>Pagados</Text>
+                        <Text style={styles.kpiValue}>{paidOrders}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.kpiCard}>
+                      <View style={[styles.kpiIcon, { backgroundColor: COLORS.warningBg }]}>
+                        <Ionicons name="cash" size={14} color={COLORS.warning} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.kpiLabel}>Monto</Text>
+                        <Text style={styles.kpiValue} numberOfLines={1}>
+                          Bs. {totalAmount.toFixed(0)}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                )}
-              </View>
 
-              <View style={styles.kpiRow}>
-                <View style={styles.kpiCard}>
-                  <View style={[styles.kpiIcon, { backgroundColor: COLORS.infoBg }]}>
-                    <Ionicons name="bag-handle" size={14} color={COLORS.info} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.kpiLabel}>Pedidos</Text>
-                    <Text style={styles.kpiValue}>{totalOrders}</Text>
-                  </View>
-                </View>
-                <View style={styles.kpiCard}>
-                  <View style={[styles.kpiIcon, { backgroundColor: COLORS.successBg }]}>
-                    <Ionicons name="checkmark-circle" size={14} color={COLORS.success} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.kpiLabel}>Pagados</Text>
-                    <Text style={styles.kpiValue}>{paidOrders}</Text>
-                  </View>
-                </View>
-                <View style={styles.kpiCard}>
-                  <View style={[styles.kpiIcon, { backgroundColor: COLORS.warningBg }]}>
-                    <Ionicons name="cash" size={14} color={COLORS.warning} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.kpiLabel}>Monto</Text>
-                    <Text style={styles.kpiValue} numberOfLines={1}>
-                      Bs. {totalAmount.toFixed(0)}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {showFilters && (
-                <View style={styles.filtersPanel}>
-                  <Text style={styles.filterLabel}>Rango de fechas</Text>
-                  <View style={styles.dateRow}>
+                  {showFilters && (
+                    <View style={styles.filtersPanel}>
+                      <Text style={styles.filterLabel}>Rango de fechas</Text>
+                     <View style={styles.dateRow}>
                     <TouchableOpacity
                       onPress={() => setShowStartDatePicker(true)}
                       style={styles.dateInput}
@@ -434,167 +449,183 @@ const filterData = async () => {
                     >
                       <Ionicons name="filter" size={16} color="#fff" />
                     </TouchableOpacity>
+
+                    {activeFilter && (
+                      <TouchableOpacity
+                        style={[styles.filterApplyBtn, { backgroundColor: COLORS.borderLight }]}
+                        onPress={() => {
+                          setActiveFilter(null);
+                          setPage(1);
+                          setShowFilters(false);
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name="close" size={16} color={COLORS.textMid} />
+                      </TouchableOpacity>
+                    )}
                   </View>
 
-                  {showStartDatePicker && (
-                    <DateTimePicker
+                      {showStartDatePicker && (
+                        <DateTimePicker
                       value={startDate}
                       mode="date"
                       themeVariant="light"
+                      locale="es-BO"
                       display={Platform.OS === "ios" ? "spinner" : "default"}
                       onChange={(event, selectedDate) => {
                         setShowStartDatePicker(false);
                         if (selectedDate) setStartDate(selectedDate);
                       }}
                     />
-                  )}
+                      )}
 
-                  {showEndDatePicker && (
-                    <DateTimePicker
+                      {showEndDatePicker && (
+                        <DateTimePicker
                       value={endDate}
                       mode="date"
                       themeVariant="light"
+                      locale="es-BO"
                       display={Platform.OS === "ios" ? "spinner" : "default"}
                       onChange={(event, selectedDate) => {
                         setShowEndDatePicker(false);
                         if (selectedDate) setEndDate(selectedDate);
                       }}
                     />
+                      )}
+                    </View>
                   )}
-                </View>
-              )}
 
-              <Text style={styles.sectionTitle}>
-                Pedidos {filteredData.length > 0 && `(${filteredData.length})`}
-              </Text>
-            </>
-            )
-          }
-          ListEmptyComponent={
-            loading ? (
-              <View style={styles.loaderInline}>
-                <ActivityIndicator size="large" color={COLORS.brand} />
-                <Text style={styles.loadingText}>Cargando pedidos...</Text>
-              </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="bag-outline" size={48} color={COLORS.textLight} />
-                <Text style={styles.emptyTitle}>Sin pedidos</Text>
-                <Text style={styles.emptyDesc}>
-                  Este cliente aún no tiene pedidos registrados
-                </Text>
-              </View>
-            )
-          }
-          renderItem={({ item }) => {
-            const isPaid = item.payStatus === "Pagado";
-            return (
-              <TouchableOpacity
-                style={styles.orderCard}
-                onPress={() => handleRowClick(item)}
-                activeOpacity={0.85}
-              >
-                <View style={styles.orderTop}>
-                  <View style={styles.orderDateChip}>
-                    <Ionicons name="calendar-outline" size={11} color={COLORS.textMid} />
-                    <Text style={styles.orderDateText}>
-                      {formatDate(item.creationDate)}
-                    </Text>
-                  </View>
-                  <Text style={styles.orderAmount}>
-                    Bs. {Number(item.totalAmount || 0).toFixed(2)}
+                  <Text style={styles.sectionTitle}>
+                    Pedidos {filteredData.length > 0 && `(${filteredData.length})`}
+                  </Text>
+                </>
+              )
+            }
+            ListEmptyComponent={
+              loading ? (
+                <View style={styles.loaderInline}>
+                  <ActivityIndicator size="large" color={COLORS.brand} />
+                  <Text style={styles.loadingText}>Cargando pedidos...</Text>
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="bag-outline" size={48} color={COLORS.textLight} />
+                  <Text style={styles.emptyTitle}>Sin pedidos</Text>
+                  <Text style={styles.emptyDesc}>
+                    Este cliente aún no tiene pedidos registrados
                   </Text>
                 </View>
-
-                <View style={styles.orderMiddle}>
-                  <View style={styles.orderNumberBox}>
-                    <Ionicons name="receipt" size={14} color={COLORS.brand} />
-                    <Text style={styles.orderNumberText}>
-                      Nota #{item.receiveNumber}
+              )
+            }
+            renderItem={({ item }) => {
+              const isPaid = item.payStatus === "Pagado";
+              return (
+                <TouchableOpacity
+                  style={styles.orderCard}
+                  onPress={() => handleRowClick(item)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.orderTop}>
+                    <View style={styles.orderDateChip}>
+                      <Ionicons name="calendar-outline" size={11} color={COLORS.textMid} />
+                      <Text style={styles.orderDateText}>
+                        {formatDate(item.creationDate)}
+                      </Text>
+                    </View>
+                    <Text style={styles.orderAmount}>
+                      Bs. {Number(item.totalAmount || 0).toFixed(2)}
                     </Text>
                   </View>
 
-                  <View
-                    style={[
-                      styles.statusPill,
-                      {
-                        backgroundColor: isPaid
-                          ? COLORS.successBg
-                          : COLORS.dangerBg,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name={isPaid ? "checkmark-circle" : "time"}
-                      size={10}
-                      color={isPaid ? COLORS.success : COLORS.brand}
-                    />
-                    <Text
+                  <View style={styles.orderMiddle}>
+                    <View style={styles.orderNumberBox}>
+                      <Ionicons name="receipt" size={14} color={COLORS.brand} />
+                      <Text style={styles.orderNumberText}>
+                        Nota #{item.receiveNumber}
+                      </Text>
+                    </View>
+
+                    <View
                       style={[
-                        styles.statusPillText,
-                        { color: isPaid ? COLORS.success : COLORS.brand },
+                        styles.statusPill,
+                        {
+                          backgroundColor: isPaid
+                            ? COLORS.successBg
+                            : COLORS.dangerBg,
+                        },
                       ]}
                     >
-                      {(item.payStatus || "—").toUpperCase()}
-                    </Text>
+                      <Ionicons
+                        name={isPaid ? "checkmark-circle" : "time"}
+                        size={10}
+                        color={isPaid ? COLORS.success : COLORS.brand}
+                      />
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          { color: isPaid ? COLORS.success : COLORS.brand },
+                        ]}
+                      >
+                        {(item.payStatus || "—").toUpperCase()}
+                      </Text>
+                    </View>
                   </View>
-                </View>
 
-                <View style={styles.orderFooter}>
-                  <Text style={styles.orderProducts}>
-                    {item.products?.length || 0}{" "}
-                    {item.products?.length === 1 ? "producto" : "productos"}
-                  </Text>
-                  <View style={styles.orderChevron}>
-                    <Text style={styles.orderChevronText}>Ver detalle</Text>
-                    <Ionicons name="chevron-forward" size={14} color={COLORS.brand} />
+                  <View style={styles.orderFooter}>
+                    <Text style={styles.orderProducts}>
+                      {item.products?.length || 0}{" "}
+                      {item.products?.length === 1 ? "producto" : "productos"}
+                    </Text>
+                    <View style={styles.orderChevron}>
+                      <Text style={styles.orderChevronText}>Ver detalle</Text>
+                      <Ionicons name="chevron-forward" size={14} color={COLORS.brand} />
+                    </View>
                   </View>
+                </TouchableOpacity>
+              );
+            }}
+            ListFooterComponent={
+              totalPages > 1 ? (
+                <View style={[styles.paginationBar, { marginBottom: insets.bottom + 12 }]}>
+                  <View style={styles.paginationInner}>
+                    <TouchableOpacity
+                      onPress={() => setPage((p) => Math.max(p - 1, 1))}
+                      disabled={page === 1}
+                      style={[styles.pageNavBtn, page === 1 && styles.pageNavBtnDisabled]}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="chevron-back" size={16} color={page === 1 ? COLORS.textLight : COLORS.brand} />
+                    </TouchableOpacity>
+                    <View style={styles.pageDotsRow}>
+                      {pagesToShow.map((num) => (
+                        <TouchableOpacity
+                          key={num}
+                          onPress={() => setPage(num)}
+                          style={[styles.pageBtn, page === num && styles.pageBtnActive]}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={page === num ? styles.pageTextActive : styles.pageText}>
+                            {num}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setPage((p) => Math.min(p + 1, totalPages))}
+                      disabled={page === totalPages}
+                      style={[styles.pageNavBtn, page === totalPages && styles.pageNavBtnDisabled]}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="chevron-forward" size={16} color={page === totalPages ? COLORS.textLight : COLORS.brand} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.pageCounter}>Página {page} de {totalPages}</Text>
                 </View>
-              </TouchableOpacity>
-            );
-          }}
-          ListFooterComponent={
-                       totalPages > 1 ? (
-                         <View style={[styles.paginationBar, { marginBottom: insets.bottom + 12 }]}>
-                           <View style={styles.paginationInner}>
-                             <TouchableOpacity
-                               onPress={() => setPage((p) => Math.max(p - 1, 1))}
-                               disabled={page === 1}
-                               style={[styles.pageNavBtn, page === 1 && styles.pageNavBtnDisabled]}
-                               activeOpacity={0.8}
-                             >
-                               <Ionicons name="chevron-back" size={16} color={page === 1 ? COLORS.textLight : COLORS.brand} />
-                             </TouchableOpacity>
-                             <View style={styles.pageDotsRow}>
-                               {pagesToShow.map((num) => (
-                                 <TouchableOpacity
-                                   key={num}
-                                   onPress={() => setPage(num)}
-                                   style={[styles.pageBtn, page === num && styles.pageBtnActive]}
-                                   activeOpacity={0.8}
-                                 >
-                                   <Text style={page === num ? styles.pageTextActive : styles.pageText}>
-                                     {num}
-                                   </Text>
-                                 </TouchableOpacity>
-                               ))}
-                             </View>
-                             <TouchableOpacity
-                               onPress={() => setPage((p) => Math.min(p + 1, totalPages))}
-                               disabled={page === totalPages}
-                               style={[styles.pageNavBtn, page === totalPages && styles.pageNavBtnDisabled]}
-                               activeOpacity={0.8}
-                             >
-                               <Ionicons name="chevron-forward" size={16} color={page === totalPages ? COLORS.textLight : COLORS.brand} />
-                             </TouchableOpacity>
-                           </View>
-                           <Text style={styles.pageCounter}>Página {page} de {totalPages}</Text>
-                         </View>
-                       ) : null
-                     }
-          keyboardShouldPersistTaps="handled"
-        />
-         )}
+              ) : null
+            }
+            keyboardShouldPersistTaps="handled"
+          />
+        )}
       </View>
     </SafeAreaProvider>
   );
@@ -608,7 +639,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: COLORS.bg,
   },
-    skeletonCard: {
+  skeletonCard: {
     backgroundColor: "#f3f4f6",
     borderRadius: 18,
     padding: 14,
@@ -687,7 +718,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 20,
     padding: 20,
-    marginTop:20,
+    marginTop: 20,
     alignItems: "center",
     shadowColor: "#000",
     shadowOpacity: 0.08,
@@ -962,7 +993,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-paginationBar: {
+  paginationBar: {
     backgroundColor: "#fff",
     borderRadius: 18,
     paddingVertical: 14,

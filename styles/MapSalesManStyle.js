@@ -413,7 +413,7 @@ export const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingBottom: 20,
+    paddingBottom: 12,
     zIndex: 5,
   },
   routesListWrapper: {
@@ -424,15 +424,15 @@ export const styles = StyleSheet.create({
     paddingBottom: 20,
     zIndex: 5,
   },
-  cardsHeaderRow: {
+cardsHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   cardsHeaderTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "800",
     color: COLORS.text,
     textShadowColor: "rgba(255,255,255,0.9)",
@@ -469,7 +469,7 @@ export const styles = StyleSheet.create({
   },
   deliveryImageWrapper: {
     position: "relative",
-    height: 110,
+    height: 70,
     backgroundColor: COLORS.borderLight,
   },
   deliveryImage: { width: "100%", height: "100%" },

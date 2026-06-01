@@ -23,7 +23,15 @@ export const COLORS = {
 };
 export const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-
+filterToggle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  filterToggleActive: { backgroundColor: "#fff" },
   heroWrapper: { position: "relative", paddingBottom: 20 },
   heroBg: {
     position: "absolute",
@@ -102,21 +110,7 @@ export const styles = StyleSheet.create({
     color: COLORS.text,
     paddingVertical: 0,
   },
-  filterToggle: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: COLORS.brand,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-  },
-  filterToggleActive: {
-    backgroundColor: COLORS.brand,
-    borderColor: COLORS.brand,
-  },
+
   filterDot: {
     position: "absolute",
     top: 8,
@@ -124,7 +118,7 @@ export const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.brand,
+    backgroundColor: "#fff",
   },
 
   filtersPanel: {
@@ -162,7 +156,7 @@ export const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   dateRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  dateInput: {
+    dateInput: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -189,14 +183,12 @@ export const styles = StyleSheet.create({
   },
   clearBtnText: { fontSize: 12, fontWeight: "700", color: COLORS.textMid },
   applyBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 11,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: COLORS.brand,
+    justifyContent: "center",
+    alignItems: "center",
   },
   applyBtnText: { color: "#fff", fontSize: 13, fontWeight: "800" },
 

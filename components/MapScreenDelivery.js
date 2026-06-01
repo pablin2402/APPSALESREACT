@@ -89,7 +89,7 @@ const MapScreenDelivery = () => {
 
     const [selectedZone, setSelectedZone] = useState(ALL_ZONES_KEY);
     const [showPolygons, setShowPolygons] = useState(true);
-
+    const [showCards, setShowCards] = useState(true);   
     const routeSummary = useMemo(
         () => calculateRouteSummary(route),
         [route]
@@ -422,9 +422,10 @@ const MapScreenDelivery = () => {
         await clearActiveTrip();
         await AsyncStorage.removeItem("timer_start");
     };
-
-    const showRoutesList = () => {
+const showRoutesList = () => {
         setShowRoutes(true);
+        setShowClients(false);
+        setShowRoute(false);
         startRouteToday();
     };
 
@@ -849,8 +850,8 @@ const MapScreenDelivery = () => {
                                             }))}
                                             optimizeWaypoints={true}
                                             apikey={GOOGLE_API_KEY}
-                                            strokeColor="#111827"
-                                            strokeWidth={4}
+                                            strokeColor="#000000"
+                                            strokeWidth={2}
                                         />
                                     )}
                                 </React.Fragment>
@@ -1122,7 +1123,7 @@ const MapScreenDelivery = () => {
                     )}
                 </SafeAreaView>
 
-                {showClients && !showRoute && !showRoutes && !isTimerRunning ? (
+                {showClients && !showRoute && !showRoutes && !isTimerRunning && !modality && showCards ? (
                     <View style={styles.cardsWrapper}>
 
                         <ScrollView
@@ -1155,25 +1156,24 @@ const MapScreenDelivery = () => {
                                         >
                                             <View style={styles.deliveryImageWrapper}>
                                                 {item.identificationImage ? (
-                                                    <View style={styles.deliveryImageWrapper}>
+                                                    <>
                                                         <Image
-                                                            source={{
-                                                                uri: item.identificationImage || "https://via.placeholder.com/300",
-                                                            }}
+                                                            source={{ uri: item.identificationImage }}
                                                             style={styles.deliveryImage}
                                                         />
                                                         <View style={styles.imageBadge}>
                                                             <View style={styles.imageBadgeDot} />
                                                             <Text style={styles.imageBadgeText}>Activo</Text>
                                                         </View>
-                                                    </View>
-
+                                                    </>
                                                 ) : (
-                                                    <Ionicons name={cfg.icon} size={22} color={cfg.color} />
+                                                    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: cfg.bg }}>
+                                                        <Ionicons name={cfg.icon} size={28} color={cfg.color} />
+                                                    </View>
                                                 )}
                                             </View>
                                             <View style={styles.deliveryInfo}>
-                                                <Text tyle={styles.deliveryName} numberOfLines={1}>
+                                                <Text style={styles.deliveryName} numberOfLines={1}>
                                                     {item.client_location?.sucursalName ||
                                                         `${item.name} ${item.lastName}`}
                                                 </Text>
@@ -1230,8 +1230,8 @@ const MapScreenDelivery = () => {
                             )}
                         </ScrollView>
                     </View>
-                ) : showRoutes && !showRoute && !isTimerRunning ? (
-                    <View style={[styles.cardsWrapper, { bottom: insets.bottom + 20 }]}>
+               ) : showRoutes && !showRoute && !isTimerRunning && !modality && showCards ? (
+                    <View style={styles.cardsWrapper}>
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
@@ -1318,8 +1318,8 @@ const MapScreenDelivery = () => {
                 ) : (
                     showRoute &&
                     consolidatedStops.length > 0 &&
-                    !isTimerRunning && (
-                        <View style={[styles.cardsWrapper, { bottom: insets.bottom + 20 }]}>
+                    !isTimerRunning && !modality && showCards && (
+                        <View style={styles.cardsWrapper}>
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
@@ -1332,50 +1332,57 @@ const MapScreenDelivery = () => {
                                     const status = getDeliveryStatusStyle(stop.visitStatus1);
                                     const hasMultiple = stop.orders.length > 1;
                                     return (
-                                        <TouchableOpacity
+                                       <TouchableOpacity
                                             key={index}
-                                            style={styles.stopCard}
+                                            style={styles.deliveryCard}
                                             onPress={() => centerMapOnStop(stop)}
-                                            activeOpacity={0.9}
+                                            activeOpacity={0.85}
                                         >
-                                            <View style={styles.stopHeader}>
+                                            <View style={styles.deliveryImageWrapper}>
+                                               {stop.profilePicture ? (
+                                                    <Image
+                                                        source={{ uri: stop.profilePicture }}
+                                                        style={styles.deliveryImage}
+                                                    />
+                                                ) : (
+                                                    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.dangerBg }}>
+                                                        <Ionicons name="person" size={28} color={COLORS.brand} />
+                                                    </View>
+                                                )}
                                                 <View style={styles.stopNumberBadge}>
                                                     <Text style={styles.stopNumberText}>{index + 1}</Text>
                                                 </View>
-                                                <View style={[styles.statusPill, { backgroundColor: status.bg }]}>
+                                                <View style={[styles.imageBadge, { backgroundColor: status.bg }]}>
                                                     <Ionicons name={status.icon} size={10} color={status.color} />
-                                                    <Text style={[styles.statusPillText, { color: status.color }]}>
+                                                    <Text style={[styles.imageBadgeText, { color: status.color }]}>
                                                         {status.label}
                                                     </Text>
                                                 </View>
                                             </View>
-                                            <Text style={styles.stopName} numberOfLines={1}>
-                                                {stop.name} {stop.lastName}
-                                            </Text>
-                                            <View style={styles.stopAddressRow}>
-                                                <Ionicons name="location-sharp" size={11} color={COLORS.brand} />
-                                                <Text style={styles.stopAddress} numberOfLines={2}>
-                                                    {stop.client_location?.direction}
+                                            <View style={styles.deliveryInfo}>
+                                                <Text style={styles.deliveryName} numberOfLines={1}>
+                                                    {stop.client_location?.sucursalName || `${stop.name} ${stop.lastName}`}
                                                 </Text>
-                                            </View>
-                                            <View style={styles.stopFooter}>
-                                                {hasMultiple && (
-                                                    <View style={styles.stopMultiBadge}>
-                                                        <Ionicons name="layers" size={9} color="#fff" />
-                                                        <Text style={styles.stopMultiBadgeText}>
-                                                            {stop.orders.length} pedidos
-                                                        </Text>
-                                                    </View>
-                                                )}
-                                                <View style={styles.stopBoxesBadge}>
-                                                    <Ionicons name="cube" size={9} color={COLORS.brand} />
-                                                    <Text style={styles.stopBoxesBadgeText}>
-                                                        {stop.totalBoxes}
+                                                <View style={styles.locationRow}>
+                                                    <Ionicons name="location-sharp" size={11} color={COLORS.brand} />
+                                                    <Text style={styles.deliveryAddress} numberOfLines={1}>
+                                                        {stop.client_location?.direction}
                                                     </Text>
                                                 </View>
-                                                <Text style={styles.stopTotal}>
-                                                    Bs. {stop.totalAmount.toFixed(2)}
-                                                </Text>
+                                                <View style={styles.cardDivider} />
+                                                <View style={styles.cardFooter}>
+                                                    <View style={styles.stopBoxesBadge}>
+                                                        <Ionicons name="cube" size={9} color={COLORS.brand} />
+                                                        <Text style={styles.stopBoxesBadgeText}>{stop.totalBoxes} cajas</Text>
+                                                    </View>
+                                                    {hasMultiple && (
+                                                        <View style={styles.stopMultiBadge}>
+                                                            <Ionicons name="layers" size={9} color="#fff" />
+                                                            <Text style={styles.stopMultiBadgeText}>{stop.orders.length}</Text>
+                                                        </View>
+                                                    )}
+                                                    <Text style={styles.stopTotal}>Bs. {stop.totalAmount.toFixed(0)}</Text>
+                                                </View>
                                             </View>
                                         </TouchableOpacity>
                                     );
@@ -1527,49 +1534,279 @@ const MapScreenDelivery = () => {
                                 </View>
                             )}
                         </ScrollView>
+<View style={styles.bottomSheetActions}>
+                            {selectedStop.orders && selectedStop.orders.length > 0 && (
+                                <>
+                                    <View style={{
+                                        backgroundColor: COLORS.bg,
+                                        borderRadius: 14,
+                                        padding: 12,
+                                        marginBottom: 8,
+                                        borderWidth: 1,
+                                        borderColor: COLORS.borderLight,
+                                    }}>
+                                        <Text style={{
+                                            fontSize: 10,
+                                            fontWeight: "800",
+                                            color: COLORS.textMid,
+                                            textTransform: "uppercase",
+                                            letterSpacing: 0.4,
+                                            marginBottom: 8,
+                                        }}>Pedidos a entregar</Text>
 
-                        <View style={styles.bottomSheetActions}>
-                            {!isTimerRunning && !isAlreadyDelivered && selectedStop.orders && selectedStop.orders.length > 0 && (
-                                <TouchableOpacity
-                                    style={styles.primaryButton}
-                                    onPress={() => handleStartTrip(selectedStop)}
-                                    activeOpacity={0.9}
-                                >
-                                    <Ionicons name="navigate" size={16} color="#fff" />
-                                    <Text style={styles.primaryButtonText}>Iniciar trayecto</Text>
-                                </TouchableOpacity>
+                                        <ScrollView
+                                            style={{ maxHeight: 260 }}
+                                            showsVerticalScrollIndicator={false}
+                                            nestedScrollEnabled={true}
+                                        >
+                                        {selectedStop.orders.map((order, i) => (
+                                            <View key={i} style={{
+                                                marginBottom: i < selectedStop.orders.length - 1 ? 10 : 0,
+                                                backgroundColor: "#fff",
+                                                borderRadius: 12,
+                                                padding: 10,
+                                                borderWidth: 1,
+                                                borderColor: COLORS.border,
+                                            }}>
+                                                <View style={{
+                                                    flexDirection: "row",
+                                                    alignItems: "center",
+                                                    justifyContent: "space-between",
+                                                    marginBottom: 8,
+                                                }}>
+                                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                                        <View style={{
+                                                            width: 28, height: 28, borderRadius: 8,
+                                                            backgroundColor: COLORS.dangerBg,
+                                                            justifyContent: "center", alignItems: "center",
+                                                        }}>
+                                                            <Ionicons name="receipt-outline" size={13} color={COLORS.brand} />
+                                                        </View>
+                                                        <Text style={{ fontSize: 12, fontWeight: "800", color: COLORS.text }}>
+                                                            Nota #{order.receiveNumber}
+                                                        </Text>
+                                                    </View>
+                                                    <Text style={{ fontSize: 13, fontWeight: "800", color: COLORS.brand }}>
+                                                        Bs. {Number(order.totalAmount || 0).toFixed(0)}
+                                                    </Text>
+                                                </View>
+
+                                                {order.products && order.products.length > 0 && (
+                                                    <View style={{
+                                                        backgroundColor: COLORS.bg,
+                                                        borderRadius: 8,
+                                                        padding: 8,
+                                                        gap: 4,
+                                                    }}>
+                                                        {order.products.map((prod, pi) => (
+                                                            <View key={pi} style={{
+                                                                flexDirection: "row",
+                                                                alignItems: "center",
+                                                                justifyContent: "space-between",
+                                                            }}>
+                                                                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                                                                    <View style={{
+                                                                        width: 20, height: 20, borderRadius: 5,
+                                                                        backgroundColor: COLORS.brand,
+                                                                        justifyContent: "center", alignItems: "center",
+                                                                    }}>
+                                                                        <Text style={{ fontSize: 9, fontWeight: "800", color: COLORS.card }}>
+                                                                            {prod.cantidad || 1}
+                                                                        </Text>
+                                                                    </View>
+                                                                   <Text style={{ fontSize: 11, color: COLORS.text, fontWeight: "600", flex: 1 }} numberOfLines={1}>
+                                                                        {prod.nombre || "Producto"}
+                                                                    </Text>
+                                                                </View>
+                                                                <Text style={{ fontSize: 11, fontWeight: "700", color: COLORS.text }}>
+                                                                    Bs. {Number((prod.precio || 0) * (prod.cantidad || 1)).toFixed(0)}
+                                                                </Text>
+                                                            </View>
+                                                        ))}
+                                                    </View>
+                                                )}
+                                            </View>
+                                        ))}
+                                        </ScrollView>
+
+                                        <View style={{
+                                            flexDirection: "row",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            marginTop: 10,
+                                            paddingTop: 8,
+                                            borderTopWidth: 1,
+                                            borderTopColor: COLORS.border,
+                                        }}>
+                                            <Text style={{ fontSize: 11, fontWeight: "700", color: COLORS.textMid }}>
+                                                Total · {selectedStop.totalBoxes} cajas
+                                            </Text>
+                                            <Text style={{ fontSize: 15, fontWeight: "800", color: COLORS.brand }}>
+                                                Bs. {Number(selectedStop.totalAmount || 0).toFixed(0)}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    {!isTimerRunning && !isAlreadyDelivered && (
+                                    <TouchableOpacity
+                                        style={{
+                                            flexDirection: "row",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: 10,
+                                            paddingVertical: 15,
+                                            borderRadius: 14,
+                                            backgroundColor: COLORS.brand,
+                                            shadowColor: COLORS.brand,
+                                            shadowOpacity: 0.35,
+                                            shadowOffset: { width: 0, height: 4 },
+                                            shadowRadius: 10,
+                                            elevation: 5,
+                                        }}
+                                        onPress={() => handleStartTrip(selectedStop)}
+                                        activeOpacity={0.9}
+                                    >
+                                        <View style={{
+                                            width: 30,
+                                            height: 30,
+                                            borderRadius: 10,
+                                            backgroundColor: "rgba(255,255,255,0.2)",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                        }}>
+                                            <Ionicons name="navigate" size={16} color="#fff" />
+                                        </View>
+                                        <View>
+                                            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800", letterSpacing: 0.3 }}>
+                                                Iniciar trayecto
+                                            </Text>
+                                            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 10, fontWeight: "600" }}>
+                                                {selectedStop.client_location?.sucursalName || selectedStop.name}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                    )}
+                                </>
                             )}
 
                             {!isTimerRunning && isAlreadyDelivered && (
                                 <View style={styles.deliveredChip}>
                                     <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
-                                    <Text style={styles.deliveredChipText}>Esta parada ya fue entregada</Text>
+                                    <Text style={styles.deliveredChipText}>Pedido entregado</Text>
                                 </View>
                             )}
 
                             {isTimerRunning && !deliveryRegistered && (
                                 <TouchableOpacity
-                                    style={styles.brandButton}
+                                    style={{
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: 10,
+                                        paddingVertical: 15,
+                                        borderRadius: 14,
+                                        backgroundColor: COLORS.info,
+                                        shadowColor: COLORS.info,
+                                        shadowOpacity: 0.35,
+                                        shadowOffset: { width: 0, height: 4 },
+                                        shadowRadius: 10,
+                                        elevation: 5,
+                                    }}
                                     onPress={() => handleOpenDeliveryForm(selectedStop)}
                                     activeOpacity={0.9}
                                 >
-                                    <Ionicons name="cube" size={16} color="#fff" />
-                                    <Text style={styles.primaryButtonText}>Registrar entrega</Text>
+                                    <View style={{
+                                        width: 30,
+                                        height: 30,
+                                        borderRadius: 10,
+                                        backgroundColor: "rgba(255,255,255,0.2)",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                    }}>
+                                        <Ionicons name="cube" size={16} color="#fff" />
+                                    </View>
+                                    <View>
+                                        <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800", letterSpacing: 0.3 }}>
+                                            Registrar entrega
+                                        </Text>
+                                        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 10, fontWeight: "600" }}>
+                                            Confirmar los pedidos entregados
+                                        </Text>
+                                    </View>
                                 </TouchableOpacity>
                             )}
 
                             {isTimerRunning && deliveryRegistered && (
                                 <TouchableOpacity
-                                    style={styles.successButton}
+                                    style={{
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: 10,
+                                        paddingVertical: 15,
+                                        borderRadius: 14,
+                                        backgroundColor: COLORS.success,
+                                        shadowColor: COLORS.success,
+                                        shadowOpacity: 0.35,
+                                        shadowOffset: { width: 0, height: 4 },
+                                        shadowRadius: 10,
+                                        elevation: 5,
+                                    }}
                                     onPress={() => handleFinishTrip(selectedStop)}
                                     activeOpacity={0.9}
                                 >
-                                    <Ionicons name="flag" size={16} color="#fff" />
-                                    <Text style={styles.primaryButtonText}>Finalizar trayecto</Text>
+                                    <View style={{
+                                        width: 30,
+                                        height: 30,
+                                        borderRadius: 10,
+                                        backgroundColor: "rgba(255,255,255,0.2)",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                    }}>
+                                        <Ionicons name="flag" size={16} color="#fff" />
+                                    </View>
+                                    <View>
+                                        <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800", letterSpacing: 0.3 }}>
+                                            Finalizar trayecto
+                                        </Text>
+                                        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 10, fontWeight: "600" }}>
+                                            Marcar parada como completada
+                                        </Text>
+                                    </View>
                                 </TouchableOpacity>
                             )}
                         </View>
                     </View>
+                )}
+                {!modality && !isTimerRunning && (
+                    <TouchableOpacity
+                        style={{
+                            position: "absolute",
+                            bottom: showCards ? 220 : 20,
+                            right: 16,
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: "#fff",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            shadowColor: "#000",
+                            shadowOpacity: 0.15,
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowRadius: 8,
+                            elevation: 6,
+                            zIndex: 6,
+                            borderWidth: 1,
+                            borderColor: COLORS.borderLight,
+                        }}
+                        onPress={() => setShowCards(!showCards)}
+                        activeOpacity={0.85}
+                    >
+                        <Ionicons
+                            name={showCards ? "chevron-down" : "chevron-up"}
+                            size={18}
+                            color={COLORS.text}
+                        />
+                    </TouchableOpacity>
                 )}
                 <StackingPlanSheet
                     visible={showStackingPlan}

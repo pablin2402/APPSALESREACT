@@ -26,12 +26,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import ClientMarker from "../components/ClientMarker";
 import { TimerContext } from "../components/TimerContext";
 import { AuthContext } from "../AuthContext";
-import {ShimmerBlock, SkeletonSearchBar, SkeletonHeader, SkeletonStopCard} from "../utils/MapSkeleton";
+import { ShimmerBlock, SkeletonSearchBar, SkeletonHeader, SkeletonStopCard } from "../utils/MapSkeleton";
 import { COLORS, styles } from "../styles/MapSalesManStyle";
 import { INITIAL_ADDRESS, MAP_STYLE } from "../utils/MapUtils";
 import {
-    MUNICIPIOS_COCHABAMBA,
-    inferZoneFromClient,
+  MUNICIPIOS_COCHABAMBA,
+  inferZoneFromClient,
 } from "../utils/MunicipiosCochabamba";
 const { height } = Dimensions.get("window");
 
@@ -220,7 +220,7 @@ const MapSalesMan = () => {
   const [routeEstimates, setRouteEstimates] = useState(null);
   const [showRouteSummary, setShowRouteSummary] = useState(false);
 
-const [toast, setToast] = useState({ visible: false, type: "info", title: "", message: "" });
+  const [toast, setToast] = useState({ visible: false, type: "info", title: "", message: "" });
   const [selectedZone, setSelectedZone] = useState("__ALL__");
   const [showPolygons, setShowPolygons] = useState(true);
   const showToast = (type, title, message) => {
@@ -575,7 +575,7 @@ const [toast, setToast] = useState({ visible: false, type: "info", title: "", me
     }
   };
 
-const [searchText, setSearchText] = useState("");
+  const [searchText, setSearchText] = useState("");
 
   const applyFilters = (text, zone, allClients) => {
     let arr = allClients.map(c => ({ ...c, __zone: inferZoneFromClient(c) }));
@@ -811,7 +811,7 @@ const [searchText, setSearchText] = useState("");
         showsUserLocation={true}
         showsMyLocationButton={false}
       >
-       {showClients && !showRoute && showPolygons &&
+        {showClients && !showRoute && showPolygons &&
           Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
             if (!m.paths || m.paths.length === 0) return null;
             const isSelected = selectedZone === key;
@@ -923,8 +923,8 @@ const [searchText, setSearchText] = useState("");
               })()}
               optimizeWaypoints={false}
               apikey={GOOGLE_API_KEY}
-              strokeColor={COLORS.brand}
-              strokeWidth={5}
+              strokeColor="#000000"
+              strokeWidth={2}
             />
           )}
 
@@ -936,8 +936,8 @@ const [searchText, setSearchText] = useState("");
               longitude: activeDestination.longitude,
             }}
             apikey={GOOGLE_API_KEY}
-            strokeColor={getRouteStrokeColor()}
-            strokeWidth={6}
+            strokeColor="#000000"
+            strokeWidth={2}
             mode="DRIVING"
             precision="high"
           />
@@ -1103,7 +1103,7 @@ const [searchText, setSearchText] = useState("");
             <TouchableOpacity
               onPress={() => handleZoneChange("__ALL__")}
               style={[{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "#fff", borderRadius: 999, borderWidth: 1, borderColor: COLORS.border },
-                selectedZone === "__ALL__" && { backgroundColor: COLORS.brand, borderColor: COLORS.brand }]}
+              selectedZone === "__ALL__" && { backgroundColor: COLORS.brand, borderColor: COLORS.brand }]}
             >
               <Ionicons name="apps" size={11} color={selectedZone === "__ALL__" ? "#fff" : COLORS.textMid} />
               <Text style={{ fontSize: 12, fontWeight: "700", color: selectedZone === "__ALL__" ? "#fff" : COLORS.text }}>Todas</Text>
@@ -1120,7 +1120,7 @@ const [searchText, setSearchText] = useState("");
                   key={key}
                   onPress={() => handleZoneChange(key)}
                   style={[{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "#fff", borderRadius: 999, borderWidth: 1, borderColor: COLORS.border },
-                    isSelected && { backgroundColor: m.color, borderColor: m.color }]}
+                  isSelected && { backgroundColor: m.color, borderColor: m.color }]}
                 >
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isSelected ? "#fff" : m.color }} />
                   <Text style={{ fontSize: 12, fontWeight: "700", color: isSelected ? "#fff" : COLORS.text }}>{m.name}</Text>
@@ -1140,7 +1140,7 @@ const [searchText, setSearchText] = useState("");
           </ScrollView>
         </View>
       )}
-     {showClients && !showRoute && !showRoutes && !isTimerRunning && filteredClients.length > 0 && (
+      {showClients && !showRoute && !showRoutes && !isTimerRunning && filteredClients.length > 0 && (
         <View style={styles.cardsWrapper}>
           <View style={styles.cardsHeaderRow}>
             <Text style={styles.cardsHeaderTitle}>Cerca de ti</Text>
@@ -1321,8 +1321,8 @@ const [searchText, setSearchText] = useState("");
                         visited
                           ? { backgroundColor: COLORS.success }
                           : isPriority
-                          ? { backgroundColor: COLORS.warning }
-                          : { backgroundColor: "#fff" },
+                            ? { backgroundColor: COLORS.warning }
+                            : { backgroundColor: "#fff" },
                       ]}
                     >
                       {visited ? (

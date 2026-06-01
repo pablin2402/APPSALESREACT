@@ -269,17 +269,6 @@ export default function PaymentScreen() {
     { length: endPage - startPage + 1 },
     (_, i) => startPage + i
   );
-
-  function utcToLocalDateString(utcDateStr, timeZone = "America/La_Paz") {
-    const formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-    return formatter.format(utcDateStr);
-  }
-
   const fetchProducts = async (pageNum = page) => {
     setLoading(true);
     try {
@@ -291,14 +280,17 @@ export default function PaymentScreen() {
         clientName: searchTerm,
       };
       if (startDate && endDate) {
-        payload.startDate = utcToLocalDateString(startDate);
-        payload.endDate = utcToLocalDateString(endDate);
+        const pad = (n) => String(n).padStart(2, "0");
+        const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        payload.startDate = fmt(startDate);
+        payload.endDate = fmt(endDate);
       }
       const response = await axios.post(
         API_URL + "/whatsapp/order/pay/sales/id",
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      console.log(response.data.data)
       setSalesData(response.data.data || []);
       setTotalPages(response.data.pagination.totalPages);
     } catch (error) {
@@ -420,6 +412,21 @@ export default function PaymentScreen() {
                     Historial de pagos recibidos
                   </Text>
                 </View>
+                <TouchableOpacity
+                  style={[
+                    styles.filterToggle,
+                    showFilters && styles.filterToggleActive,
+                  ]}
+                  onPress={() => setShowFilters(!showFilters)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons
+                    name="options-outline"
+                    size={18}
+                    color={showFilters ? COLORS.brand : "#fff"}
+                  />
+                  {hasFilters && !showFilters && <View style={styles.filterDot} />}
+                </TouchableOpacity>
               </View>
 
               <View style={styles.kpiRow}>
@@ -479,23 +486,7 @@ export default function PaymentScreen() {
             )}
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.filterToggle,
-              (showFilters || hasFilters) && styles.filterToggleActive,
-            ]}
-            onPress={() => setShowFilters(!showFilters)}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name="options-outline"
-              size={18}
-              color={showFilters || hasFilters ? "#fff" : COLORS.brand}
-            />
-            {hasFilters && !showFilters && <View style={styles.filterDot} />}
-          </TouchableOpacity>
         </View>
-
         {showFilters && (
           <View style={styles.filtersPanel}>
             <Text style={styles.filterLabel}>Rango de fechas</Text>
@@ -521,6 +512,17 @@ export default function PaymentScreen() {
                 <Ionicons name="calendar-outline" size={14} color={COLORS.brand} />
                 <Text style={styles.dateInputText}>{formatDate2(endDate)}</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.applyBtn}
+                onPress={() => {
+                  setPage(1);
+                  fetchProducts(1);
+                  setShowFilters(false);
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="filter" size={16} color="#fff" />
+              </TouchableOpacity>
             </View>
 
             {showStartDatePicker && (
@@ -529,6 +531,7 @@ export default function PaymentScreen() {
                 mode="date"
                 display={Platform.OS === "ios" ? "spinner" : "default"}
                 themeVariant="light"
+                locale="es-BO"
                 onChange={(event, selectedDate) => {
                   setShowStartDatePicker(false);
                   if (selectedDate) setStartDate(selectedDate);
@@ -542,6 +545,7 @@ export default function PaymentScreen() {
                 mode="date"
                 display={Platform.OS === "ios" ? "spinner" : "default"}
                 themeVariant="light"
+                locale="es-BO"
                 onChange={(event, selectedDate) => {
                   setShowEndDatePicker(false);
                   if (selectedDate) setEndDate(selectedDate);
@@ -557,18 +561,7 @@ export default function PaymentScreen() {
               >
                 <Text style={styles.clearBtnText}>Limpiar</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.applyBtn}
-                onPress={() => {
-                  setPage(1);
-                  fetchProducts(1);
-                  setShowFilters(false);
-                }}
-                activeOpacity={0.9}
-              >
-                <Ionicons name="filter" size={14} color="#fff" />
-                <Text style={styles.applyBtnText}>Aplicar filtros</Text>
-              </TouchableOpacity>
+
             </View>
           </View>
         )}

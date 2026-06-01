@@ -23,15 +23,18 @@ export const COLORS = {
 
 export const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.bg },
-    deliveryImageWrapper: {
-        position: "relative",
-        height: 110,
-        backgroundColor: COLORS.borderLight,
+    cardsContainer: {
+        paddingHorizontal: 16,
+        gap: 12,
     },
-      cardsContainer: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
+    cardsWrapper: {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingBottom: 12,
+        zIndex: 5,
+    },
     topSafe: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 },
     topHeader: {
         marginHorizontal: 16,
@@ -92,12 +95,7 @@ export const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
-    loadingPlanBtnText: {
-        color: "#fff",
-        fontSize: 13,
-        fontWeight: "800",
-        lineHeight: 14,
-    },
+    loadingPlanBtnText: { color: "#fff", fontSize: 13, fontWeight: "800", lineHeight: 14 },
     loadingPlanBtnSubtext: {
         color: "rgba(255,255,255,0.85)",
         fontSize: 9,
@@ -130,18 +128,8 @@ export const styles = StyleSheet.create({
         marginBottom: 2,
     },
     etaTimeRow: { flexDirection: "row", alignItems: "baseline", gap: 6 },
-    etaTime: {
-        fontSize: 26,
-        fontWeight: "800",
-        color: COLORS.text,
-        fontVariant: ["tabular-nums"],
-    },
-    etaClockText: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: COLORS.textMid,
-        fontVariant: ["tabular-nums"],
-    },
+    etaTime: { fontSize: 26, fontWeight: "800", color: COLORS.text, fontVariant: ["tabular-nums"] },
+    etaClockText: { fontSize: 13, fontWeight: "700", color: COLORS.textMid, fontVariant: ["tabular-nums"] },
     timerBadgeLarge: {
         flexDirection: "row",
         alignItems: "center",
@@ -152,12 +140,7 @@ export const styles = StyleSheet.create({
         borderRadius: 12,
     },
     timerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.warning },
-    timerTextLarge: {
-        fontSize: 14,
-        fontWeight: "800",
-        color: COLORS.warning,
-        fontVariant: ["tabular-nums"],
-    },
+    timerTextLarge: { fontSize: 14, fontWeight: "800", color: COLORS.warning, fontVariant: ["tabular-nums"] },
     etaMetaRow: {
         flexDirection: "row",
         alignItems: "center",
@@ -276,52 +259,72 @@ export const styles = StyleSheet.create({
         borderWidth: 1.5,
         borderColor: "#fff",
     },
-    multiOrderBadgeText: {
-        color: "#fff",
-        fontSize: 9,
-        fontWeight: "900",
-    },
+    multiOrderBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900" },
 
-  cardsWrapper: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: 20,
-    zIndex: 5,
-  },    emptyScrollContainer: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 16 },
-  deliveryImageWrapper: {
-    position: "relative",
-    height: 110,
-    backgroundColor: COLORS.borderLight,
-  },  imageBadge: {
-    position: "absolute",
-    top: 10,
-    left: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#fff",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  imageBadgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.success,
-  },
-  imageBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: COLORS.success,
-  },
+    cardsWrapper: {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingBottom: 12,
+        zIndex: 5,
+    },
+    cardsContainer: { paddingHorizontal: 16, gap: 12, paddingVertical: 4 },
+    emptyScrollContainer: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 16 },
+    deliveryCard: {
+        width: 200,
+        backgroundColor: "#fff",
+        borderRadius: 18,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOpacity: 0.12,
+        shadowOffset: { width: 0, height: 6 },
+        shadowRadius: 14,
+        elevation: 6,
+    },
+    deliveryImageWrapper: {
+        position: "relative",
+        height: 70,
+        backgroundColor: COLORS.borderLight,
+    },
+    deliveryImage: { width: "100%", height: "100%" },
+    imageBadge: {
+        position: "absolute",
+        top: 10,
+        left: 10,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        backgroundColor: "#fff",
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 999,
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    imageBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.success },
+    imageBadgeText: { fontSize: 10, fontWeight: "700", color: COLORS.success },
+    deliveryInfo: { padding: 10 },
+    deliveryName: { fontSize: 13, fontWeight: "800", color: COLORS.text, marginBottom: 4 },
+    locationRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+    deliveryAddress: { flex: 1, fontSize: 11, color: COLORS.textMid, fontWeight: "500" },
+    cardDivider: { height: 1, backgroundColor: COLORS.borderLight, marginVertical: 8 },
+    cardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    metaChip: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        backgroundColor: COLORS.borderLight,
+        paddingHorizontal: 7,
+        paddingVertical: 3,
+        borderRadius: 999,
+    },
+    metaChipText: { fontSize: 10, fontWeight: "600", color: COLORS.textMid },
+
+    // ── client card (vista clientes alternativa) ─────────────────────────
     clientCard: {
         width: width * 0.78,
         backgroundColor: "#fff",
@@ -361,6 +364,7 @@ export const styles = StyleSheet.create({
     clientAddressRow: { flexDirection: "row", alignItems: "center", gap: 4 },
     clientAddress: { flex: 1, fontSize: 11, color: COLORS.textMid, fontWeight: "500" },
 
+    // ── route card ───────────────────────────────────────────────────────
     routeCard: {
         width: width * 0.78,
         backgroundColor: "#fff",
@@ -392,11 +396,6 @@ export const styles = StyleSheet.create({
         overflow: "hidden",
         marginBottom: 10,
     },
-    cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
     progressFill: { height: "100%", borderRadius: 999 },
     routeCardFooter: {
         flexDirection: "row",
@@ -421,12 +420,7 @@ export const styles = StyleSheet.create({
         elevation: 4,
     },
     emptyCardTitle: { fontSize: 14, fontWeight: "800", color: COLORS.text, marginTop: 10 },
-    emptyCardSubtitle: {
-        fontSize: 12,
-        color: COLORS.textMid,
-        marginTop: 4,
-        textAlign: "center",
-    },
+    emptyCardSubtitle: { fontSize: 12, color: COLORS.textMid, marginTop: 4, textAlign: "center" },
     emptyHorizontalCard: {
         width: width - 32,
         paddingVertical: 28,
@@ -434,13 +428,25 @@ export const styles = StyleSheet.create({
         backgroundColor: "#fff",
         borderRadius: 18,
     },
-    emptyHorizontalText: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: COLORS.textMid,
-        marginTop: 8,
+    emptyHorizontalText: { fontSize: 13, fontWeight: "700", color: COLORS.textMid, marginTop: 8 },
+    stopNumberBadge: {
+        position: "absolute",
+        top: 10,
+        right: 10,
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: COLORS.brand,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 2,
+        borderColor: "#fff",
+        shadowColor: "#000",
+        shadowOpacity: 0.2,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 3,
+        elevation: 3,
     },
-
     stopCard: {
         width: width * 0.78,
         backgroundColor: "#fff",
@@ -452,21 +458,8 @@ export const styles = StyleSheet.create({
         shadowRadius: 14,
         elevation: 6,
     },
-    stopHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 8,
-    },
-    stopNumberBadge: {
-        width: 28,
-        height: 28,
-        borderRadius: 10,
-        backgroundColor: COLORS.brand,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    stopNumberText: { color: "#fff", fontSize: 13, fontWeight: "800" },
+
+    stopNumberText: { color: "#fff", fontWeight: "800", fontSize: 12 },
     statusPill: {
         flexDirection: "row",
         alignItems: "center",
@@ -478,13 +471,7 @@ export const styles = StyleSheet.create({
     statusPillText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.4 },
     stopName: { fontSize: 14, fontWeight: "800", color: COLORS.text, marginBottom: 4 },
     stopAddressRow: { flexDirection: "row", alignItems: "flex-start", gap: 4, marginBottom: 8 },
-    stopAddress: {
-        flex: 1,
-        fontSize: 11,
-        color: COLORS.textMid,
-        fontWeight: "500",
-        lineHeight: 15,
-    },
+    stopAddress: { flex: 1, fontSize: 11, color: COLORS.textMid, fontWeight: "500", lineHeight: 15 },
     stopFooter: {
         flexDirection: "row",
         alignItems: "center",
@@ -502,12 +489,7 @@ export const styles = StyleSheet.create({
         paddingVertical: 3,
         borderRadius: 6,
     },
-    stopMultiBadgeText: {
-        color: "#fff",
-        fontSize: 9,
-        fontWeight: "800",
-        letterSpacing: 0.3,
-    },
+    stopMultiBadgeText: { color: "#fff", fontSize: 9, fontWeight: "800", letterSpacing: 0.3 },
     stopBoxesBadge: {
         flexDirection: "row",
         alignItems: "center",
@@ -517,17 +499,8 @@ export const styles = StyleSheet.create({
         paddingVertical: 3,
         borderRadius: 6,
     },
-    stopBoxesBadgeText: {
-        color: COLORS.brand,
-        fontSize: 10,
-        fontWeight: "800",
-    },
-    stopTotal: {
-        marginLeft: "auto",
-        fontSize: 12,
-        fontWeight: "800",
-        color: COLORS.text,
-    },
+    stopBoxesBadgeText: { color: COLORS.brand, fontSize: 10, fontWeight: "800" },
+    stopTotal: { marginLeft: "auto", fontSize: 12, fontWeight: "800", color: COLORS.text },
 
     bottomSheet: {
         position: "absolute",
@@ -554,12 +527,7 @@ export const styles = StyleSheet.create({
         backgroundColor: COLORS.border,
         marginBottom: 16,
     },
-    bottomSheetHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        marginBottom: 14,
-    },
+    bottomSheetHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
     bottomSheetAvatar: {
         width: 50,
         height: 50,
@@ -570,19 +538,9 @@ export const styles = StyleSheet.create({
         overflow: "hidden",
     },
     bottomSheetAvatarImg: { width: "100%", height: "100%" },
-    bottomSheetAvatarText: {
-        fontSize: 16,
-        fontWeight: "800",
-        color: COLORS.brand,
-        letterSpacing: 0.5,
-    },
+    bottomSheetAvatarText: { fontSize: 16, fontWeight: "800", color: COLORS.brand, letterSpacing: 0.5 },
     bottomSheetName: { fontSize: 16, fontWeight: "800", color: COLORS.text },
-    bottomSheetAddressRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        marginTop: 3,
-    },
+    bottomSheetAddressRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
     bottomSheetAddress: { flex: 1, fontSize: 12, color: COLORS.textMid, fontWeight: "500" },
     bottomSheetChipsRow: { flexDirection: "row", gap: 4, marginTop: 4, flexWrap: "wrap" },
     bottomSheetMultiBadge: {
@@ -594,12 +552,7 @@ export const styles = StyleSheet.create({
         paddingVertical: 3,
         borderRadius: 6,
     },
-    bottomSheetMultiText: {
-        fontSize: 10,
-        fontWeight: "800",
-        color: COLORS.brand,
-        letterSpacing: 0.3,
-    },
+    bottomSheetMultiText: { fontSize: 10, fontWeight: "800", color: COLORS.brand, letterSpacing: 0.3 },
     bottomSheetClose: {
         width: 32,
         height: 32,
@@ -609,12 +562,7 @@ export const styles = StyleSheet.create({
         alignItems: "center",
     },
 
-    clientInfoPanel: {
-        backgroundColor: COLORS.bg,
-        borderRadius: 14,
-        padding: 14,
-        marginBottom: 12,
-    },
+    clientInfoPanel: { backgroundColor: COLORS.bg, borderRadius: 14, padding: 14, marginBottom: 12 },
     clientInfoLabel: {
         fontSize: 10,
         fontWeight: "800",
@@ -623,12 +571,7 @@ export const styles = StyleSheet.create({
         letterSpacing: 0.4,
         marginBottom: 10,
     },
-    clientInfoRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        paddingVertical: 6,
-    },
+    clientInfoRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
     clientInfoText: { fontSize: 12, color: COLORS.text, fontWeight: "600" },
     noOrdersInfo: {
         marginTop: 10,
@@ -640,13 +583,21 @@ export const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 10,
     },
-    noOrdersText: {
+    noOrdersText: { flex: 1, fontSize: 11, color: COLORS.info, fontWeight: "600" },
+    deliveryInfo: { padding: 12 },
+    deliveryName: {
+        fontSize: 14,
+        fontWeight: "800",
+        color: COLORS.text,
+        marginBottom: 6,
+    },
+    locationRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+    deliveryAddress: {
         flex: 1,
         fontSize: 11,
-        color: COLORS.info,
-        fontWeight: "600",
+        color: COLORS.textMid,
+        fontWeight: "500",
     },
-
     tripInfoRow: { flexDirection: "row", gap: 8, marginBottom: 14 },
     tripInfoCard: {
         flex: 1,
@@ -657,13 +608,7 @@ export const styles = StyleSheet.create({
         alignItems: "center",
         gap: 10,
     },
-    tripInfoIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        justifyContent: "center",
-        alignItems: "center",
-    },
+    tripInfoIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: "center", alignItems: "center" },
     tripInfoLabel: {
         fontSize: 10,
         fontWeight: "700",
@@ -683,13 +628,7 @@ export const styles = StyleSheet.create({
         borderRadius: 12,
         marginBottom: 12,
     },
-    registeredBannerText: {
-        flex: 1,
-        fontSize: 12,
-        fontWeight: "800",
-        color: COLORS.success,
-        lineHeight: 16,
-    },
+    registeredBannerText: { flex: 1, fontSize: 12, fontWeight: "800", color: COLORS.success, lineHeight: 16 },
 
     bottomSheetActions: { gap: 8, paddingTop: 8 },
     primaryButton: {
@@ -734,13 +673,7 @@ export const styles = StyleSheet.create({
         shadowRadius: 10,
         elevation: 4,
     },
-    primaryButtonText: {
-        color: "#fff",
-        fontSize: 14,
-        fontWeight: "800",
-        letterSpacing: 0.3,
-    },
-
+    primaryButtonText: { color: "#fff", fontSize: 14, fontWeight: "800", letterSpacing: 0.3 },
     deliveredChip: {
         flexDirection: "row",
         alignItems: "center",
@@ -750,82 +683,5 @@ export const styles = StyleSheet.create({
         paddingVertical: 14,
         borderRadius: 14,
     },
-    deliveredChipText: {
-        color: COLORS.success,
-        fontSize: 13,
-        fontWeight: "800",
-        letterSpacing: 0.3,
-    },
-
-    loadingOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: "rgba(255,255,255,0.7)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    loadingCard: {
-        backgroundColor: "#fff",
-        paddingVertical: 24,
-        paddingHorizontal: 30,
-        borderRadius: 18,
-        alignItems: "center",
-        shadowColor: "#000",
-        shadowOpacity: 0.15,
-        shadowOffset: { width: 0, height: 6 },
-        shadowRadius: 14,
-        elevation: 6,
-    },
-    loadingText: {
-        marginTop: 12,
-        color: COLORS.textMid,
-        fontSize: 13,
-        fontWeight: "600",
-    },
-    deliveryImageWrapper: {
-        position: "relative",
-        height: 110,
-        backgroundColor: COLORS.borderLight,
-    },
-    deliveryImage: { width: "100%", height: "100%" },
-    deliveryInfo: { padding: 12 },
-    deliveryName: {
-        fontSize: 14,
-        fontWeight: "800",
-        color: COLORS.text,
-        marginBottom: 6,
-    },
-      locationRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  cardDivider: {
-    height: 1,
-    backgroundColor: COLORS.borderLight,
-    marginVertical: 10,
-  },
-    metaChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: COLORS.borderLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-    metaChipText: { fontSize: 10, fontWeight: "600", color: COLORS.textMid },
-
-      deliveryAddress: {
-    flex: 1,
-    fontSize: 11,
-    color: COLORS.textMid,
-    fontWeight: "500",
-  },
-    deliveryCard: {
-        width: 150,
-        backgroundColor: "#fff",
-        borderRadius: 18,
-        overflow: "hidden",
-        shadowColor: "#000",
-        shadowOpacity: 0.12,
-        shadowOffset: { width: 0, height: 6 },
-        shadowRadius: 14,
-        elevation: 6,
-    },
+    deliveredChipText: { color: COLORS.success, fontSize: 13, fontWeight: "800", letterSpacing: 0.3 },
 });
