@@ -169,15 +169,6 @@ export default function DeliveryInfoPage() {
           <Text style={styles.sectionTitle}>Operaciones</Text>
           <View style={styles.menuCard}>
             <MenuItem
-              icon="cash"
-              iconBg={COLORS.successBg}
-              iconColor={COLORS.success}
-              title="Cobros"
-              subtitle="Gestiona los pagos recibidos"
-              onPress={() => navigation.navigate("DeliverPaymentScreen")}
-            />
-
-            <MenuItem
               icon="map"
               iconBg={COLORS.warningBg}
               iconColor={COLORS.warning}

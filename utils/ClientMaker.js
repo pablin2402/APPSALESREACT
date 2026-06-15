@@ -8,9 +8,7 @@ function ClientMarker({ client, onPress }) {
   if (!client?.client_location?.latitud || !client?.client_location?.longitud) {
     return null;
   }
-  console.log(client.userCategory)
   const cfg = getCategoryConfig(client.userCategory);
-  console.log(cfg)
 
   return (
     function ClientMarker({ client, onPress }) {

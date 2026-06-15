@@ -25,7 +25,7 @@ import { GOOGLE_API_KEY } from "../config";
 import { AuthContext } from "../AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { INITIAL_ADDRESS, MAP_STYLE } from "../utils/MapUtils";
-
+import * as Location from "expo-location";
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 const COLORS = {
   brand: "#D3423E",
@@ -171,7 +171,7 @@ export default function DeliveryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [salesData, setSalesData] = useState([]);
   const [route, setRoute] = useState(null);
-  const today = new Date();
+const today = useRef(new Date()).current;
   const [profile, setProfile] = useState(null);
   const [id, setId] = useState([]);
   const [isRouteLoading, setIsRouteLoading] = useState(true);
@@ -181,6 +181,7 @@ export default function DeliveryPage() {
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const mapRef = useRef(null);
+  const [userLocation, setUserLocation] = useState(null);
   const requestLocationPermission = async () => {
     if (Platform.OS === "android") {
       const granted = await PermissionsAndroid.request(
@@ -198,8 +199,25 @@ export default function DeliveryPage() {
       setLocationPermissionGranted(true);
     }
   };
-  useEffect(() => {
-    requestLocationPermission();
+ useEffect(() => {
+    const initLocation = async () => {
+      await requestLocationPermission();
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          }).catch(async () => await Location.getLastKnownPositionAsync());
+          if (loc) {
+            setUserLocation({
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+            });
+          }
+        }
+      } catch (e) {}
+    };
+    initLocation();
   }, []);
   const fetchProfile = async () => {
     try {
@@ -260,6 +278,23 @@ export default function DeliveryPage() {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!userLocation || !route?.[0]?.route?.length || !mapRef.current) return;
+    const coords = [
+      userLocation,
+      ...route[0].route.map(p => ({
+        latitude: parseFloat(p.client_location.latitud),
+        longitude: parseFloat(p.client_location.longitud),
+      })),
+    ];
+    setTimeout(() => {
+      mapRef.current?.fitToCoordinates(coords, {
+        edgePadding: { top: 40, right: 40, bottom: 40, left: 40 },
+        animated: true,
+      });
+    }, 500);
+  }, [userLocation, route]);
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredData(salesData);
@@ -275,12 +310,8 @@ export default function DeliveryPage() {
     }
   }, [searchTerm, salesData]);
 
-  const goToClientDetails = (client) => {
-    navigation.navigate("OrderDetailsScreenDeliver", {
-      orderId: client._id,
-      products: client.products,
-      files: client,
-    });
+  const goToClientDetails = (item) => {
+    navigation.navigate("OrderDetailsScreenDeliver", { item });
   };
   const formatDate2 = (dateString) => {
     const date = new Date(dateString);
@@ -299,7 +330,7 @@ export default function DeliveryPage() {
     const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
     return `${days[d.getDay()]}, ${d.getDate()} de ${months[d.getMonth()]}`;
   };
-  const totalPedidos = filteredData.length;
+const totalPedidos = filteredData.reduce((acc, ruta) => acc + (ruta.route?.length || 0), 0);
   const stopsRuta = route?.[0]?.route?.length || 0;
 
   const getOrderStatusStyle = (status) => {
@@ -317,7 +348,9 @@ export default function DeliveryPage() {
   const navigate = () => navigation.navigate("Map", { screen: "MapScreen" });
 
   const formatDate = (s) => {
+    if (!s) return "—";
     const d = new Date(s);
+    if (isNaN(d.getTime())) return "—";
     return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
   };
   const onRefresh = async () => {
@@ -464,28 +497,23 @@ export default function DeliveryPage() {
                     </Marker>
                   ))}
 
-                  {route?.[0]?.route?.length > 1 && (
+                  {route?.[0]?.route?.length > 0 && userLocation && (
                     <MapViewDirections
-                      origin={{
-                        latitude: parseFloat(route[0].route[0].client_location.latitud),
-                        longitude: parseFloat(route[0].route[0].client_location.longitud),
-                      }}
+                      origin={userLocation}
                       destination={{
-                        latitude: parseFloat(
-                          route[0].route[route[0].route.length - 1].client_location.latitud
-                        ),
-                        longitude: parseFloat(
-                          route[0].route[route[0].route.length - 1].client_location.longitud
-                        ),
+                        latitude: parseFloat(route[0].route[route[0].route.length - 1].client_location.latitud),
+                        longitude: parseFloat(route[0].route[route[0].route.length - 1].client_location.longitud),
                       }}
-                      waypoints={route[0].route.slice(1, -1).map((point) => ({
+                      waypoints={route[0].route.slice(0, -1).map((point) => ({
                         latitude: parseFloat(point.client_location.latitud),
                         longitude: parseFloat(point.client_location.longitud),
                       }))}
+                      optimizeWaypoints={false}
                       apikey={GOOGLE_API_KEY}
                       strokeColor="#111827"
-                      strokeWidth={4}
+                      strokeWidth={2}
                       lineDashPattern={[0]}
+                      onError={(err) => console.log("Directions error:", err)}
                     />
                   )}
                 </MapView>
@@ -508,9 +536,7 @@ export default function DeliveryPage() {
               </View>
             </View>
             <View style={styles.searchBox}>
-
               <Ionicons name="search" size={18} color={COLORS.textMid} />
-
               <TextInput
                 style={styles.searchInput}
                 placeholder="Buscar por nombre o apellido..."
@@ -531,74 +557,92 @@ export default function DeliveryPage() {
                   const orderStatus = getOrderStatusStyle(item.orderStatus);
                   return (
 
-                    <TouchableOpacity
-                      key={index}
+                  <TouchableOpacity
+                      key={`${i}-${index}`}
                       style={styles.orderCard}
                       onPress={() => goToClientDetails(item)}
-                      activeOpacity={0.7}
+                      activeOpacity={0.85}
                     >
-                      <View style={styles.orderTop}>
-                        <View style={styles.orderDateChip}>
-                          <Ionicons name="calendar-outline" size={11} color={COLORS.textMid} />
-                          <Text style={styles.orderDateText}>
-                            {formatDate(item.creationDate)}
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.brand }} />
+                          <Text style={{ fontSize: 11, fontWeight: "700", color: COLORS.textMid }}>
+                            Parada {index + 1}
                           </Text>
                         </View>
-                        <Text style={styles.orderAmount}>
-                          Bs. {Number(item.totalAmount || 0).toFixed(2)}
+                        <Text style={{ fontSize: 16, fontWeight: "800", color: COLORS.text }}>
+                          Bs. {Number(item.totalAmount || 0).toFixed(0)}
                         </Text>
                       </View>
-                      <Text style={styles.orderClient} numberOfLines={1}>
-                        {(item.name + " " + item.lastName).toUpperCase()}
-                      </Text>
-                      {item.client_location?.sucursalName ? (
-                        <Text style={styles.orderCompany} numberOfLines={1}>
-                          {item.client_location?.sucursalName}
-                        </Text>
-                      ) : null}
 
-                      <View style={styles.orderDivider} />
-                      <View style={styles.orderBottom}>
-                        <Text style={styles.orderNote}>#{item.receiveNumber}</Text>
-                        <View style={styles.orderPills}>
-                          <View
-                            style={[
-                              styles.pill,
-                              {
-                                backgroundColor: isPagado
-                                  ? COLORS.successBg
-                                  : COLORS.dangerBg,
-                              },
-                            ]}
-                          >
-                            <View
-                              style={[
-                                styles.pillDot,
-                                {
-                                  backgroundColor: isPagado
-                                    ? COLORS.success
-                                    : COLORS.danger,
-                                },
-                              ]}
-                            />
-                            <Text
-                              style={[
-                                styles.pillText,
-                                {
-                                  color: isPagado ? COLORS.success : COLORS.danger,
-                                },
-                              ]}
-                            >
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                        {item.profilePicture ? (
+                          <Image
+                            source={{ uri: item.profilePicture }}
+                            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.borderLight }}
+                          />
+                        ) : (
+                          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.dangerBg, justifyContent: "center", alignItems: "center" }}>
+                            <Text style={{ fontSize: 14, fontWeight: "800", color: COLORS.brand }}>
+                              {item.name?.[0]?.toUpperCase()}{item.lastName?.[0]?.toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 14, fontWeight: "800", color: COLORS.text }} numberOfLines={1}>
+                            {item.name} {item.lastName}
+                          </Text>
+                          {item.client_location?.sucursalName ? (
+                            <Text style={{ fontSize: 11, color: COLORS.textMid, fontWeight: "600" }} numberOfLines={1}>
+                              {item.client_location.sucursalName}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <View style={{ alignItems: "flex-end", gap: 4 }}>
+                          <View style={[styles.pill, { backgroundColor: orderStatus.bg }]}>
+                            <Text style={[styles.pillText, { color: orderStatus.text }]}>
+                              {orderStatus.label}
+                            </Text>
+                          </View>
+                          <View style={[styles.pill, { backgroundColor: isPagado ? COLORS.successBg : COLORS.dangerBg }]}>
+                            <View style={[styles.pillDot, { backgroundColor: isPagado ? COLORS.success : COLORS.danger }]} />
+                            <Text style={[styles.pillText, { color: isPagado ? COLORS.success : COLORS.danger }]}>
                               {isPagado ? "PAGADO" : "PENDIENTE"}
                             </Text>
                           </View>
-                          <View
-                            style={[styles.pill, { backgroundColor: orderStatus.bg }]}
-                          >
-                            <Text
-                              style={[styles.pillText, { color: orderStatus.text }]}
-                            >
-                              {orderStatus.label}
+                        </View>
+                      </View>
+
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 10 }}>
+                        <Ionicons name="location-sharp" size={11} color={COLORS.brand} />
+                        <Text style={{ fontSize: 11, color: COLORS.textMid, fontWeight: "500", flex: 1 }} numberOfLines={1}>
+                          {item.client_location?.direction || "Sin dirección"}
+                        </Text>
+                      </View>
+
+                      <View style={{ height: 1, backgroundColor: COLORS.borderLight, marginBottom: 10 }} />
+
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 11, color: COLORS.textMid, fontWeight: "600" }}>
+                          Nota #{item.receiveNumber}
+                        </Text>
+                        <View style={{ flexDirection: "row", gap: 6 }}>
+                         <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: COLORS.dangerBg, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
+                            <Ionicons name="cube" size={9} color={COLORS.brand} />
+                            <Text style={{ fontSize: 10, fontWeight: "700", color: COLORS.brand }}>
+                              {item.products?.reduce((s, p) => s + Math.floor((p.cantidad || 0) / (p.unidadesPorCaja || 12)), 0) || 0} cajas
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: COLORS.infoBg, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
+                            <Ionicons name="wine" size={9} color={COLORS.info} />
+                            <Text style={{ fontSize: 10, fontWeight: "700", color: COLORS.info }}>
+                              {item.products?.reduce((s, p) => s + (p.cantidad || 0), 0) || 0} bts
+                            </Text>
+                          </View>x  ``
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: COLORS.successBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                            <Ionicons name="chevron-forward" size={10} color={COLORS.success} />
+                            <Text style={{ fontSize: 10, fontWeight: "700", color: COLORS.success }}>
+                              Ver
                             </Text>
                           </View>
                         </View>

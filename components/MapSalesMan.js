@@ -620,11 +620,9 @@ const MapSalesMan = () => {
       interval = setInterval(() => {
         setTimer((prevTime) => prevTime + 1);
       }, 1000);
-    } else {
-      clearInterval(interval);
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning, timer]);
+  }, [isTimerRunning]);
 
   useEffect(() => {
     let etaInterval = null;

@@ -290,7 +290,6 @@ export default function PaymentScreen() {
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      console.log(response.data.data)
       setSalesData(response.data.data || []);
       setTotalPages(response.data.pagination.totalPages);
     } catch (error) {

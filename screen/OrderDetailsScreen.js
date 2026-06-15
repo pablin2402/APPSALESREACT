@@ -274,20 +274,18 @@ export default function OrderDetailsScreen() {
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
-                <View style={[styles.summaryIcon, { backgroundColor: COLORS.infoBg }]}>
-                  <Ionicons name="person" size={14} color={COLORS.info} />
+                <View style={[styles.summaryIcon, { backgroundColor: COLORS.dangerBg }]}>
+                  <Ionicons name="person" size={14} color={COLORS.brand} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.summaryLabel}>Vendedor</Text>
+                  <Text style={styles.summaryLabel}>Cliente</Text>
                   <Text style={styles.summaryValue} numberOfLines={1}>
-                    {filesList?.salesId?.fullName} {filesList?.salesId?.lastName}
+                    {filesList?.id_client?.name} {filesList?.id_client?.lastName}
                   </Text>
                 </View>
               </View>
             </View>
-
             <View style={styles.summaryDivider} />
-
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
                 <View style={[styles.summaryIcon, { backgroundColor: COLORS.warningBg }]}>
@@ -299,6 +297,20 @@ export default function OrderDetailsScreen() {
                     {filesList?.dueDate
                       ? formatDate(filesList.dueDate)
                       : formatDate(filesList?.creationDate)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <View style={[styles.summaryIcon, { backgroundColor: COLORS.successBg }]}>
+                  <Ionicons name="calendar-outline" size={14} color={COLORS.success} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.summaryLabel}>Fecha de pedido</Text>
+                  <Text style={styles.summaryValue}>
+                    {formatDate(filesList?.creationDate)}
                   </Text>
                 </View>
               </View>

@@ -17,7 +17,7 @@ import * as Location from "expo-location";
 
 import { useSafeAreaInsets, SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import ClientMarker from "../utils/ClientMaker";
+import ClientMarker from "../components/ClientMarker";
 
 import { TimerContext } from "./TimerContext";
 import { AuthContext } from "../AuthContext";
@@ -48,6 +48,9 @@ const STORAGE_KEYS = {
     startTimestamp: "mapdelivery_start_ts",
 };
 const ALL_ZONES_KEY = "__ALL__";
+const MemoClientMarker = React.memo(ClientMarker, (prev, next) => {
+    return prev.client._id === next.client._id;
+});
 const MapScreenDelivery = () => {
     const { startTimer, stopTimer } = useContext(TimerContext);
     const [clients, setClients] = useState([]);
@@ -89,7 +92,10 @@ const MapScreenDelivery = () => {
 
     const [selectedZone, setSelectedZone] = useState(ALL_ZONES_KEY);
     const [showPolygons, setShowPolygons] = useState(true);
-    const [showCards, setShowCards] = useState(true);   
+    const [showCards, setShowCards] = useState(true);
+   const [mapRegion, setMapRegion] = useState(null);
+
+   
     const routeSummary = useMemo(
         () => calculateRouteSummary(route),
         [route]
@@ -150,7 +156,13 @@ const MapScreenDelivery = () => {
             ]);
         } catch (e) { }
     };
-
+ const visibleClients = useMemo(() => {
+        if (!mapRegion) return filteredClients.slice(0, 60);
+        const latDelta = mapRegion.latitudeDelta;
+        if (latDelta > 0.15) return filteredClients.slice(0, 30);
+        if (latDelta > 0.05) return filteredClients.slice(0, 80);
+        return filteredClients;
+    }, [filteredClients, mapRegion]); 
     const clearActiveTrip = async () => {
         try {
             await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
@@ -237,20 +249,36 @@ const MapScreenDelivery = () => {
     };
 
     async function getUserLocation() {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") return;
-        let location = await Location.getCurrentPositionAsync({});
-        const current = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-        };
-        setOrigin((prevOrigin) => {
-            if (prevOrigin.latitude !== current.latitude || prevOrigin.longitude !== current.longitude) {
-                return current;
-            }
-            return prevOrigin;
-        });
-        return current;
+        try {
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== "granted") return null;
+
+            let location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+                timeout: 10000,
+            }).catch(async () => {
+                return await Location.getLastKnownPositionAsync();
+            });
+
+            if (!location) return null;
+
+            const current = {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+            };
+            setOrigin((prevOrigin) => {
+                if (
+                    prevOrigin.latitude !== current.latitude ||
+                    prevOrigin.longitude !== current.longitude
+                ) {
+                    return current;
+                }
+                return prevOrigin;
+            });
+            return current;
+        } catch (e) {
+            return null;
+        }
     }
 
     const computeArrivalTime = (durationInSeconds) => {
@@ -422,7 +450,7 @@ const MapScreenDelivery = () => {
         await clearActiveTrip();
         await AsyncStorage.removeItem("timer_start");
     };
-const showRoutesList = () => {
+    const showRoutesList = () => {
         setShowRoutes(true);
         setShowClients(false);
         setShowRoute(false);
@@ -720,13 +748,14 @@ const showRoutesList = () => {
         <SafeAreaProvider>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
             <View style={styles.container}>
-                <MapView
+               <MapView
                     style={StyleSheet.absoluteFillObject}
                     customMapStyle={MAP_STYLE}
                     provider={PROVIDER_GOOGLE}
                     initialRegion={INITIAL_ADDRESS}
                     showsUserLocation={true}
                     showsMyLocationButton={false}
+                    onRegionChangeComplete={(region) => setMapRegion(region)}
                 >
                     {showClients && !showRoute && showPolygons &&
                         Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
@@ -759,9 +788,9 @@ const showRoutesList = () => {
                             );
                         })}
 
-                    {showClients && !showRoute &&
-                        filteredClients.map((client, index) => (
-                            <ClientMarker
+                   {showClients && !showRoute &&
+                        visibleClients.map((client, index) => (
+                            <MemoClientMarker
                                 key={client._id || index}
                                 client={client}
                                 onPress={() => openClientSheet(client)}
@@ -1230,7 +1259,7 @@ const showRoutesList = () => {
                             )}
                         </ScrollView>
                     </View>
-               ) : showRoutes && !showRoute && !isTimerRunning && !modality && showCards ? (
+                ) : showRoutes && !showRoute && !isTimerRunning && !modality && showCards ? (
                     <View style={styles.cardsWrapper}>
                         <ScrollView
                             horizontal
@@ -1270,10 +1299,12 @@ const showRoutesList = () => {
                                                     <Text style={styles.routeCardTitle} numberOfLines={1}>
                                                         {item.details}
                                                     </Text>
-                                                    <Text style={styles.routeCardDate}>
-                                                        <Ionicons name="calendar-outline" size={10} />
-                                                        {"  "}{formatDate(item.startDate)}
-                                                    </Text>
+                                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                                                        <Ionicons name="calendar-outline" size={10} color={COLORS.textMid} />
+                                                        <Text style={styles.routeCardDate}>
+                                                            {formatDate(item.startDate)}
+                                                        </Text>
+                                                    </View>
                                                 </View>
                                                 <View
                                                     style={[
@@ -1332,14 +1363,14 @@ const showRoutesList = () => {
                                     const status = getDeliveryStatusStyle(stop.visitStatus1);
                                     const hasMultiple = stop.orders.length > 1;
                                     return (
-                                       <TouchableOpacity
+                                        <TouchableOpacity
                                             key={index}
                                             style={styles.deliveryCard}
                                             onPress={() => centerMapOnStop(stop)}
                                             activeOpacity={0.85}
                                         >
                                             <View style={styles.deliveryImageWrapper}>
-                                               {stop.profilePicture ? (
+                                                {stop.profilePicture ? (
                                                     <Image
                                                         source={{ uri: stop.profilePicture }}
                                                         style={styles.deliveryImage}
@@ -1534,7 +1565,7 @@ const showRoutesList = () => {
                                 </View>
                             )}
                         </ScrollView>
-<View style={styles.bottomSheetActions}>
+                        <View style={styles.bottomSheetActions}>
                             {selectedStop.orders && selectedStop.orders.length > 0 && (
                                 <>
                                     <View style={{
@@ -1559,74 +1590,74 @@ const showRoutesList = () => {
                                             showsVerticalScrollIndicator={false}
                                             nestedScrollEnabled={true}
                                         >
-                                        {selectedStop.orders.map((order, i) => (
-                                            <View key={i} style={{
-                                                marginBottom: i < selectedStop.orders.length - 1 ? 10 : 0,
-                                                backgroundColor: "#fff",
-                                                borderRadius: 12,
-                                                padding: 10,
-                                                borderWidth: 1,
-                                                borderColor: COLORS.border,
-                                            }}>
-                                                <View style={{
-                                                    flexDirection: "row",
-                                                    alignItems: "center",
-                                                    justifyContent: "space-between",
-                                                    marginBottom: 8,
+                                            {selectedStop.orders.map((order, i) => (
+                                                <View key={i} style={{
+                                                    marginBottom: i < selectedStop.orders.length - 1 ? 10 : 0,
+                                                    backgroundColor: "#fff",
+                                                    borderRadius: 12,
+                                                    padding: 10,
+                                                    borderWidth: 1,
+                                                    borderColor: COLORS.border,
                                                 }}>
-                                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                                                        <View style={{
-                                                            width: 28, height: 28, borderRadius: 8,
-                                                            backgroundColor: COLORS.dangerBg,
-                                                            justifyContent: "center", alignItems: "center",
-                                                        }}>
-                                                            <Ionicons name="receipt-outline" size={13} color={COLORS.brand} />
+                                                    <View style={{
+                                                        flexDirection: "row",
+                                                        alignItems: "center",
+                                                        justifyContent: "space-between",
+                                                        marginBottom: 8,
+                                                    }}>
+                                                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                                            <View style={{
+                                                                width: 28, height: 28, borderRadius: 8,
+                                                                backgroundColor: COLORS.dangerBg,
+                                                                justifyContent: "center", alignItems: "center",
+                                                            }}>
+                                                                <Ionicons name="receipt-outline" size={13} color={COLORS.brand} />
+                                                            </View>
+                                                            <Text style={{ fontSize: 12, fontWeight: "800", color: COLORS.text }}>
+                                                                Nota #{order.receiveNumber}
+                                                            </Text>
                                                         </View>
-                                                        <Text style={{ fontSize: 12, fontWeight: "800", color: COLORS.text }}>
-                                                            Nota #{order.receiveNumber}
+                                                        <Text style={{ fontSize: 13, fontWeight: "800", color: COLORS.brand }}>
+                                                            Bs. {Number(order.totalAmount || 0).toFixed(0)}
                                                         </Text>
                                                     </View>
-                                                    <Text style={{ fontSize: 13, fontWeight: "800", color: COLORS.brand }}>
-                                                        Bs. {Number(order.totalAmount || 0).toFixed(0)}
-                                                    </Text>
-                                                </View>
 
-                                                {order.products && order.products.length > 0 && (
-                                                    <View style={{
-                                                        backgroundColor: COLORS.bg,
-                                                        borderRadius: 8,
-                                                        padding: 8,
-                                                        gap: 4,
-                                                    }}>
-                                                        {order.products.map((prod, pi) => (
-                                                            <View key={pi} style={{
-                                                                flexDirection: "row",
-                                                                alignItems: "center",
-                                                                justifyContent: "space-between",
-                                                            }}>
-                                                                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
-                                                                    <View style={{
-                                                                        width: 20, height: 20, borderRadius: 5,
-                                                                        backgroundColor: COLORS.brand,
-                                                                        justifyContent: "center", alignItems: "center",
-                                                                    }}>
-                                                                        <Text style={{ fontSize: 9, fontWeight: "800", color: COLORS.card }}>
-                                                                            {prod.cantidad || 1}
+                                                    {order.products && order.products.length > 0 && (
+                                                        <View style={{
+                                                            backgroundColor: COLORS.bg,
+                                                            borderRadius: 8,
+                                                            padding: 8,
+                                                            gap: 4,
+                                                        }}>
+                                                            {order.products.map((prod, pi) => (
+                                                                <View key={pi} style={{
+                                                                    flexDirection: "row",
+                                                                    alignItems: "center",
+                                                                    justifyContent: "space-between",
+                                                                }}>
+                                                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                                                                        <View style={{
+                                                                            width: 20, height: 20, borderRadius: 5,
+                                                                            backgroundColor: COLORS.brand,
+                                                                            justifyContent: "center", alignItems: "center",
+                                                                        }}>
+                                                                            <Text style={{ fontSize: 9, fontWeight: "800", color: COLORS.card }}>
+                                                                                {prod.cantidad || 1}
+                                                                            </Text>
+                                                                        </View>
+                                                                        <Text style={{ fontSize: 11, color: COLORS.text, fontWeight: "600", flex: 1 }} numberOfLines={1}>
+                                                                            {prod.nombre || "Producto"}
                                                                         </Text>
                                                                     </View>
-                                                                   <Text style={{ fontSize: 11, color: COLORS.text, fontWeight: "600", flex: 1 }} numberOfLines={1}>
-                                                                        {prod.nombre || "Producto"}
+                                                                    <Text style={{ fontSize: 11, fontWeight: "700", color: COLORS.text }}>
+                                                                        Bs. {Number((prod.precio || 0) * (prod.cantidad || 1)).toFixed(0)}
                                                                     </Text>
                                                                 </View>
-                                                                <Text style={{ fontSize: 11, fontWeight: "700", color: COLORS.text }}>
-                                                                    Bs. {Number((prod.precio || 0) * (prod.cantidad || 1)).toFixed(0)}
-                                                                </Text>
-                                                            </View>
-                                                        ))}
-                                                    </View>
-                                                )}
-                                            </View>
-                                        ))}
+                                                            ))}
+                                                        </View>
+                                                    )}
+                                                </View>
+                                            ))}
                                         </ScrollView>
 
                                         <View style={{
@@ -1647,43 +1678,43 @@ const showRoutesList = () => {
                                         </View>
                                     </View>
                                     {!isTimerRunning && !isAlreadyDelivered && (
-                                    <TouchableOpacity
-                                        style={{
-                                            flexDirection: "row",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            gap: 10,
-                                            paddingVertical: 15,
-                                            borderRadius: 14,
-                                            backgroundColor: COLORS.brand,
-                                            shadowColor: COLORS.brand,
-                                            shadowOpacity: 0.35,
-                                            shadowOffset: { width: 0, height: 4 },
-                                            shadowRadius: 10,
-                                            elevation: 5,
-                                        }}
-                                        onPress={() => handleStartTrip(selectedStop)}
-                                        activeOpacity={0.9}
-                                    >
-                                        <View style={{
-                                            width: 30,
-                                            height: 30,
-                                            borderRadius: 10,
-                                            backgroundColor: "rgba(255,255,255,0.2)",
-                                            justifyContent: "center",
-                                            alignItems: "center",
-                                        }}>
-                                            <Ionicons name="navigate" size={16} color="#fff" />
-                                        </View>
-                                        <View>
-                                            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800", letterSpacing: 0.3 }}>
-                                                Iniciar trayecto
-                                            </Text>
-                                            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 10, fontWeight: "600" }}>
-                                                {selectedStop.client_location?.sucursalName || selectedStop.name}
-                                            </Text>
-                                        </View>
-                                    </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={{
+                                                flexDirection: "row",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                gap: 10,
+                                                paddingVertical: 15,
+                                                borderRadius: 14,
+                                                backgroundColor: COLORS.brand,
+                                                shadowColor: COLORS.brand,
+                                                shadowOpacity: 0.35,
+                                                shadowOffset: { width: 0, height: 4 },
+                                                shadowRadius: 10,
+                                                elevation: 5,
+                                            }}
+                                            onPress={() => handleStartTrip(selectedStop)}
+                                            activeOpacity={0.9}
+                                        >
+                                            <View style={{
+                                                width: 30,
+                                                height: 30,
+                                                borderRadius: 10,
+                                                backgroundColor: "rgba(255,255,255,0.2)",
+                                                justifyContent: "center",
+                                                alignItems: "center",
+                                            }}>
+                                                <Ionicons name="navigate" size={16} color="#fff" />
+                                            </View>
+                                            <View>
+                                                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800", letterSpacing: 0.3 }}>
+                                                    Iniciar trayecto
+                                                </Text>
+                                                <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 10, fontWeight: "600" }}>
+                                                    {selectedStop.client_location?.sucursalName || selectedStop.name}
+                                                </Text>
+                                            </View>
+                                        </TouchableOpacity>
                                     )}
                                 </>
                             )}

@@ -180,10 +180,10 @@ export default function SalesInformScreen() {
     }
   };
 
-  useEffect(() => {
+useEffect(() => {
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, selectedStatus]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -255,38 +255,74 @@ export default function SalesInformScreen() {
                     Historial de pedidos realizados
                   </Text>
                 </View>
+                <TouchableOpacity
+                  style={[
+                    styles.filterToggle,
+                    showFilters && styles.filterToggleActive,
+                  ]}
+                  onPress={() => setShowFilters(!showFilters)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons
+                    name="options-outline"
+                    size={18}
+                    color={showFilters ? COLORS.brand : "#fff"}
+                  />
+                  {!showFilters && <View style={styles.filterDot} />}
+                </TouchableOpacity>
               </View>
 
               <View style={styles.kpiRow}>
-                <View style={styles.kpiCard}>
-                  <View style={[styles.kpiIcon, { backgroundColor: COLORS.infoBg }]}>
-                    <Ionicons name="receipt-outline" size={14} color={COLORS.info} />
+                <TouchableOpacity
+                  style={[styles.kpiCard, selectedStatus === "Pagado" && styles.kpiCardActive]}
+                  onPress={() => {
+                    setSelectedStatus(selectedStatus === "Pagado" ? "Todos" : "Pagado");
+                    setPage(1);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <View style={[styles.kpiIcon, { backgroundColor: selectedStatus === "Pagado" ? "rgba(255,255,255,0.25)" : COLORS.successBg }]}>
+                    <Ionicons name="checkmark-circle" size={14} color={selectedStatus === "Pagado" ? "#fff" : COLORS.success} />
                   </View>
                   <View>
-                    <Text style={styles.kpiLabel}>Pedidos</Text>
-                    <Text style={styles.kpiValue}>{totalOrders}</Text>
+                    <Text style={[styles.kpiLabel, selectedStatus === "Pagado" && { color: "rgba(255,255,255,0.8)" }]}>Pagados</Text>
+                    <Text style={[styles.kpiValue, selectedStatus === "Pagado" && { color: "#fff" }]}>{paidOrders}</Text>
                   </View>
-                </View>
-                <View style={styles.kpiCard}>
-                  <View style={[styles.kpiIcon, { backgroundColor: COLORS.successBg }]}>
-                    <Ionicons name="checkmark-circle" size={14} color={COLORS.success} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.kpiCard, selectedStatus === "Pendiente" && styles.kpiCardActive]}
+                  onPress={() => {
+                    setSelectedStatus(selectedStatus === "Pendiente" ? "Todos" : "Pendiente");
+                    setPage(1);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <View style={[styles.kpiIcon, { backgroundColor: selectedStatus === "Pendiente" ? "rgba(255,255,255,0.25)" : COLORS.dangerBg }]}>
+                    <Ionicons name="time" size={14} color={selectedStatus === "Pendiente" ? "#fff" : COLORS.brand} />
                   </View>
                   <View>
-                    <Text style={styles.kpiLabel}>Pagados</Text>
-                    <Text style={styles.kpiValue}>{paidOrders}</Text>
+                    <Text style={[styles.kpiLabel, selectedStatus === "Pendiente" && { color: "rgba(255,255,255,0.8)" }]}>Pendientes</Text>
+                    <Text style={[styles.kpiValue, selectedStatus === "Pendiente" && { color: "#fff" }]}>{salesData.filter(o => o.payStatus === "Pendiente").length}</Text>
                   </View>
-                </View>
-                <View style={styles.kpiCard}>
-                  <View style={[styles.kpiIcon, { backgroundColor: COLORS.warningBg }]}>
-                    <Ionicons name="cash-outline" size={14} color={COLORS.warning} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.kpiCard, selectedStatus === "En Ruta" && styles.kpiCardActive]}
+                  onPress={() => {
+                    setSelectedStatus(selectedStatus === "En Ruta" ? "Todos" : "En Ruta");
+                    setPage(1);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <View style={[styles.kpiIcon, { backgroundColor: selectedStatus === "En Ruta" ? "rgba(255,255,255,0.25)" : COLORS.infoBg }]}>
+                    <Ionicons name="car-sport" size={14} color={selectedStatus === "En Ruta" ? "#fff" : COLORS.info} />
                   </View>
                   <View>
-                    <Text style={styles.kpiLabel}>Total</Text>
-                    <Text style={styles.kpiValue} numberOfLines={1}>
-                      Bs. {totalAmount.toFixed(0)}
-                    </Text>
+                    <Text style={[styles.kpiLabel, selectedStatus === "En Ruta" && { color: "rgba(255,255,255,0.8)" }]}>En Ruta</Text>
+                    <Text style={[styles.kpiValue, selectedStatus === "En Ruta" && { color: "#fff" }]}>{salesData.filter(o => o.orderStatus === "En Ruta").length}</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               </View>
             </View>
           </SafeAreaView>
@@ -314,21 +350,6 @@ export default function SalesInformScreen() {
             )}
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.filterToggle,
-              (showFilters || hasActiveFilters) && styles.filterToggleActive,
-            ]}
-            onPress={() => setShowFilters(!showFilters)}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name="options-outline"
-              size={18}
-              color={showFilters || hasActiveFilters ? "#fff" : COLORS.brand}
-            />
-            {hasActiveFilters && !showFilters && <View style={styles.filterDot} />}
-          </TouchableOpacity>
         </View>
 
         {showFilters && (
@@ -381,31 +402,6 @@ export default function SalesInformScreen() {
                 }}
               />
             )}
-
-            <Text style={[styles.filterLabel, { marginTop: 14 }]}>Estado de pago</Text>
-            <View style={styles.chipsRow}>
-              {["Todos", "Pagado", "Pendiente"].map((status) => {
-                const isActive = selectedStatus === status;
-                return (
-                  <TouchableOpacity
-                    key={status}
-                    style={[styles.statusChip, isActive && styles.statusChipActive]}
-                    onPress={() => setSelectedStatus(status)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={[
-                        styles.statusChipText,
-                        isActive && styles.statusChipTextActive,
-                      ]}
-                    >
-                      {status}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
             <View style={styles.filterActions}>
               <TouchableOpacity
                 style={styles.clearBtn}
@@ -429,7 +425,7 @@ export default function SalesInformScreen() {
             </View>
           </View>
         )}
- {loading && salesData.length === 0 ? (
+        {loading && salesData.length === 0 ? (
           <View
             style={{
               paddingHorizontal: 20,
@@ -442,144 +438,144 @@ export default function SalesInformScreen() {
             ))}
           </View>
         ) : (
-        <FlatList
-          data={salesData}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingTop: 12,
-            paddingBottom: insets.bottom + 24,
-          }}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={48} color={COLORS.textLight} />
-              <Text style={styles.emptyTitle}>Sin pedidos</Text>
-              <Text style={styles.emptyDesc}>
-                No encontramos pedidos con estos filtros
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => {
-            const orderStatus = getOrderStatusStyle(item.orderStatus);
-            const isPagado = item.payStatus === "Pagado";
-            return (
-              <TouchableOpacity
-                style={styles.orderCard}
-                onPress={() => goToClientDetails(item)}
-                activeOpacity={0.85}
-              >
-                <View style={styles.orderTop}>
-                  <View style={styles.orderDateChip}>
-                    <Ionicons name="calendar-outline" size={11} color={COLORS.textMid} />
-                    <Text style={styles.orderDateText}>
-                      {formatDate(item.creationDate)}
-                    </Text>
-                  </View>
-                  <Text style={styles.orderAmount}>
-                    Bs. {Number(item.totalAmount || 0).toFixed(2)}
-                  </Text>
-                </View>
-
-                <View style={styles.orderMiddle}>
-                  <View style={styles.orderAvatar}>
-                    <Text style={styles.orderAvatarText}>
-                      {item.id_client?.name?.[0]?.toUpperCase()}
-                      {item.id_client?.lastName?.[0]?.toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.orderClient} numberOfLines={1}>
-                      {(item.id_client.name + " " + item.id_client.lastName).toUpperCase()}
-                    </Text>
-                    <Text style={styles.orderNote}>Nota #{item.receiveNumber}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.orderDivider} />
-
-                <View style={styles.orderBottom}>
-                  <View style={[styles.pill, { backgroundColor: orderStatus.bg }]}>
-                    <Ionicons name={orderStatus.icon} size={11} color={orderStatus.text} />
-                    <Text style={[styles.pillText, { color: orderStatus.text }]}>
-                      {orderStatus.label.toUpperCase()}
+          <FlatList
+            data={salesData}
+            keyExtractor={(item) => item._id}
+            contentContainerStyle={{
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: insets.bottom + 24,
+            }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="receipt-outline" size={48} color={COLORS.textLight} />
+                <Text style={styles.emptyTitle}>Sin pedidos</Text>
+                <Text style={styles.emptyDesc}>
+                  No encontramos pedidos con estos filtros
+                </Text>
+              </View>
+            }
+            renderItem={({ item }) => {
+              const orderStatus = getOrderStatusStyle(item.orderStatus);
+              const isPagado = item.payStatus === "Pagado";
+              return (
+                <TouchableOpacity
+                  style={styles.orderCard}
+                  onPress={() => goToClientDetails(item)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.orderTop}>
+                    <View style={styles.orderDateChip}>
+                      <Ionicons name="calendar-outline" size={11} color={COLORS.textMid} />
+                      <Text style={styles.orderDateText}>
+                        {formatDate(item.creationDate)}
+                      </Text>
+                    </View>
+                    <Text style={styles.orderAmount}>
+                      Bs. {Number(item.totalAmount || 0).toFixed(2)}
                     </Text>
                   </View>
 
-                  <View
+                  <View style={styles.orderMiddle}>
+                    <View style={styles.orderAvatar}>
+                      <Text style={styles.orderAvatarText}>
+                        {item.id_client?.name?.[0]?.toUpperCase()}
+                        {item.id_client?.lastName?.[0]?.toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.orderClient} numberOfLines={1}>
+                        {(item.id_client.name + " " + item.id_client.lastName).toUpperCase()}
+                      </Text>
+                      <Text style={styles.orderNote}>Nota #{item.receiveNumber}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.orderDivider} />
+
+                  <View style={styles.orderBottom}>
+                    <View style={[styles.pill, { backgroundColor: orderStatus.bg }]}>
+                      <Ionicons name={orderStatus.icon} size={11} color={orderStatus.text} />
+                      <Text style={[styles.pillText, { color: orderStatus.text }]}>
+                        {orderStatus.label.toUpperCase()}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.pill,
+                        {
+                          backgroundColor: isPagado ? COLORS.successBg : COLORS.dangerBg,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={isPagado ? "checkmark-circle" : "alert-circle"}
+                        size={11}
+                        color={isPagado ? COLORS.success : COLORS.brand}
+                      />
+                      <Text
+                        style={[
+                          styles.pillText,
+                          { color: isPagado ? COLORS.success : COLORS.brand },
+                        ]}
+                      >
+                        {isPagado ? "PAGADO" : "PENDIENTE"}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+            ListFooterComponent={
+              totalPages > 1 ? (
+                <View style={styles.pagination}>
+                  <TouchableOpacity
+                    onPress={() => setPage((p) => Math.max(p - 1, 1))}
+                    disabled={page === 1}
+                    style={[styles.pageNavBtn, page === 1 && styles.pageNavBtnDisabled]}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={16}
+                      color={page === 1 ? COLORS.textLight : COLORS.brand}
+                    />
+                  </TouchableOpacity>
+
+                  {pagesToShow.map((num) => (
+                    <TouchableOpacity
+                      key={num}
+                      onPress={() => setPage(num)}
+                      style={[styles.pageBtn, page === num && styles.pageBtnActive]}
+                    >
+                      <Text
+                        style={page === num ? styles.pageTextActive : styles.pageText}
+                      >
+                        {num}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+
+                  <TouchableOpacity
+                    onPress={() => setPage((p) => Math.min(p + 1, totalPages))}
+                    disabled={page === totalPages}
                     style={[
-                      styles.pill,
-                      {
-                        backgroundColor: isPagado ? COLORS.successBg : COLORS.dangerBg,
-                      },
+                      styles.pageNavBtn,
+                      page === totalPages && styles.pageNavBtnDisabled,
                     ]}
                   >
                     <Ionicons
-                      name={isPagado ? "checkmark-circle" : "alert-circle"}
-                      size={11}
-                      color={isPagado ? COLORS.success : COLORS.brand}
+                      name="chevron-forward"
+                      size={16}
+                      color={page === totalPages ? COLORS.textLight : COLORS.brand}
                     />
-                    <Text
-                      style={[
-                        styles.pillText,
-                        { color: isPagado ? COLORS.success : COLORS.brand },
-                      ]}
-                    >
-                      {isPagado ? "PAGADO" : "PENDIENTE"}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-          ListFooterComponent={
-            totalPages > 1 ? (
-              <View style={styles.pagination}>
-                <TouchableOpacity
-                  onPress={() => setPage((p) => Math.max(p - 1, 1))}
-                  disabled={page === 1}
-                  style={[styles.pageNavBtn, page === 1 && styles.pageNavBtnDisabled]}
-                >
-                  <Ionicons
-                    name="chevron-back"
-                    size={16}
-                    color={page === 1 ? COLORS.textLight : COLORS.brand}
-                  />
-                </TouchableOpacity>
-
-                {pagesToShow.map((num) => (
-                  <TouchableOpacity
-                    key={num}
-                    onPress={() => setPage(num)}
-                    style={[styles.pageBtn, page === num && styles.pageBtnActive]}
-                  >
-                    <Text
-                      style={page === num ? styles.pageTextActive : styles.pageText}
-                    >
-                      {num}
-                    </Text>
                   </TouchableOpacity>
-                ))}
-
-                <TouchableOpacity
-                  onPress={() => setPage((p) => Math.min(p + 1, totalPages))}
-                  disabled={page === totalPages}
-                  style={[
-                    styles.pageNavBtn,
-                    page === totalPages && styles.pageNavBtnDisabled,
-                  ]}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={16}
-                    color={page === totalPages ? COLORS.textLight : COLORS.brand}
-                  />
-                </TouchableOpacity>
-              </View>
-            ) : null
-          }
-          keyboardShouldPersistTaps="handled"
-        />
+                </View>
+              ) : null
+            }
+            keyboardShouldPersistTaps="handled"
+          />
         )}
       </View>
     </SafeAreaProvider>
@@ -659,6 +655,15 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: -1,
   },
+  kpiCardActive: {
+    backgroundColor: COLORS.brand,
+    borderColor: COLORS.brand,
+    shadowColor: COLORS.brand,
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 5,
+  },
 
   filterBar: {
     flexDirection: "row",
@@ -684,31 +689,26 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     paddingVertical: 0,
   },
-  filterToggle: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: COLORS.brand,
+filterToggle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.18)",
     justifyContent: "center",
     alignItems: "center",
-    position: "relative",
   },
-  filterToggleActive: {
-    backgroundColor: COLORS.brand,
-    borderColor: COLORS.brand,
-  },
+  filterToggleActive: { backgroundColor: "#fff" },
   filterDot: {
     position: "absolute",
-    top: 8,
-    right: 8,
+    top: 6,
+    right: 6,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.brand,
+    backgroundColor: COLORS.warning,
+    borderWidth: 1.5,
+    borderColor: COLORS.brand,
   },
-
   filtersPanel: {
     marginHorizontal: 20,
     marginTop: 10,
