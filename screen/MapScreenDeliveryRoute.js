@@ -209,14 +209,11 @@ const MapScreenRoute = () => {
   };
 
   const formatDateLong = (date) => {
-    if (!date) return "";
-    const d = new Date(date);
-    const months = [
-      "ene", "feb", "mar", "abr", "may", "jun",
-      "jul", "ago", "sep", "oct", "nov", "dic",
-    ];
-    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-  };
+  if (!date) return "";
+  const months = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const [y, m, d] = String(date).slice(0, 10).split("-");
+  return `${parseInt(d, 10)} ${months[parseInt(m, 10) - 1]} ${y}`;
+};
 
   const formatTime = (date) => {
     if (!date) return "";

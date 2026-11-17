@@ -1,0 +1,20 @@
+★ eas-cli@20.2.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+⠋ Fetching the build…⠙ Fetching the build…⠹ Fetching the build…⠸ Fetching the build…⠼ Fetching the build…⠴ Fetching the build…⠦ Fetching the build…✔ Showing the last build for the project @pablorivas1740/cellphoneapp
+
+ID            3130d7ec-a251-457a-a94c-2cfa54b0b437
+Platform      Android
+Status        errored
+Profile       preview
+Distribution  internal
+SDK Version   54.0.0
+Version       1.0.0
+Version code  1
+Commit        3d737e98f451861c3b3cb853482bc819e3147cc5
+Logs          https://expo.dev/accounts/pablorivas1740/projects/cellphoneapp/builds/3130d7ec-a251-457a-a94c-2cfa54b0b437
+Started at    6/15/2026, 8:29:40 PM
+Finished at   6/15/2026, 8:34:46 PM
+Started by    pablorivas1740

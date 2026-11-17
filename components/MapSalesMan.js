@@ -14,7 +14,7 @@ import {
   Animated,
   Easing,
 } from "react-native";
-import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, Polygon, Circle, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
@@ -35,13 +35,45 @@ import {
 } from "../utils/MunicipiosCochabamba";
 const { height } = Dimensions.get("window");
 
-const GEOFENCE_RADIUS_METERS = 300;
+const GEOFENCE_RADIUS_METERS = 30;
 const VISIT_DURATION_MIN = 15;
 const VISIT_DURATION_MAX = 30;
 const CAR_AVG_KMH = 35;
 const TRANSIT_AVG_KMH = 18;
+const USER_RADIUS_METERS = 30;
+const ARRIVED_RADIUS_METERS = 60;
 
+const ACTIONS_ROW_OVERRIDE = {
+  position: "relative",
+  top: 0,
+  left: 0,
+  right: 0,
+  marginHorizontal: 16,
+  marginTop: 10,
+  flexDirection: "column",
+  gap: 8,
+};
 
+const LOCATE_BTN = {
+  position: "absolute",
+  right: 16,
+  width: 46,
+  height: 46,
+  borderRadius: 23,
+  backgroundColor: "#fff",
+  justifyContent: "center",
+  alignItems: "center",
+  shadowColor: "#000",
+  shadowOpacity: 0.15,
+  shadowOffset: { width: 0, height: 4 },
+  shadowRadius: 10,
+  elevation: 6,
+  zIndex: 8,
+};
+const isValidCoord = (lat, lng) =>
+  typeof lat === "number" && typeof lng === "number" &&
+  !isNaN(lat) && !isNaN(lng) &&
+  lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
   if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
@@ -223,6 +255,8 @@ const MapSalesMan = () => {
   const [toast, setToast] = useState({ visible: false, type: "info", title: "", message: "" });
   const [selectedZone, setSelectedZone] = useState("__ALL__");
   const [showPolygons, setShowPolygons] = useState(true);
+  const [locating, setLocating] = useState(false);
+
   const showToast = (type, title, message) => {
     setToast({ visible: true, type, title, message: message || "" });
   };
@@ -257,10 +291,17 @@ const MapSalesMan = () => {
     try {
       const response = await axios.post(
         API_URL + "/whatsapp/salesman/route/id",
-        { salesMan: salesId, id_owner: idOwner, status: "Por iniciar" },
+        {
+          salesMan: salesId,
+          id_owner: idOwner,
+          status: ["Por iniciar", "En progreso"],
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setListRoute(response.data);
+      const data = [...(response.data || [])].sort(
+        (a, b) => (b.status === "En progreso") - (a.status === "En progreso")
+      );
+      setListRoute(data);
     } catch (error) {
       showToast("error", "Error al cargar rutas", "No pudimos obtener tus rutas");
     }
@@ -341,6 +382,28 @@ const MapSalesMan = () => {
     };
   }
 
+  const centerOnMe = async () => {
+    if (locating) return;
+    setLocating(true);
+    try {
+      const loc = await getUserLocation();
+      if (!loc) return;
+      mapRef.current?.animateToRegion(
+        {
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        },
+        800
+      );
+    } catch (e) {
+      showToast("error", "No se pudo ubicar", "Revisa el GPS y vuelve a intentar");
+    } finally {
+      setLocating(false);
+    }
+  };
+
   const fetchActivity = async (selectedClient2, text) => {
     try {
       const userLocation = await getUserLocation();
@@ -376,6 +439,20 @@ const MapSalesMan = () => {
   };
 
   const fetchETA = async (originCoords, destCoords) => {
+    const d = haversineDistance(
+      originCoords.latitude,
+      originCoords.longitude,
+      destCoords.latitude,
+      destCoords.longitude
+    );
+    if (d <= ARRIVED_RADIUS_METERS) {
+      setDistance(d < 1000 ? `${Math.round(d)} m` : `${(d / 1000).toFixed(1)} km`);
+      setDuration("0 min");
+      setDurationInTraffic("En el punto");
+      setArrivalTime("");
+      setTrafficLevel("normal");
+      return;
+    }
     try {
       const url = `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${originCoords.latitude},${originCoords.longitude}&destinations=${destCoords.latitude},${destCoords.longitude}&departure_time=now&traffic_model=best_guess&key=${GOOGLE_API_KEY}`;
       const response = await axios.get(url);
@@ -663,12 +740,15 @@ const MapSalesMan = () => {
   }, [selectedClient, origin]);
 
   const centerMapOnClient = (client) => {
+    const lat = parseFloat(client.client_location?.latitud);
+    const lng = parseFloat(client.client_location?.longitud);
+    if (!isValidCoord(lat, lng)) return;
     setSelectedClient(client);
     setModal(true);
     mapRef.current?.animateToRegion(
       {
-        latitude: client.client_location.latitud,
-        longitude: client.client_location.longitud,
+        latitude: lat,
+        longitude: lng,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       },
@@ -677,11 +757,14 @@ const MapSalesMan = () => {
   };
 
   const centerMapOnClient2 = (client) => {
+    const lat = parseFloat(client.client_location?.latitud);
+    const lng = parseFloat(client.client_location?.longitud);
+    if (!isValidCoord(lat, lng)) return;
     setSelectedClient(client);
     mapRef.current?.animateToRegion(
       {
-        latitude: client.client_location.latitud,
-        longitude: client.client_location.longitud,
+        latitude: lat,
+        longitude: lng,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       },
@@ -720,9 +803,9 @@ const MapSalesMan = () => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const year = date.getFullYear();
+    const day = date.getUTCDate().toString().padStart(2, "0");
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+    const year = date.getUTCFullYear();
     return `${day}-${month}-${year}`;
   };
 
@@ -751,13 +834,38 @@ const MapSalesMan = () => {
   };
 
   const withinGeofence = distanceToClient !== null && distanceToClient <= GEOFENCE_RADIUS_METERS;
+  const distanceToActive =
+    activeDestination && origin.latitude !== 0
+      ? haversineDistance(
+        origin.latitude,
+        origin.longitude,
+        activeDestination.latitude,
+        activeDestination.longitude
+      )
+      : null;
 
-  const displayStops = optimizedStops.length > 0 ? optimizedStops : route?.[0]?.route || [];
+  const hasArrived = distanceToActive !== null && distanceToActive <= ARRIVED_RADIUS_METERS;
+  const displayStops = (optimizedStops.length > 0 ? optimizedStops : route?.[0]?.route || [])
+    .filter((s) => isValidCoord(
+      parseFloat(s.client_location?.latitud),
+      parseFloat(s.client_location?.longitud)
+    ));
   const priorityStopId = (() => {
     if (!displayStops || displayStops.length === 0) return null;
     const firstPending = displayStops.find((s) => !s.visitStatus);
     return firstPending?.client_location?._id || null;
   })();
+
+  const hasBottomCards =
+    (showClients && !showRoute && !showRoutes && !isTimerRunning && filteredClients.length > 0) ||
+    (showRoutes && !showRoute && !isTimerRunning) ||
+    (showRoute && displayStops?.length > 0 && !isTimerRunning);
+
+  const locateBottom = modality
+    ? insets.bottom + 320
+    : hasBottomCards
+      ? 240
+      : insets.bottom + 28;
 
   if (loading) {
     return (
@@ -768,11 +876,10 @@ const MapSalesMan = () => {
           <View style={styles.topHeader}>
             <SkeletonHeader />
           </View>
+          <View style={[styles.topActionsRow, ACTIONS_ROW_OVERRIDE, { flexDirection: "row" }]}>
+            <SkeletonSearchBar />
+          </View>
         </SafeAreaView>
-
-        <View style={styles.topActionsRow}>
-          <SkeletonSearchBar />
-        </View>
 
         <View style={styles.cardsWrapper}>
           <View style={styles.cardsHeaderRow}>
@@ -809,15 +916,25 @@ const MapSalesMan = () => {
         showsUserLocation={true}
         showsMyLocationButton={false}
       >
+        {origin.latitude !== 0 && (
+          <Circle
+            center={{ latitude: origin.latitude, longitude: origin.longitude }}
+            radius={USER_RADIUS_METERS}
+            strokeColor={COLORS.brand}
+            strokeWidth={2}
+            fillColor="rgba(220,38,38,0.12)"
+          />
+        )}
         {showClients && !showRoute && showPolygons &&
           Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
-            if (!m.paths || m.paths.length === 0) return null;
+            const validPaths = (m.paths || []).filter((p) => isValidCoord(p.lat, p.lng));
+            if (validPaths.length < 3) return null;
             const isSelected = selectedZone === key;
             const isFiltered = selectedZone !== "__ALL__" && !isSelected;
             return (
               <Polygon
                 key={key}
-                coordinates={m.paths.map(p => ({ latitude: p.lat, longitude: p.lng }))}
+                coordinates={validPaths.map(p => ({ latitude: p.lat, longitude: p.lng }))}
                 strokeColor={isFiltered ? `${m.strokeColor}40` : m.strokeColor}
                 fillColor={isSelected ? `${m.fillColor}30` : isFiltered ? `${m.fillColor}08` : `${m.fillColor}15`}
                 strokeWidth={isSelected ? 3 : 1.5}
@@ -827,10 +944,14 @@ const MapSalesMan = () => {
 
         {showClients &&
           !showRoute &&
-          filteredClients.map((client, index) => (
-            <ClientMarker key={index} client={client} />
-          ))}
-
+          filteredClients
+            .filter((c) => isValidCoord(
+              parseFloat(c.client_location?.latitud),
+              parseFloat(c.client_location?.longitud)
+            ))
+            .map((client, index) => (
+              <ClientMarker key={index} client={client} />
+            ))}
         {!showClients &&
           showRoute &&
           !showRoutes &&
@@ -897,10 +1018,25 @@ const MapSalesMan = () => {
               </React.Fragment>
             );
           })}
-
+        {isTimerRunning && activeDestination && origin.latitude !== 0 && !hasArrived && (
+          <MapViewDirections
+            origin={origin}
+            destination={{
+              latitude: activeDestination.latitude,
+              longitude: activeDestination.longitude,
+            }}
+            apikey={GOOGLE_API_KEY}
+            strokeColor="#000000"
+            strokeWidth={2}
+            mode="DRIVING"
+            resetOnChange={false}
+            onError={() => { }}
+            precision="high"
+          />
+        )}
         {!isTimerRunning &&
           showRoute &&
-          origin.latitude !== 0 &&
+          isValidCoord(origin.latitude, origin.longitude) &&
           displayStops.filter((s) => !s.visitStatus).length > 0 && (
             <MapViewDirections
               origin={origin}
@@ -914,7 +1050,7 @@ const MapSalesMan = () => {
               })()}
               waypoints={(() => {
                 const pending = displayStops.filter((s) => !s.visitStatus);
-                return pending.slice(0, -1).map((s) => ({
+                return pending.slice(0, -1).slice(0, 23).map((s) => ({
                   latitude: parseFloat(s.client_location.latitud),
                   longitude: parseFloat(s.client_location.longitud),
                 }));
@@ -923,23 +1059,12 @@ const MapSalesMan = () => {
               apikey={GOOGLE_API_KEY}
               strokeColor="#000000"
               strokeWidth={2}
+              resetOnChange={false}
+              onError={() => { }}
             />
           )}
 
-        {isTimerRunning && activeDestination && origin.latitude !== 0 && (
-          <MapViewDirections
-            origin={origin}
-            destination={{
-              latitude: activeDestination.latitude,
-              longitude: activeDestination.longitude,
-            }}
-            apikey={GOOGLE_API_KEY}
-            strokeColor="#000000"
-            strokeWidth={2}
-            mode="DRIVING"
-            precision="high"
-          />
-        )}
+
       </MapView>
 
       <SafeAreaView edges={["top"]} style={styles.topHeaderSafe}>
@@ -947,7 +1072,7 @@ const MapSalesMan = () => {
           <View style={styles.etaPanel}>
             <View style={styles.etaTopRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.etaLabel}>LLEGADA ESTIMADA</Text>
+                <Text style={styles.etaLabel}>{hasArrived ? "EN EL PUNTO" : "LLEGADA ESTIMADA"}</Text>
                 <View style={styles.etaTimeRow}>
                   <Text style={styles.etaTime}>{durationInTraffic || "—"}</Text>
                   {arrivalTime ? (
@@ -966,12 +1091,14 @@ const MapSalesMan = () => {
                 <Ionicons name="navigate" size={12} color={COLORS.info} />
                 <Text style={styles.etaMetaText}>{distance || "—"}</Text>
               </View>
-              <View style={[styles.trafficPill, { backgroundColor: getTrafficStyle(trafficLevel).bg }]}>
-                <View style={[styles.trafficDot, { backgroundColor: getTrafficStyle(trafficLevel).color }]} />
-                <Text style={[styles.trafficText, { color: getTrafficStyle(trafficLevel).color }]}>
-                  {getTrafficStyle(trafficLevel).label}
-                </Text>
-              </View>
+              {!hasArrived && (
+                <View style={[styles.trafficPill, { backgroundColor: getTrafficStyle(trafficLevel).bg }]}>
+                  <View style={[styles.trafficDot, { backgroundColor: getTrafficStyle(trafficLevel).color }]} />
+                  <Text style={[styles.trafficText, { color: getTrafficStyle(trafficLevel).color }]}>
+                    {getTrafficStyle(trafficLevel).label}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         ) : (
@@ -995,16 +1122,81 @@ const MapSalesMan = () => {
               </Text>
             </View>
 
-            {showClients && (
+
+          </View>
+        )}
+
+        {showClients && !showRoute && !showRoutes && !isTimerRunning && (
+          <View style={[styles.topActionsRow, ACTIONS_ROW_OVERRIDE]}>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={styles.searchWrapper}>
+                <Ionicons name="search-outline" size={18} color={COLORS.textMid} />
+                <TextInput
+                  style={styles.searchInputModern}
+                  placeholder="Buscar cliente..."
+                  placeholderTextColor={COLORS.textLight}
+                  onChangeText={handleSearch}
+                />
+              </View>
+
               <TouchableOpacity
-                style={styles.routesBtn}
-                onPress={showRoutesList}
-                activeOpacity={0.85}
+                style={styles.routesFab}
+                onPress={() => showRoutesList()}
+                activeOpacity={0.9}
               >
-                <Ionicons name="cube" size={16} color="#fff" />
-                <Text style={styles.routesBtnText}>Mis rutas</Text>
+                <Ionicons name="navigate" size={18} color="#fff" />
+                {listRoute?.length > 0 && (
+                  <View style={styles.routesFabBadge}>
+                    <Text style={styles.routesFabBadgeText}>{listRoute.length}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
-            )}
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 0, gap: 6, paddingVertical: 2 }}
+            >
+              <TouchableOpacity
+                onPress={() => handleZoneChange("__ALL__")}
+                style={[{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "#fff", borderRadius: 999, borderWidth: 1, borderColor: COLORS.border },
+                selectedZone === "__ALL__" && { backgroundColor: COLORS.brand, borderColor: COLORS.brand }]}
+              >
+                <Ionicons name="apps" size={11} color={selectedZone === "__ALL__" ? "#fff" : COLORS.textMid} />
+                <Text style={{ fontSize: 12, fontWeight: "700", color: selectedZone === "__ALL__" ? "#fff" : COLORS.text }}>Todas</Text>
+                <View style={{ backgroundColor: selectedZone === "__ALL__" ? "rgba(255,255,255,0.25)" : COLORS.borderLight, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10, minWidth: 22, alignItems: "center" }}>
+                  <Text style={{ fontSize: 10, fontWeight: "800", color: selectedZone === "__ALL__" ? "#fff" : COLORS.textMid }}>{clients.length}</Text>
+                </View>
+              </TouchableOpacity>
+
+              {
+                Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
+                  const isSelected = selectedZone === key;
+                  const count = zoneCount[key] || 0;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      onPress={() => handleZoneChange(key)}
+                      style={[{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "#fff", borderRadius: 999, borderWidth: 1, borderColor: COLORS.border },
+                      isSelected && { backgroundColor: m.color, borderColor: m.color }]}
+                    >
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isSelected ? "#fff" : m.color }} />
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: isSelected ? "#fff" : COLORS.text }}>{m.name}</Text>
+                      <View style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.25)" : COLORS.borderLight, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10, minWidth: 22, alignItems: "center" }}>
+                        <Text style={{ fontSize: 10, fontWeight: "800", color: isSelected ? "#fff" : COLORS.textMid }}>{count}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+
+              <TouchableOpacity
+                onPress={() => setShowPolygons(!showPolygons)}
+                style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: showPolygons ? COLORS.dangerBg : "#fff", borderWidth: 1, borderColor: showPolygons ? COLORS.brand : COLORS.border, justifyContent: "center", alignItems: "center" }}
+              >
+                <Ionicons name={showPolygons ? "eye" : "eye-off"} size={12} color={showPolygons ? COLORS.brand : COLORS.textMid} />
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         )}
 
@@ -1066,78 +1258,6 @@ const MapSalesMan = () => {
         )}
       </SafeAreaView>
 
-      {showClients && !showRoute && !showRoutes && !isTimerRunning && (
-        <View style={[styles.topActionsRow, { flexDirection: "column", gap: 8 }]}>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <View style={styles.searchWrapper}>
-              <Ionicons name="search-outline" size={18} color={COLORS.textMid} />
-              <TextInput
-                style={styles.searchInputModern}
-                placeholder="Buscar cliente..."
-                placeholderTextColor={COLORS.textLight}
-                onChangeText={handleSearch}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.routesFab}
-              onPress={() => showRoutesList()}
-              activeOpacity={0.9}
-            >
-              <Ionicons name="navigate" size={18} color="#fff" />
-              {listRoute?.length > 0 && (
-                <View style={styles.routesFabBadge}>
-                  <Text style={styles.routesFabBadgeText}>{listRoute.length}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 0, gap: 6, paddingVertical: 2 }}
-          >
-            <TouchableOpacity
-              onPress={() => handleZoneChange("__ALL__")}
-              style={[{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "#fff", borderRadius: 999, borderWidth: 1, borderColor: COLORS.border },
-              selectedZone === "__ALL__" && { backgroundColor: COLORS.brand, borderColor: COLORS.brand }]}
-            >
-              <Ionicons name="apps" size={11} color={selectedZone === "__ALL__" ? "#fff" : COLORS.textMid} />
-              <Text style={{ fontSize: 12, fontWeight: "700", color: selectedZone === "__ALL__" ? "#fff" : COLORS.text }}>Todas</Text>
-              <View style={{ backgroundColor: selectedZone === "__ALL__" ? "rgba(255,255,255,0.25)" : COLORS.borderLight, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10, minWidth: 22, alignItems: "center" }}>
-                <Text style={{ fontSize: 10, fontWeight: "800", color: selectedZone === "__ALL__" ? "#fff" : COLORS.textMid }}>{clients.length}</Text>
-              </View>
-            </TouchableOpacity>
-
-            {Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
-              const isSelected = selectedZone === key;
-              const count = zoneCount[key] || 0;
-              return (
-                <TouchableOpacity
-                  key={key}
-                  onPress={() => handleZoneChange(key)}
-                  style={[{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "#fff", borderRadius: 999, borderWidth: 1, borderColor: COLORS.border },
-                  isSelected && { backgroundColor: m.color, borderColor: m.color }]}
-                >
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isSelected ? "#fff" : m.color }} />
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: isSelected ? "#fff" : COLORS.text }}>{m.name}</Text>
-                  <View style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.25)" : COLORS.borderLight, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10, minWidth: 22, alignItems: "center" }}>
-                    <Text style={{ fontSize: 10, fontWeight: "800", color: isSelected ? "#fff" : COLORS.textMid }}>{count}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-
-            <TouchableOpacity
-              onPress={() => setShowPolygons(!showPolygons)}
-              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: showPolygons ? COLORS.dangerBg : "#fff", borderWidth: 1, borderColor: showPolygons ? COLORS.brand : COLORS.border, justifyContent: "center", alignItems: "center" }}
-            >
-              <Ionicons name={showPolygons ? "eye" : "eye-off"} size={12} color={showPolygons ? COLORS.brand : COLORS.textMid} />
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      )}
       {showClients && !showRoute && !showRoutes && !isTimerRunning && filteredClients.length > 0 && (
         <View style={styles.cardsWrapper}>
           <View style={styles.cardsHeaderRow}>
@@ -1233,7 +1353,9 @@ const MapSalesMan = () => {
                     <Text style={styles.routeCardTitle} numberOfLines={2}>{item.details}</Text>
                     <View style={styles.routeProgressSection}>
                       <View style={styles.routeProgressTop}>
-                        <Text style={styles.routeProgressLabel}>Progreso</Text>
+                        <Text style={styles.routeCtaText}>
+                          {item.status === "En progreso" ? "Continuar ruta" : "Iniciar ruta"}
+                        </Text>
                         <Text style={[styles.routeProgressPct, { color: progressColor }]}>{progress}%</Text>
                       </View>
                       <View style={styles.progressTrack}>
@@ -1386,6 +1508,18 @@ const MapSalesMan = () => {
           </ScrollView>
         </View>
       )}
+
+      <TouchableOpacity
+        style={[LOCATE_BTN, { bottom: locateBottom }]}
+        onPress={centerOnMe}
+        activeOpacity={0.85}
+      >
+        {locating ? (
+          <ActivityIndicator size="small" color={COLORS.brand} />
+        ) : (
+          <Ionicons name="locate" size={20} color={COLORS.brand} />
+        )}
+      </TouchableOpacity>
 
       {modality && selectedClient && (
         <View style={[styles.bottomSheet, { bottom: insets.bottom + 12 }]}>

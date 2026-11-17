@@ -496,67 +496,58 @@ export default function OrderPickUp() {
           animationType="fade"
           onRequestClose={() => setShowSourceModal(false)}
         >
-          <TouchableOpacity
-            style={styles.sourceBackdrop}
-            activeOpacity={1}
-            onPress={() => setShowSourceModal(false)}
-          >
-            <TouchableWithoutFeedback>
-              <View style={[styles.sourceCard, { paddingBottom: insets.bottom + 20 }]}>
-                <View style={styles.sourceHandle} />
-                <Text style={styles.sourceTitle}>Adjuntar comprobante</Text>
-                <Text style={styles.sourceSubtitle}>
-                  ¿De dónde quieres obtener la imagen?
-                </Text>
+          <View style={styles.sourceBackdrop}>
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={1}
+              onPress={() => setShowSourceModal(false)}
+            />
+            <View style={[styles.sourceCard, { paddingBottom: insets.bottom + 20 }]}>
+              <View style={styles.sourceHandle} />
+              <Text style={styles.sourceTitle}>Adjuntar comprobante</Text>
+              <Text style={styles.sourceSubtitle}>
+                ¿De dónde quieres obtener la imagen?
+              </Text>
 
-                <TouchableOpacity
-                  style={styles.sourceOption}
-                  onPress={handleTakePhoto}
-                  activeOpacity={0.85}
-                >
-                  <View
-                    style={[styles.sourceOptionIcon, { backgroundColor: COLORS.infoBg }]}
-                  >
-                    <Ionicons name="camera" size={22} color={COLORS.info} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sourceOptionTitle}>Tomar foto</Text>
-                    <Text style={styles.sourceOptionSubtitle}>
-                      Usar la cámara
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-                </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.sourceOption}
+                onPress={handleTakePhoto}
+                activeOpacity={0.85}
+              >
+                <View style={[styles.sourceOptionIcon, { backgroundColor: COLORS.infoBg }]}>
+                  <Ionicons name="camera" size={22} color={COLORS.info} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sourceOptionTitle}>Tomar foto</Text>
+                  <Text style={styles.sourceOptionSubtitle}>Usar la cámara</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.sourceOption}
-                  onPress={handlePickImageFromGallery}
-                  activeOpacity={0.85}
-                >
-                  <View
-                    style={[styles.sourceOptionIcon, { backgroundColor: COLORS.successBg }]}
-                  >
-                    <Ionicons name="images" size={22} color={COLORS.success} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sourceOptionTitle}>Elegir de galería</Text>
-                    <Text style={styles.sourceOptionSubtitle}>
-                      Buscar en tus fotos
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-                </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.sourceOption}
+                onPress={handlePickImageFromGallery}
+                activeOpacity={0.85}
+              >
+                <View style={[styles.sourceOptionIcon, { backgroundColor: COLORS.successBg }]}>
+                  <Ionicons name="images" size={22} color={COLORS.success} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sourceOptionTitle}>Elegir de galería</Text>
+                  <Text style={styles.sourceOptionSubtitle}>Buscar en tus fotos</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.sourceCancel}
-                  onPress={() => setShowSourceModal(false)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.sourceCancelText}>Cancelar</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableWithoutFeedback>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.sourceCancel}
+                onPress={() => setShowSourceModal(false)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.sourceCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </Modal>
 
         <Modal transparent animationType="fade" visible={showSuccessModal}>
@@ -616,7 +607,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginTop: -10,
+    marginTop: 16,
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 4 },

@@ -316,14 +316,28 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  topActionsRow: {
-    position: "absolute",
-    top: 76,
-    left: 16,
-    right: 16,
+topActionsRow: {
+    marginHorizontal: 16,
+    marginTop: 10,
     zIndex: 9,
     flexDirection: "row",
     gap: 10,
+  },
+  locateBtn: {
+    position: "absolute",
+    right: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 6,
+    zIndex: 8,
   },
   searchWrapper: {
     flex: 1,

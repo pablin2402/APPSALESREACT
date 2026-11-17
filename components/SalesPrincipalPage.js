@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, useRef } from "react";
+import React, { useEffect, useState, useContext, useRef, useCallback } from "react";
 import axios from "axios";
 import { API_URL, GOOGLE_API_KEY } from "../config";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -16,6 +16,7 @@ import {
   PermissionsAndroid,
   Animated,
   Easing,
+  ActivityIndicator,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
@@ -44,6 +45,8 @@ const COLORS = {
   danger: "#D3423E",
   dangerBg: "#fee2e2",
 };
+
+const PAGE_SIZES = [10, 20, 50];
 
 const getProgressColor = (pct) => {
   if (pct >= 100) return COLORS.success;
@@ -188,7 +191,6 @@ export default function SalesPrincipalPage() {
   const navigation = useNavigation();
   const { token, idOwner, salesId } = useContext(AuthContext);
 
-  const [filteredData, setFilteredData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [salesData, setSalesData] = useState([]);
   const [route, setRoute] = useState(null);
@@ -196,7 +198,14 @@ export default function SalesPrincipalPage() {
   const [objectiveData, setObjectiveData] = useState([]);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [montoTotal, setMontoTotal] = useState(0);
+
   const today = new Date();
 
   const requestLocationPermission = async () => {
@@ -221,12 +230,6 @@ export default function SalesPrincipalPage() {
     requestLocationPermission();
   }, []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      onRefresh();
-    }, [])
-  );
-
   const fetchProfile = async () => {
     const response = await axios.post(
       API_URL + "/whatsapp/sales/id",
@@ -236,22 +239,43 @@ export default function SalesPrincipalPage() {
     setProfile(response.data);
   };
 
-  const fetchOrders = async () => {
-    const response = await axios.post(
-      API_URL + "/whatsapp/order/status",
-      { salesId: salesId, orderStatus: "aproved", id_owner: idOwner },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    setSalesData(response.data);
-    setFilteredData(response.data);
-  };
+  const fetchOrders = useCallback(async () => {
+    setOrdersLoading(true);
+    try {
+      const response = await axios.post(
+        API_URL + "/whatsapp/order/status",
+        {
+          salesId,
+          orderStatus: "aproved",
+          id_owner: idOwner,
+          page,
+          limit,
+          fullName: searchTerm.trim() || undefined,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const d = response.data;
+      setSalesData(d.orders || []);
+      setTotalPages(d.totalPages || 1);
+      setTotalRecords(d.totalRecords || 0);
+      setMontoTotal(d.montoTotal || 0);
+    } catch (error) {
+      console.error("Error al obtener órdenes:", error);
+      setSalesData([]);
+      setTotalPages(1);
+      setTotalRecords(0);
+      setMontoTotal(0);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [salesId, idOwner, token, page, limit, searchTerm]);
 
   const startRoute = async () => {
     const response = await axios.post(
       API_URL + "/whatsapp/salesman/route/id",
       {
         salesMan: salesId,
-        status: "Por iniciar",
+        status: ["Por iniciar", "En progreso"],
         id_owner: idOwner,
         startDate: getStartOfDayInUTCMinus4(today),
       },
@@ -276,31 +300,30 @@ export default function SalesPrincipalPage() {
     setObjectiveData(response.data);
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     try {
       setRefreshing(true);
-      await Promise.all([
-        fetchProfile(),
-        fetchOrders(),
-        startRoute(),
-        fetchObjectiveDataRegion(),
-      ]);
+      setPage(1);
+      setSearchTerm("");
+      await Promise.all([fetchProfile(), startRoute(), fetchObjectiveDataRegion()]);
     } catch (e) {
       console.log(e);
     } finally {
       setRefreshing(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idOwner, salesId, token]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      onRefresh();
+    }, [onRefresh])
+  );
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        await Promise.all([
-          fetchProfile(),
-          fetchOrders(),
-          startRoute(),
-          fetchObjectiveDataRegion(),
-        ]);
+        await Promise.all([fetchProfile(), startRoute(), fetchObjectiveDataRegion()]);
       } catch (error) {
         console.error("Error cargando datos:", error);
       } finally {
@@ -312,19 +335,13 @@ export default function SalesPrincipalPage() {
   }, []);
 
   useEffect(() => {
-    if (searchTerm.trim() === "") {
-      setFilteredData(salesData);
-    } else {
-      const t = searchTerm.toLowerCase();
-      setFilteredData(
-        salesData.filter(
-          (i) =>
-            i.id_client.name.toLowerCase().includes(t) ||
-            i.id_client.lastName.toLowerCase().includes(t)
-        )
-      );
-    }
-  }, [searchTerm, salesData]);
+    const t = setTimeout(fetchOrders, 400);
+    return () => clearTimeout(t);
+  }, [fetchOrders]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, limit]);
 
   function getStartOfDayInUTCMinus4(date) {
     const d = new Date(date);
@@ -353,14 +370,14 @@ export default function SalesPrincipalPage() {
     return `${days[d.getDay()]}, ${d.getDate()} de ${months[d.getMonth()]}`;
   };
 
-  const totalPedidos = filteredData.length;
+  const totalPedidos = totalRecords;
   const stopsRuta = route?.[0]?.route?.length || 0;
   const promedioObjetivo =
     objectiveData.length > 0
       ? objectiveData.reduce(
-          (s, i) => s + ((i.caja / i.numberOfBoxes) * 100 || 0),
-          0
-        ) / objectiveData.length
+        (s, i) => s + ((i.caja / i.numberOfBoxes) * 100 || 0),
+        0
+      ) / objectiveData.length
       : 0;
 
   const getOrderStatusStyle = (status) => {
@@ -411,6 +428,7 @@ export default function SalesPrincipalPage() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -577,16 +595,19 @@ export default function SalesPrincipalPage() {
                   {totalPedidos} {totalPedidos === 1 ? "pedido" : "pedidos"} pendientes
                 </Text>
               </View>
+              {ordersLoading && <ActivityIndicator size="small" color={COLORS.brand} />}
             </View>
 
             <View style={styles.searchBox}>
-              <Ionicons name="search" size={18} color={COLORS.textMid} />
+              <Ionicons name="search-outline" size={18} color={COLORS.textLight} />
               <TextInput
-                style={styles.searchInput}
-                placeholder="Buscar por nombre o apellido..."
                 value={searchTerm}
                 onChangeText={setSearchTerm}
+                placeholder="Buscar cliente, empresa o nº recibo"
                 placeholderTextColor={COLORS.textLight}
+                style={styles.searchInput}
+                returnKeyType="search"
+                autoCorrect={false}
               />
               {searchTerm.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchTerm("")}>
@@ -595,13 +616,13 @@ export default function SalesPrincipalPage() {
               )}
             </View>
 
-            {filteredData.length > 0 ? (
-              filteredData.map((item, index) => {
+            {salesData.length > 0 ? (
+              salesData.map((item, index) => {
                 const orderStatus = getOrderStatusStyle(item.orderStatus);
                 const isPagado = item.payStatus === "Pagado";
                 return (
                   <TouchableOpacity
-                    key={index}
+                    key={item._id || index}
                     style={styles.orderCard}
                     onPress={() => goToClientDetails(item)}
                     activeOpacity={0.85}
@@ -619,9 +640,9 @@ export default function SalesPrincipalPage() {
                     </View>
 
                     <Text style={styles.orderClient} numberOfLines={1}>
-                      {(item.id_client.name + " " + item.id_client.lastName).toUpperCase()}
+                      {`${item.id_client?.name || ""} ${item.id_client?.lastName || ""}`.trim().toUpperCase() || "SIN CLIENTE"}
                     </Text>
-                    {item.id_client.company ? (
+                    {item.id_client?.company ? (
                       <Text style={styles.orderCompany} numberOfLines={1}>
                         {item.id_client.company}
                       </Text>
@@ -684,10 +705,69 @@ export default function SalesPrincipalPage() {
                   size={40}
                   color={COLORS.textLight}
                 />
-                <Text style={styles.emptyTitle}>Sin pedidos</Text>
-                <Text style={styles.emptyDesc}>
-                  No hay pedidos que coincidan
+                <Text style={styles.emptyTitle}>
+                  {searchTerm.trim() ? "Sin resultados" : "Sin pedidos"}
                 </Text>
+                <Text style={styles.emptyDesc}>
+                  {searchTerm.trim()
+                    ? `No hay pedidos que coincidan con "${searchTerm.trim()}"`
+                    : "No tienes pedidos pendientes"}
+                </Text>
+              </View>
+            )}
+
+            {totalRecords > 0 && (
+              <View style={styles.pagerWrap}>
+                <View style={styles.pagerInfo}>
+                  <Text style={styles.pagerInfoText}>
+                    {totalRecords} {totalRecords === 1 ? "pedido" : "pedidos"} · Bs. {Number(montoTotal).toFixed(2)}
+                  </Text>
+                  <View style={styles.limitRow}>
+                    {PAGE_SIZES.map((o) => (
+                      <TouchableOpacity
+                        key={o}
+                        onPress={() => setLimit(o)}
+                        style={[styles.limitChip, limit === o && styles.limitChipActive]}
+                      >
+                        <Text style={[styles.limitText, limit === o && styles.limitTextActive]}>
+                          {o}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {totalPages > 1 && (
+                  <View style={styles.pagerNav}>
+                    <TouchableOpacity
+                      onPress={() => setPage((p) => Math.max(p - 1, 1))}
+                      disabled={page === 1}
+                      style={[styles.pagerBtn, page === 1 && styles.pagerBtnDisabled]}
+                    >
+                      <Ionicons
+                        name="chevron-back"
+                        size={16}
+                        color={page === 1 ? COLORS.textLight : COLORS.text}
+                      />
+                    </TouchableOpacity>
+
+                    <Text style={styles.pagerPageText}>
+                      Página {page} de {totalPages}
+                    </Text>
+
+                    <TouchableOpacity
+                      onPress={() => setPage((p) => Math.min(p + 1, totalPages))}
+                      disabled={page === totalPages}
+                      style={[styles.pagerBtn, page === totalPages && styles.pagerBtnDisabled]}
+                    >
+                      <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color={page === totalPages ? COLORS.textLight : COLORS.text}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -1024,6 +1104,46 @@ const styles = StyleSheet.create({
   pillDot: { width: 6, height: 6, borderRadius: 3 },
   pillText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.4 },
 
+  pagerWrap: {
+    marginTop: 4,
+    gap: 10,
+  },
+  pagerInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  pagerInfoText: { fontSize: 12, color: COLORS.textMid, fontWeight: "600", flex: 1 },
+  limitRow: { flexDirection: "row", gap: 6 },
+  limitChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: COLORS.borderLight,
+  },
+  limitChipActive: { backgroundColor: COLORS.brand },
+  limitText: { fontSize: 11, fontWeight: "700", color: COLORS.textMid },
+  limitTextActive: { color: "#fff" },
+  pagerNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    marginTop: 2,
+  },
+  pagerBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  pagerBtnDisabled: { opacity: 0.4 },
+  pagerPageText: { fontSize: 13, fontWeight: "700", color: COLORS.text },
+
   avgBadge: {
     backgroundColor: COLORS.dangerBg,
     paddingHorizontal: 10,
@@ -1095,7 +1215,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginTop: 10,
   },
-  emptyDesc: { fontSize: 12, color: COLORS.textMid, marginTop: 2 },
+  emptyDesc: { fontSize: 12, color: COLORS.textMid, marginTop: 2, textAlign: "center", paddingHorizontal: 20 },
 
   skeletonHero: {
     paddingHorizontal: 20,

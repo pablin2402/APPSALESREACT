@@ -561,26 +561,7 @@ export default function OrderDetailsScreen() {
          
           )}
         </ScrollView>
-        {activeTab === "payments" && totalGeneral > totalPaid && (
-          <View style={[styles.payBtnWrapper, { paddingBottom: insets.bottom + 12 }]}>
-            <TouchableOpacity
-              onPress={handlePay}
-              style={styles.payBtn}
-              activeOpacity={0.9}
-            >
-              <View style={styles.payBtnLeft}>
-                <Ionicons name="card" size={20} color="#fff" />
-                <Text style={styles.payBtnText}>Pagar</Text>
-              </View>
-              <View style={styles.payBtnRight}>
-                <Text style={styles.payBtnAmount}>
-                  Bs. {calculatedDebt.toFixed(2)}
-                </Text>
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
+       
       </View>
     </SafeAreaProvider>
   );

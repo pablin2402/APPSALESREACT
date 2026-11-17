@@ -11,7 +11,7 @@ import {
     Dimensions,
     StatusBar,
 } from "react-native";
-import MapView from "react-native-maps";
+import MapView, { Marker, Circle, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
@@ -21,7 +21,6 @@ import { GOOGLE_API_KEY } from "../config";
 
 import MapViewDirections from "react-native-maps-directions";
 import * as Location from "expo-location";
-import { Marker } from "react-native-maps";
 import { MAP_STYLE, INITIAL_ADDRESS } from "../utils/MapUtils";
 
 import { useSafeAreaInsets, SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
@@ -54,7 +53,25 @@ const COLORS = {
     dangerBg: "#fee2e2",
 };
 
+const GEOFENCE_RADIUS_METERS = 30;
 
+
+const haversineDistance = (lat1, lon1, lat2, lon2) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+    const R = 6371000;
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const formatDistance = (m) => {
+    if (m == null || m === Infinity) return "—";
+    return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
+};
 
 const MapDelivery = () => {
     const { startTimer, stopTimer } = useContext(TimerContext);
@@ -96,13 +113,27 @@ const MapDelivery = () => {
     const [routeId, setRouteId] = useState("");
     const { token, idOwner, salesId } = useContext(AuthContext);
     const [deliveryRegistered, setDeliveryRegistered] = useState(false);
-
+    const [topPanelHeight, setTopPanelHeight] = useState(0);
     function getStartOfDayInUTCMinus4(date) {
         const utcDate = new Date(date);
         utcDate.setHours(utcDate.getHours() - 4);
         return utcDate.toISOString();
     };
     const today = new Date();
+    const cancelTrip = async () => {
+        setIsTimerRunning(false);
+        setTimer(0);
+        setActiveDestination(null);
+        setSelectedClient(null);
+        setModal(false);
+        setDistance("");
+        setDuration("");
+        setDurationInTraffic("");
+        setArrivalTime("");
+        setTrafficLevel("normal");
+        await stopTimer();
+        await AsyncStorage.removeItem("timer_start");
+    };
 
     const startRouteToday = async () => {
         const dateInGMTMinus4 = getStartOfDayInUTCMinus4(today);
@@ -432,12 +463,11 @@ const MapDelivery = () => {
         setShowRoutes(false);
         setShowClients(false);
     }
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        const day = date.getDate().toString().padStart(2, "0");
-        const month = (date.getMonth() + 1).toString().padStart(2, "0");
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
+    const formatDate = (value) => {
+        if (!value) return "";
+        const s = typeof value === "string" ? value : new Date(value).toISOString();
+        const [y, m, d] = s.slice(0, 10).split("-");
+        return `${d}/${m}/${y}`;
     };
     const handlePay = (selectedClient) => {
         navigation.navigate("OrderPickUp", {
@@ -493,6 +523,42 @@ const MapDelivery = () => {
         return "";
     };
 
+    const destCoords = selectedClient?.client_location
+        ? {
+            latitude: parseFloat(selectedClient.client_location.latitud),
+            longitude: parseFloat(selectedClient.client_location.longitud),
+        }
+        : null;
+
+    const distanceToDest =
+        destCoords && origin.latitude !== 0
+            ? haversineDistance(origin.latitude, origin.longitude, destCoords.latitude, destCoords.longitude)
+            : null;
+
+    const withinGeofence = distanceToDest !== null && distanceToDest <= GEOFENCE_RADIUS_METERS;
+    const sheetMaxHeight = height - topPanelHeight - insets.top - 24;
+
+    useEffect(() => {
+        if (!isTimerRunning || !activeDestination) return;
+        const stops = route?.[0]?.route || [];
+        if (stops.length === 0) return;
+        const exists = stops.some(
+            (s) => s.client_location?._id === activeDestination.clientId
+        );
+        if (!exists) cancelTrip();
+    }, [route, isTimerRunning, activeDestination]);
+    useEffect(() => {
+        const recover = async () => {
+            const started = await AsyncStorage.getItem("timer_start");
+            if (started && !activeDestination) {
+                await AsyncStorage.removeItem("timer_start");
+                await stopTimer();
+                setIsTimerRunning(false);
+                setTimer(0);
+            }
+        };
+        recover();
+    }, []);
     return (
         <SafeAreaProvider>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -506,6 +572,16 @@ const MapDelivery = () => {
                     showsUserLocation={true}
                     showsMyLocationButton={false}
                 >
+                    {origin.latitude !== 0 && (
+                        <Circle
+                            center={{ latitude: origin.latitude, longitude: origin.longitude }}
+                            radius={GEOFENCE_RADIUS_METERS}
+                            strokeColor={COLORS.brand}
+                            strokeWidth={2}
+                            fillColor="rgba(211,66,62,0.12)"
+                        />
+                    )}
+
                     {showClients && !showRoute && filteredClients.map((client, index) => (
                         <ClientMarker key={index} client={client} />
                     ))}
@@ -589,7 +665,10 @@ const MapDelivery = () => {
 
                 <SafeAreaView edges={["top"]} style={styles.topSafe}>
                     {isTimerRunning ? (
-                        <View style={styles.etaPanel}>
+                        <View
+                            style={styles.etaPanel}
+                            onLayout={(e) => setTopPanelHeight(e.nativeEvent.layout.height + 16)}
+                        >
                             <View style={styles.etaTopRow}>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.etaLabel}>LLEGADA ESTIMADA</Text>
@@ -604,6 +683,13 @@ const MapDelivery = () => {
                                     <View style={styles.timerDot} />
                                     <Text style={styles.timerTextLarge}>{formatTime(timer)}</Text>
                                 </View>
+                                <TouchableOpacity
+                                    style={styles.cancelTripBtn}
+                                    onPress={cancelTrip}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons name="close" size={16} color={COLORS.textMid} />
+                                </TouchableOpacity>
                             </View>
 
                             <View style={styles.etaMetaRow}>
@@ -673,6 +759,15 @@ const MapDelivery = () => {
                         </View>
                     )}
                 </SafeAreaView>
+{isTimerRunning && (
+                    <TouchableOpacity
+                        style={[styles.cancelTripFloating, { top: insets.top + 8 }]}
+                        onPress={cancelTrip}
+                        activeOpacity={0.85}
+                    >
+                        <Ionicons name="close" size={18} color="#fff" />
+                    </TouchableOpacity>
+                )}
 
                 {showClients && !showRoute && !showRoutes && !isTimerRunning ? (
                     <View style={[styles.cardsWrapper, { bottom: insets.bottom + 20 }]}>
@@ -837,111 +932,132 @@ const MapDelivery = () => {
                 )}
 
                 {modality && selectedClient && (
-                    <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 16 }]}>
+                    <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 16, maxHeight: sheetMaxHeight }]}>
                         <View style={styles.modalHandle} />
+                        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-                        <View style={styles.bottomSheetHeader}>
-                            <View style={styles.bottomSheetAvatar}>
-                                {selectedClient.identificationImage || selectedClient.profilePicture ? (
-                                    <Image
-                                        source={{ uri: selectedClient.identificationImage || selectedClient.profilePicture }}
-                                        style={styles.bottomSheetAvatarImg}
-                                    />
-                                ) : (
-                                    <Text style={styles.bottomSheetAvatarText}>
-                                        {(selectedClient.name || selectedClient.nombre || "?")[0]?.toUpperCase()}
-                                        {selectedClient.lastName?.[0]?.toUpperCase()}
-                                    </Text>
-                                )}
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.bottomSheetName} numberOfLines={1}>
-                                    {!selectedClient.name
-                                        ? selectedClient.nombre
-                                        : `${selectedClient.name} ${selectedClient.lastName}`}
-                                </Text>
-                                {selectedClient.client_location?.direction && (
-                                    <View style={styles.bottomSheetAddressRow}>
-                                        <Ionicons name="location-sharp" size={11} color={COLORS.brand} />
-                                        <Text style={styles.bottomSheetAddress} numberOfLines={1}>
-                                            {selectedClient.client_location.direction}
+                            <View style={styles.bottomSheetHeader}>
+                                <View style={styles.bottomSheetAvatar}>
+                                    {selectedClient.identificationImage || selectedClient.profilePicture ? (
+                                        <Image
+                                            source={{ uri: selectedClient.identificationImage || selectedClient.profilePicture }}
+                                            style={styles.bottomSheetAvatarImg}
+                                        />
+                                    ) : (
+                                        <Text style={styles.bottomSheetAvatarText}>
+                                            {(selectedClient.name || selectedClient.nombre || "?")[0]?.toUpperCase()}
+                                            {selectedClient.lastName?.[0]?.toUpperCase()}
                                         </Text>
-                                    </View>
-                                )}
-                            </View>
-                            <TouchableOpacity
-                                style={styles.bottomSheetClose}
-                                onPress={() => setModal(false)}
-                                activeOpacity={0.7}
-                            >
-                                <Ionicons name="close" size={18} color={COLORS.textMid} />
-                            </TouchableOpacity>
-                        </View>
-
-                        {isTimerRunning && (
-                            <View style={styles.tripInfoRow}>
-                                <View style={styles.tripInfoCard}>
-                                    <View style={[styles.tripInfoIcon, { backgroundColor: COLORS.infoBg }]}>
-                                        <Ionicons name="navigate" size={14} color={COLORS.info} />
-                                    </View>
-                                    <View>
-                                        <Text style={styles.tripInfoLabel}>Distancia</Text>
-                                        <Text style={styles.tripInfoValue}>{distance || "—"}</Text>
-                                    </View>
+                                    )}
                                 </View>
-                                <View style={styles.tripInfoCard}>
-                                    <View style={[styles.tripInfoIcon, { backgroundColor: COLORS.warningBg }]}>
-                                        <Ionicons name="time" size={14} color={COLORS.warning} />
-                                    </View>
-                                    <View>
-                                        <Text style={styles.tripInfoLabel}>Con tráfico</Text>
-                                        <Text style={styles.tripInfoValue}>{durationInTraffic || "—"}</Text>
-                                    </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.bottomSheetName} numberOfLines={1}>
+                                        {!selectedClient.name
+                                            ? selectedClient.nombre
+                                            : `${selectedClient.name} ${selectedClient.lastName}`}
+                                    </Text>
+                                    {selectedClient.client_location?.direction && (
+                                        <View style={styles.bottomSheetAddressRow}>
+                                            <Ionicons name="location-sharp" size={11} color={COLORS.brand} />
+                                            <Text style={styles.bottomSheetAddress} numberOfLines={1}>
+                                                {selectedClient.client_location.direction}
+                                            </Text>
+                                        </View>
+                                    )}
                                 </View>
-                            </View>
-                        )}
-
-                        <View style={styles.bottomSheetActions}>
-                            {!isTimerRunning && !selectedClient.visitStatus && (
                                 <TouchableOpacity
-                                    style={styles.primaryButton}
-                                    onPress={() => handleTimerToggle(selectedClient, "Visita al cliente")}
-                                    activeOpacity={0.9}
+                                    style={styles.bottomSheetClose}
+                                    onPress={() => setModal(false)}
+                                    activeOpacity={0.7}
                                 >
-                                    <Ionicons name="navigate" size={16} color="#fff" />
-                                    <Text style={styles.primaryButtonText}>Iniciar trayectos</Text>
+                                    <Ionicons name="close" size={18} color={COLORS.textMid} />
                                 </TouchableOpacity>
-                            )}
+                            </View>
 
                             {isTimerRunning && (
-                                <View>
-                                    <TouchableOpacity
-                                        style={styles.brandButton}
-                                        onPress={() => {
-                                            handlePay(selectedClient, route);
-                                            setShowRegisterButton(false);
-                                        }}
-                                        activeOpacity={0.9}
-                                    >
-                                        <Ionicons name="cube" size={16} color="#fff" />
-                                        <Text style={styles.primaryButtonText}>Registrar entrega</Text>
-                                    </TouchableOpacity>
-                                    <br />
-                                    <br />
-                                    <TouchableOpacity
-                                        style={styles.successButton}
-                                        onPress={() => {
-                                            handleTimerToggle(selectedClient, "Termina la visita");
-                                            setShowRegisterButton(true);
-                                        }}
-                                        activeOpacity={0.9}
-                                    >
-                                        <Ionicons name="flag" size={16} color="#fff" />
-                                        <Text style={styles.primaryButtonText}>Llegada al punto de entrega</Text>
-                                    </TouchableOpacity>
+                                <View style={styles.tripInfoRow}>
+                                    <View style={styles.tripInfoCard}>
+                                        <View style={[styles.tripInfoIcon, { backgroundColor: COLORS.infoBg }]}>
+                                            <Ionicons name="navigate" size={14} color={COLORS.info} />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.tripInfoLabel}>Distancia</Text>
+                                            <Text style={styles.tripInfoValue}>{distance || "—"}</Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.tripInfoCard}>
+                                        <View style={[styles.tripInfoIcon, { backgroundColor: COLORS.warningBg }]}>
+                                            <Ionicons name="time" size={14} color={COLORS.warning} />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.tripInfoLabel}>Con tráfico</Text>
+                                            <Text style={styles.tripInfoValue}>{durationInTraffic || "—"}</Text>
+                                        </View>
+                                    </View>
                                 </View>
                             )}
-                        </View>
+
+                            <View style={styles.bottomSheetActions}>
+                                {!isTimerRunning && !selectedClient.visitStatus && (
+                                    <TouchableOpacity
+                                        style={styles.primaryButton}
+                                        onPress={() => handleTimerToggle(selectedClient, "Visita al cliente")}
+                                        activeOpacity={0.9}
+                                    >
+                                        <Ionicons name="navigate" size={16} color="#fff" />
+                                        <Text style={styles.primaryButtonText}>Iniciar trayectos</Text>
+                                    </TouchableOpacity>
+                                )}
+
+                                {isTimerRunning && (
+                                    <View style={{ gap: 10 }}>
+                                        {!withinGeofence && (
+                                            <View style={styles.geofenceWarning}>
+                                                <Ionicons name="warning" size={14} color={COLORS.warning} />
+                                                <Text style={styles.geofenceWarningText}>
+                                                    Acércate a menos de {GEOFENCE_RADIUS_METERS}m · estás a {formatDistance(distanceToDest)}
+                                                </Text>
+                                            </View>
+                                        )}
+
+                                        <TouchableOpacity
+                                            style={[styles.brandButton, !withinGeofence && styles.buttonDisabled]}
+                                            onPress={() => {
+                                                handlePay(selectedClient, route);
+                                                setShowRegisterButton(false);
+                                            }}
+                                            disabled={!withinGeofence}
+                                            activeOpacity={0.9}
+                                        >
+                                            <Ionicons name={withinGeofence ? "cube" : "lock-closed"} size={16} color="#fff" />
+                                            <Text style={styles.primaryButtonText}>
+                                                {withinGeofence ? "Registrar entrega" : "Fuera de rango"}
+                                            </Text>
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            style={styles.successButton}
+                                            onPress={() => {
+                                                handleTimerToggle(selectedClient, "Termina la visita");
+                                                setShowRegisterButton(true);
+                                            }}
+                                            activeOpacity={0.9}
+                                        >
+                                            <Ionicons name="flag" size={16} color="#fff" />
+                                            <Text style={styles.primaryButtonText}>Llegada al punto de entrega</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.cancelButton}
+                                            onPress={cancelTrip}
+                                            activeOpacity={0.9}
+                                        >
+                                            <Ionicons name="close-circle" size={16} color={COLORS.brand} />
+                                            <Text style={styles.cancelButtonText}>Cancelar entrega</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </View>
+                        </ScrollView>
                     </View>
                 )}
 
@@ -1012,8 +1128,12 @@ const styles = StyleSheet.create({
         shadowRadius: 18,
         elevation: 10,
     },
-    etaTopRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-    etaLabel: {
+etaTopRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 10,
+        gap: 8,
+    },    etaLabel: {
         fontSize: 10,
         fontWeight: "800",
         color: COLORS.textMid,
@@ -1043,12 +1163,40 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 12,
     },
+    cancelTripBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: COLORS.borderLight,
+        justifyContent: "center",
+        alignItems: "center",
+        marginLeft: 8,
+    },
     timerDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.warning },
     timerTextLarge: {
         fontSize: 14,
         fontWeight: "800",
         color: COLORS.warning,
         fontVariant: ["tabular-nums"],
+    },
+    geofenceWarning: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        backgroundColor: COLORS.warningBg,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 12,
+    },
+    geofenceWarningText: {
+        flex: 1,
+        fontSize: 11,
+        fontWeight: "700",
+        color: COLORS.warning,
+    },
+    buttonDisabled: {
+        backgroundColor: COLORS.textLight,
+        shadowOpacity: 0,
     },
     etaMetaRow: {
         flexDirection: "row",
@@ -1132,6 +1280,39 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 6 },
         shadowRadius: 14,
         elevation: 6,
+    },
+    cancelButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        paddingVertical: 14,
+        borderRadius: 14,
+        backgroundColor: "#fff",
+        borderWidth: 1.5,
+        borderColor: COLORS.brand,
+    },
+    cancelButtonText: {
+        color: COLORS.brand,
+        fontSize: 14,
+        fontWeight: "800",
+        letterSpacing: 0.3,
+    },
+    cancelTripFloating: {
+        position: "absolute",
+        right: 12,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.brand,
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 30,
+        elevation: 20,
+        shadowColor: "#000",
+        shadowOpacity: 0.25,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 8,
     },
     clientAvatar: {
         width: 54,

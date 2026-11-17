@@ -4,7 +4,7 @@ import {
     ActivityIndicator, Dimensions, StatusBar,
     Animated, Easing, StyleSheet
 } from "react-native";
-import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, Polygon, Circle, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 
@@ -48,6 +48,30 @@ const STORAGE_KEYS = {
     startTimestamp: "mapdelivery_start_ts",
 };
 const ALL_ZONES_KEY = "__ALL__";
+const GEOFENCE_RADIUS_METERS = 40;
+const isValidCoord = (lat, lng) =>
+    typeof lat === "number" && typeof lng === "number" &&
+    !isNaN(lat) && !isNaN(lng) &&
+    lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+
+const haversineDistance = (lat1, lon1, lat2, lon2) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+    const R = 6371000;
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+
+const formatDistance = (m) => {
+    if (m == null || m === Infinity) return "—";
+    return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
+};
+
 const MemoClientMarker = React.memo(ClientMarker, (prev, next) => {
     return prev.client._id === next.client._id;
 });
@@ -93,16 +117,21 @@ const MapScreenDelivery = () => {
     const [selectedZone, setSelectedZone] = useState(ALL_ZONES_KEY);
     const [showPolygons, setShowPolygons] = useState(true);
     const [showCards, setShowCards] = useState(true);
-   const [mapRegion, setMapRegion] = useState(null);
-
-   
+    const [mapRegion, setMapRegion] = useState(null);
+    const [topPanelHeight, setTopPanelHeight] = useState(0);
+    const [sheetCollapsed, setSheetCollapsed] = useState(false);
     const routeSummary = useMemo(
         () => calculateRouteSummary(route),
         [route]
     );
 
     const consolidatedStops = useMemo(
-        () => routeSummary?.consolidatedStops || [],
+        () => (routeSummary?.consolidatedStops || []).filter((s) =>
+            isValidCoord(
+                parseFloat(s.client_location?.latitud),
+                parseFloat(s.client_location?.longitud)
+            )
+        ),
         [routeSummary]
     );
 
@@ -156,13 +185,13 @@ const MapScreenDelivery = () => {
             ]);
         } catch (e) { }
     };
- const visibleClients = useMemo(() => {
+    const visibleClients = useMemo(() => {
         if (!mapRegion) return filteredClients.slice(0, 60);
         const latDelta = mapRegion.latitudeDelta;
         if (latDelta > 0.15) return filteredClients.slice(0, 30);
         if (latDelta > 0.05) return filteredClients.slice(0, 80);
         return filteredClients;
-    }, [filteredClients, mapRegion]); 
+    }, [filteredClients, mapRegion]);
     const clearActiveTrip = async () => {
         try {
             await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
@@ -330,42 +359,43 @@ const MapScreenDelivery = () => {
     };
 
     const handleStartTrip = async (stop) => {
-        const userLocation = await getUserLocation();
-        if (!userLocation) return;
+        try {
+            const destLat = parseFloat(stop?.client_location?.latitud);
+            const destLng = parseFloat(stop?.client_location?.longitud);
 
-        const latitudDest = stop.client_location.latitud;
-        const longitudDest = stop.client_location.longitud;
+            if (!Number.isFinite(destLat) || !Number.isFinite(destLng)) {
+                alert("Este cliente no tiene ubicación válida");
+                return;
+            }
 
-        const etaResult = await fetchETA(userLocation, {
-            latitude: parseFloat(latitudDest),
-            longitude: parseFloat(longitudDest),
-        });
-        if (!etaResult) return;
+            const userLocation = await getUserLocation();
+            if (!userLocation) return;
 
-        const distanceFinal = etaResult.distance;
-        const durationFinal = etaResult.durationInTraffic;
+            const etaResult = await fetchETA(userLocation, {
+                latitude: destLat,
+                longitude: destLng,
+            });
 
-        const startTime = await startTimer();
-        startMapping();
+            const distanceFinal = etaResult?.distance || "";
+            const durationFinal = etaResult?.durationInTraffic || "";
 
-        const newDest = {
-            latitude: parseFloat(latitudDest),
-            longitude: parseFloat(longitudDest),
-            clientId: stop.client_location._id,
-        };
-        setActiveDestination(newDest);
+            const startTime = await startTimer();
+            startMapping();
 
-        const firstOrder = stop.orders?.[0] || stop;
+            const newDest = { latitude: destLat, longitude: destLng, clientId: stop.client_location._id };
+            setActiveDestination(newDest);
 
-        await persistActiveTrip({
-            rid: routeId,
-            dest: newDest,
-            locId: stop.client_location._id,
-            oId: firstOrder._id,
-        });
+            const firstOrder = stop.orders?.[0] || stop;
 
-        if (stop.orders && stop.orders.length > 0) {
-            for (const order of stop.orders) {
+            await persistActiveTrip({
+                rid: routeId,
+                dest: newDest,
+                locId: stop.client_location._id,
+                oId: firstOrder._id,
+            });
+
+            const orders = stop.orders?.length > 0 ? stop.orders : [stop];
+            for (const order of orders) {
                 await uploadRoute(
                     order,
                     startTime, null, null,
@@ -374,28 +404,19 @@ const MapScreenDelivery = () => {
                     "En camino", false
                 );
             }
-        } else {
-            await uploadRoute(
-                stop,
-                startTime, null, null,
-                durationFinal, distanceFinal,
-                "está en camino al destino",
-                "En camino", false
-            );
-        }
 
-        setIsTimerRunning(true);
-        setDeliveryRegistered(false);
-        await AsyncStorage.removeItem(STORAGE_KEYS.deliveryRegistered);
+            setIsTimerRunning(true);
+            setDeliveryRegistered(false);
+            await AsyncStorage.removeItem(STORAGE_KEYS.deliveryRegistered);
 
-        if (mapRef.current) {
-            mapRef.current.fitToCoordinates(
-                [userLocation, { latitude: parseFloat(latitudDest), longitude: parseFloat(longitudDest) }],
-                {
-                    edgePadding: { top: 180, right: 80, bottom: 320, left: 80 },
-                    animated: true,
-                }
-            );
+            if (mapRef.current && Number.isFinite(userLocation.latitude)) {
+                mapRef.current.fitToCoordinates(
+                    [userLocation, { latitude: destLat, longitude: destLng }],
+                    { edgePadding: { top: 180, right: 80, bottom: 320, left: 80 }, animated: true }
+                );
+            }
+        } catch (e) {
+            alert("No se pudo iniciar el trayecto");
         }
     };
 
@@ -450,6 +471,23 @@ const MapScreenDelivery = () => {
         await clearActiveTrip();
         await AsyncStorage.removeItem("timer_start");
     };
+    const cancelTrip = async () => {
+        setIsTimerRunning(false);
+        setTimer(0);
+        setActiveDestination(null);
+        setDeliveryRegistered(false);
+        setSelectedStop(null);
+        setModal(false);
+        setDistance("");
+        setDuration("");
+        setDurationInTraffic("");
+        setArrivalTime("");
+        setTrafficLevel("normal");
+        await stopTimer();
+        await clearActiveTrip();
+        await AsyncStorage.removeItem("timer_start");
+    };
+
     const showRoutesList = () => {
         setShowRoutes(true);
         setShowClients(false);
@@ -508,22 +546,20 @@ const MapScreenDelivery = () => {
         };
         init();
     }, []);
-
     useFocusEffect(
         React.useCallback(() => {
             const checkRegisteredFlag = async () => {
                 try {
                     const flag = await AsyncStorage.getItem(STORAGE_KEYS.deliveryRegistered);
-                    if (flag === "true" && !deliveryRegistered) {
+                    if (flag === "true") {
                         setDeliveryRegistered(true);
                         if (routeId) await getRoutesById(routeId);
                     }
                 } catch (e) { }
             };
             checkRegisteredFlag();
-        }, [deliveryRegistered, routeId])
+        }, [routeId])
     );
-
     const fetchClients = async () => {
         try {
             const response = await axios.post(
@@ -584,6 +620,9 @@ const MapScreenDelivery = () => {
     }, [isTimerRunning, activeDestination]);
 
     const openClientSheet = (client) => {
+        const lat = Number(client.client_location?.latitud);
+        const lng = Number(client.client_location?.longitud);
+        if (!isValidCoord(lat, lng)) return;
         const stopLike = {
             ...client,
             client_location: client.client_location,
@@ -595,10 +634,11 @@ const MapScreenDelivery = () => {
         };
         setSelectedStop(stopLike);
         setModal(true);
+        setSheetCollapsed(false);
         mapRef.current?.animateToRegion(
             {
-                latitude: Number(client.client_location.latitud),
-                longitude: Number(client.client_location.longitud),
+                latitude: lat,
+                longitude: lng,
                 latitudeDelta: 0.012,
                 longitudeDelta: 0.012,
             },
@@ -607,14 +647,19 @@ const MapScreenDelivery = () => {
     };
 
     const centerMapOnStop = (stop) => {
+        const lat = parseFloat(stop.client_location?.latitud);
+        const lng = parseFloat(stop.client_location?.longitud);
+        if (!isValidCoord(lat, lng)) return;
         setSelectedStop(stop);
         const firstOrder = stop.orders?.[0] || stop;
         setOrderId(firstOrder._id);
         setModal(true);
+        setSheetCollapsed(false);
+
         mapRef.current?.animateToRegion(
             {
-                latitude: parseFloat(stop.client_location.latitud),
-                longitude: parseFloat(stop.client_location.longitud),
+                latitude: lat,
+                longitude: lng,
                 latitudeDelta: 0.01,
                 longitudeDelta: 0.01,
             },
@@ -654,11 +699,6 @@ const MapScreenDelivery = () => {
             client: firstOrder,
             route: routeId,
             allOrders: stop.orders || [stop],
-            onDeliveryRegistered: async () => {
-                setDeliveryRegistered(true);
-                await AsyncStorage.setItem(STORAGE_KEYS.deliveryRegistered, "true");
-                if (routeId) await getRoutesById(routeId);
-            },
         });
     };
 
@@ -711,6 +751,18 @@ const MapScreenDelivery = () => {
     };
 
     const isAlreadyDelivered = selectedStop?.visitStatus1 === "LLego al destino";
+    const distanceToStop =
+        selectedStop?.client_location && origin.latitude !== 0
+            ? haversineDistance(
+                origin.latitude,
+                origin.longitude,
+                parseFloat(selectedStop.client_location.latitud),
+                parseFloat(selectedStop.client_location.longitud)
+            )
+            : null;
+
+    const withinGeofence = distanceToStop !== null && distanceToStop <= GEOFENCE_RADIUS_METERS;
+    const sheetMaxHeight = height - topPanelHeight - 40;
     const hasStackingPlan = showRoute && route?.[0] && routeSummary?.totalBoxes > 0;
     if (loading) {
         return (
@@ -748,20 +800,30 @@ const MapScreenDelivery = () => {
         <SafeAreaProvider>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
             <View style={styles.container}>
-               <MapView
+                <MapView
+                    ref={mapRef}
                     style={StyleSheet.absoluteFillObject}
-                    customMapStyle={MAP_STYLE}
-                    provider={PROVIDER_GOOGLE}
+                    //customMapStyle={MAP_STYLE}
+                    // provider={PROVIDER_GOOGLE}
                     initialRegion={INITIAL_ADDRESS}
                     showsUserLocation={true}
                     showsMyLocationButton={false}
                     onRegionChangeComplete={(region) => setMapRegion(region)}
                 >
+                    {origin.latitude !== 0 && (
+                        <Circle
+                            center={{ latitude: origin.latitude, longitude: origin.longitude }}
+                            radius={GEOFENCE_RADIUS_METERS}
+                            strokeColor={COLORS.brand}
+                            strokeWidth={3}
+                            fillColor="rgba(211,66,62,0.18)"
+                        />
+                    )}
                     {showClients && !showRoute && showPolygons &&
                         Object.entries(MUNICIPIOS_COCHABAMBA).map(([key, m]) => {
 
-                            if (!m.paths) return null;
-
+                            const validPaths = (m.paths || []).filter((p) => isValidCoord(p.lat, p.lng));
+                            if (validPaths.length < 3) return null;
                             const isSelected = selectedZone === key;
                             const isFiltered =
                                 selectedZone !== ALL_ZONES_KEY && !isSelected;
@@ -769,10 +831,7 @@ const MapScreenDelivery = () => {
                             return (
                                 <Polygon
                                     key={key}
-                                    coordinates={m.paths.map(p => ({
-                                        latitude: p.lat,
-                                        longitude: p.lng,
-                                    }))}
+                                    coordinates={validPaths.map(p => ({ latitude: p.lat, longitude: p.lng }))}
                                     strokeColor={
                                         isFiltered ? `${m.strokeColor}40` : m.strokeColor
                                     }
@@ -788,14 +847,15 @@ const MapScreenDelivery = () => {
                             );
                         })}
 
-                   {showClients && !showRoute &&
-                        visibleClients.map((client, index) => (
-                            <MemoClientMarker
-                                key={client._id || index}
-                                client={client}
-                                onPress={() => openClientSheet(client)}
-                            />
-                        ))}
+                    {showClients && !showRoute &&
+                        filteredClients
+                            .filter((c) => isValidCoord(
+                                parseFloat(c.client_location?.latitud),
+                                parseFloat(c.client_location?.longitud)
+                            ))
+                            .map((client, index) => (
+                                <ClientMarker key={index} client={client} />
+                            ))}
 
                     {!showClients &&
                         showRoute &&
@@ -862,27 +922,32 @@ const MapScreenDelivery = () => {
                                             <View style={[styles.markerArrow, { borderTopColor: markerBg }]} />
                                         </View>
                                     </Marker>
-                                    {!isTimerRunning && index === 0 && consolidatedStops.length > 1 && (
-                                        <MapViewDirections
-                                            origin={origin}
-                                            destination={{
-                                                latitude: parseFloat(
-                                                    consolidatedStops[consolidatedStops.length - 1].client_location.latitud
-                                                ),
-                                                longitude: parseFloat(
-                                                    consolidatedStops[consolidatedStops.length - 1].client_location.longitud
-                                                ),
-                                            }}
-                                            waypoints={consolidatedStops.slice(0, -1).map((s) => ({
-                                                latitude: parseFloat(s.client_location.latitud),
-                                                longitude: parseFloat(s.client_location.longitud),
-                                            }))}
-                                            optimizeWaypoints={true}
-                                            apikey={GOOGLE_API_KEY}
-                                            strokeColor="#000000"
-                                            strokeWidth={2}
-                                        />
-                                    )}
+                                    {!isTimerRunning &&
+                                        index === 0 &&
+                                        consolidatedStops.length > 1 &&
+                                        isValidCoord(origin.latitude, origin.longitude) && (
+                                            <MapViewDirections
+                                                origin={origin}
+                                                destination={{
+                                                    latitude: parseFloat(
+                                                        consolidatedStops[consolidatedStops.length - 1].client_location.latitud
+                                                    ),
+                                                    longitude: parseFloat(
+                                                        consolidatedStops[consolidatedStops.length - 1].client_location.longitud
+                                                    ),
+                                                }}
+                                                waypoints={consolidatedStops.slice(0, -1).slice(0, 23).map((s) => ({
+                                                    latitude: parseFloat(s.client_location.latitud),
+                                                    longitude: parseFloat(s.client_location.longitud),
+                                                }))}
+                                                optimizeWaypoints={true}
+                                                apikey={GOOGLE_API_KEY}
+                                                strokeColor="#000000"
+                                                strokeWidth={2}
+                                                resetOnChange={false}
+                                                onError={() => { }}
+                                            />
+                                        )}
                                 </React.Fragment>
                             );
                         })}
@@ -899,11 +964,18 @@ const MapScreenDelivery = () => {
                             strokeWidth={6}
                             mode="DRIVING"
                             precision="high"
+                            onError={() => { }}
+                            resetOnChange={false}
+
                         />
                     )}
                 </MapView>
 
-                <SafeAreaView edges={["top"]} style={styles.topSafe}>
+                <SafeAreaView
+                    edges={["top"]}
+                    style={styles.topSafe}
+                    onLayout={(e) => setTopPanelHeight(e.nativeEvent.layout.height)}
+                >
                     {isTimerRunning ? (
                         <View style={styles.etaPanel}>
                             <View style={styles.etaTopRow}>
@@ -1423,80 +1495,138 @@ const MapScreenDelivery = () => {
                     )
                 )}
 
-                {modality && selectedStop && (
-                    <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 16 }]}>
+                {modality && selectedStop && sheetCollapsed && (
+                    <TouchableOpacity
+                        style={{
+                            position: "absolute",
+                            left: 16,
+                            right: 16,
+                            bottom: insets.bottom + 12,
+                            backgroundColor: "#fff",
+                            borderRadius: 20,
+                            paddingHorizontal: 16,
+                            paddingVertical: 14,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 12,
+                            shadowColor: "#000",
+                            shadowOpacity: 0.2,
+                            shadowOffset: { width: 0, height: -4 },
+                            shadowRadius: 14,
+                            elevation: 12,
+                            zIndex: 20,
+                        }}
+                        onPress={() => setSheetCollapsed(false)}
+                        activeOpacity={0.9}
+                    >
+                        <View style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 12,
+                            backgroundColor: COLORS.dangerBg,
+                            justifyContent: "center",
+                            alignItems: "center",
+                        }}>
+                            <Ionicons name="cube" size={18} color={COLORS.brand} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 14, fontWeight: "800", color: COLORS.text }} numberOfLines={1}>
+                                {selectedStop.client_location?.sucursalName ||
+                                    `${selectedStop.name} ${selectedStop.lastName}`}
+                            </Text>
+                            <Text style={{ fontSize: 11, fontWeight: "600", color: COLORS.textMid, marginTop: 2 }}>
+                                {selectedStop.orders?.length || 0} pedidos · Bs. {Number(selectedStop.totalAmount || 0).toFixed(0)}
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-up" size={20} color={COLORS.brand} />
+                    </TouchableOpacity>
+                )}
+
+                {modality && selectedStop && !sheetCollapsed && (
+                    <View style={[
+                        styles.bottomSheet,
+                        {
+                            paddingBottom: insets.bottom + 16,
+                            top: topPanelHeight + 12,
+                            left: 16,
+                            right: 16,
+                            bottom: insets.bottom + 12,
+                            borderRadius: 28,
+                            overflow: "hidden",
+                        }
+                    ]}>
                         <View style={styles.modalHandle} />
 
-                        <ScrollView
-                            style={{ maxHeight: height * 0.7 }}
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{ paddingBottom: 8 }}
-                        >
-                            <View style={styles.bottomSheetHeader}>
-                                <View style={styles.bottomSheetAvatar}>
-                                    {selectedStop.identificationImage ? (
-                                        <Image
-                                            source={{ uri: selectedStop.identificationImage }}
-                                            style={styles.bottomSheetAvatarImg}
-                                        />
-                                    ) : (
-                                        <Text style={styles.bottomSheetAvatarText}>
-                                            {(selectedStop.name || "?")[0]?.toUpperCase()}
-                                            {selectedStop.lastName?.[0]?.toUpperCase()}
-                                        </Text>
-                                    )}
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.bottomSheetName} numberOfLines={1}>
-                                        {selectedStop.client_location?.sucursalName ||
-                                            `${selectedStop.name} ${selectedStop.lastName}`}
+                        <View style={styles.bottomSheetHeader}>
+                            <View style={styles.bottomSheetAvatar}>
+                                {selectedStop.identificationImage ? (
+                                    <Image
+                                        source={{ uri: selectedStop.identificationImage }}
+                                        style={styles.bottomSheetAvatarImg}
+                                    />
+                                ) : (
+                                    <Text style={styles.bottomSheetAvatarText}>
+                                        {(selectedStop.name || "?")[0]?.toUpperCase()}
+                                        {selectedStop.lastName?.[0]?.toUpperCase()}
                                     </Text>
-                                    {selectedStop.client_location?.direction && (
-                                        <View style={styles.bottomSheetAddressRow}>
-                                            <Ionicons name="location-sharp" size={11} color={COLORS.brand} />
-                                            <Text style={styles.bottomSheetAddress} numberOfLines={1}>
-                                                {selectedStop.client_location.direction}
+                                )}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.bottomSheetName} numberOfLines={1}>
+                                    {selectedStop.client_location?.sucursalName ||
+                                        `${selectedStop.name} ${selectedStop.lastName}`}
+                                </Text>
+                                {selectedStop.client_location?.direction && (
+                                    <View style={styles.bottomSheetAddressRow}>
+                                        <Ionicons name="location-sharp" size={11} color={COLORS.brand} />
+                                        <Text style={styles.bottomSheetAddress} numberOfLines={1}>
+                                            {selectedStop.client_location.direction}
+                                        </Text>
+                                    </View>
+                                )}
+                                <View style={styles.bottomSheetChipsRow}>
+                                    {selectedStop.userCategory && (() => {
+                                        const cfg = getCategoryConfig(selectedStop.userCategory);
+                                        return (
+                                            <View
+                                                style={[
+                                                    styles.bottomSheetMultiBadge,
+                                                    { backgroundColor: cfg.bg },
+                                                ]}
+                                            >
+                                                <Ionicons name={cfg.icon} size={10} color={cfg.color} />
+                                                <Text
+                                                    style={[styles.bottomSheetMultiText, { color: cfg.color }]}
+                                                >
+                                                    {cfg.label}
+                                                </Text>
+                                            </View>
+                                        );
+                                    })()}
+                                    {selectedStop.orders && selectedStop.orders.length > 1 && (
+                                        <View style={styles.bottomSheetMultiBadge}>
+                                            <Ionicons name="layers" size={10} color={COLORS.brand} />
+                                            <Text style={styles.bottomSheetMultiText}>
+                                                {selectedStop.orders.length} pedidos
                                             </Text>
                                         </View>
                                     )}
-                                    <View style={styles.bottomSheetChipsRow}>
-                                        {selectedStop.userCategory && (() => {
-                                            const cfg = getCategoryConfig(selectedStop.userCategory);
-                                            return (
-                                                <View
-                                                    style={[
-                                                        styles.bottomSheetMultiBadge,
-                                                        { backgroundColor: cfg.bg },
-                                                    ]}
-                                                >
-                                                    <Ionicons name={cfg.icon} size={10} color={cfg.color} />
-                                                    <Text
-                                                        style={[styles.bottomSheetMultiText, { color: cfg.color }]}
-                                                    >
-                                                        {cfg.label}
-                                                    </Text>
-                                                </View>
-                                            );
-                                        })()}
-                                        {selectedStop.orders && selectedStop.orders.length > 1 && (
-                                            <View style={styles.bottomSheetMultiBadge}>
-                                                <Ionicons name="layers" size={10} color={COLORS.brand} />
-                                                <Text style={styles.bottomSheetMultiText}>
-                                                    {selectedStop.orders.length} pedidos
-                                                </Text>
-                                            </View>
-                                        )}
-                                    </View>
                                 </View>
-                                <TouchableOpacity
-                                    style={styles.bottomSheetClose}
-                                    onPress={() => setModal(false)}
-                                    activeOpacity={0.7}
-                                >
-                                    <Ionicons name="close" size={18} color={COLORS.textMid} />
-                                </TouchableOpacity>
                             </View>
+                            <TouchableOpacity
+                                style={styles.bottomSheetClose}
+                                onPress={() => setSheetCollapsed(true)}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="chevron-down" size={18} color={COLORS.textMid} />
+                            </TouchableOpacity>
+                        </View>
 
+                        <ScrollView
+                            style={{ flex: 1 }}
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={{ paddingBottom: 8 }}
+                        >
                             {isTimerRunning && (
                                 <View style={styles.tripInfoRow}>
                                     <View style={styles.tripInfoCard}>
@@ -1564,119 +1694,122 @@ const MapScreenDelivery = () => {
                                     </Text>
                                 </View>
                             )}
-                        </ScrollView>
-                        <View style={styles.bottomSheetActions}>
+
                             {selectedStop.orders && selectedStop.orders.length > 0 && (
-                                <>
-                                    <View style={{
-                                        backgroundColor: COLORS.bg,
-                                        borderRadius: 14,
-                                        padding: 12,
-                                        marginBottom: 8,
-                                        borderWidth: 1,
-                                        borderColor: COLORS.borderLight,
-                                    }}>
-                                        <Text style={{
-                                            fontSize: 10,
-                                            fontWeight: "800",
-                                            color: COLORS.textMid,
-                                            textTransform: "uppercase",
-                                            letterSpacing: 0.4,
-                                            marginBottom: 8,
-                                        }}>Pedidos a entregar</Text>
+                            <View style={{
+                                backgroundColor: COLORS.bg,
+                                borderRadius: 14,
+                                padding: 12,
+                                marginBottom: 8,
+                                borderWidth: 1,
+                                borderColor: COLORS.borderLight,
+                            }}>
+                                <Text style={{
+                                    fontSize: 10,
+                                    fontWeight: "800",
+                                    color: COLORS.textMid,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.4,
+                                    marginBottom: 8,
+                                }}>Pedidos a entregar</Text>
 
-                                        <ScrollView
-                                            style={{ maxHeight: 260 }}
-                                            showsVerticalScrollIndicator={false}
-                                            nestedScrollEnabled={true}
-                                        >
-                                            {selectedStop.orders.map((order, i) => (
-                                                <View key={i} style={{
-                                                    marginBottom: i < selectedStop.orders.length - 1 ? 10 : 0,
-                                                    backgroundColor: "#fff",
-                                                    borderRadius: 12,
-                                                    padding: 10,
-                                                    borderWidth: 1,
-                                                    borderColor: COLORS.border,
-                                                }}>
+                                <ScrollView
+                                    style={{ maxHeight: 180 }}
+                                    showsVerticalScrollIndicator={false}
+                                    nestedScrollEnabled={true}
+                                >
+                                    {selectedStop.orders.map((order, i) => (
+                                        <View key={i} style={{
+                                            marginBottom: i < selectedStop.orders.length - 1 ? 10 : 0,
+                                            backgroundColor: "#fff",
+                                            borderRadius: 12,
+                                            padding: 10,
+                                            borderWidth: 1,
+                                            borderColor: COLORS.border,
+                                        }}>
+                                            <View style={{
+                                                flexDirection: "row",
+                                                alignItems: "center",
+                                                justifyContent: "space-between",
+                                                marginBottom: 8,
+                                            }}>
+                                                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                                                     <View style={{
-                                                        flexDirection: "row",
-                                                        alignItems: "center",
-                                                        justifyContent: "space-between",
-                                                        marginBottom: 8,
+                                                        width: 28, height: 28, borderRadius: 8,
+                                                        backgroundColor: COLORS.dangerBg,
+                                                        justifyContent: "center", alignItems: "center",
                                                     }}>
-                                                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                                                            <View style={{
-                                                                width: 28, height: 28, borderRadius: 8,
-                                                                backgroundColor: COLORS.dangerBg,
-                                                                justifyContent: "center", alignItems: "center",
-                                                            }}>
-                                                                <Ionicons name="receipt-outline" size={13} color={COLORS.brand} />
-                                                            </View>
-                                                            <Text style={{ fontSize: 12, fontWeight: "800", color: COLORS.text }}>
-                                                                Nota #{order.receiveNumber}
-                                                            </Text>
-                                                        </View>
-                                                        <Text style={{ fontSize: 13, fontWeight: "800", color: COLORS.brand }}>
-                                                            Bs. {Number(order.totalAmount || 0).toFixed(0)}
-                                                        </Text>
+                                                        <Ionicons name="receipt-outline" size={13} color={COLORS.brand} />
                                                     </View>
+                                                    <Text style={{ fontSize: 12, fontWeight: "800", color: COLORS.text }}>
+                                                        Nota #{order.receiveNumber}
+                                                    </Text>
+                                                </View>
+                                                <Text style={{ fontSize: 13, fontWeight: "800", color: COLORS.brand }}>
+                                                    Bs. {Number(order.totalAmount || 0).toFixed(0)}
+                                                </Text>
+                                            </View>
 
-                                                    {order.products && order.products.length > 0 && (
-                                                        <View style={{
-                                                            backgroundColor: COLORS.bg,
-                                                            borderRadius: 8,
-                                                            padding: 8,
-                                                            gap: 4,
+                                            {order.products && order.products.length > 0 && (
+                                                <View style={{
+                                                    backgroundColor: COLORS.bg,
+                                                    borderRadius: 8,
+                                                    padding: 8,
+                                                    gap: 4,
+                                                }}>
+                                                    {order.products.map((prod, pi) => (
+                                                        <View key={pi} style={{
+                                                            flexDirection: "row",
+                                                            alignItems: "center",
+                                                            justifyContent: "space-between",
                                                         }}>
-                                                            {order.products.map((prod, pi) => (
-                                                                <View key={pi} style={{
-                                                                    flexDirection: "row",
-                                                                    alignItems: "center",
-                                                                    justifyContent: "space-between",
+                                                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                                                                <View style={{
+                                                                    width: 20, height: 20, borderRadius: 5,
+                                                                    backgroundColor: COLORS.brand,
+                                                                    justifyContent: "center", alignItems: "center",
                                                                 }}>
-                                                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
-                                                                        <View style={{
-                                                                            width: 20, height: 20, borderRadius: 5,
-                                                                            backgroundColor: COLORS.brand,
-                                                                            justifyContent: "center", alignItems: "center",
-                                                                        }}>
-                                                                            <Text style={{ fontSize: 9, fontWeight: "800", color: COLORS.card }}>
-                                                                                {prod.cantidad || 1}
-                                                                            </Text>
-                                                                        </View>
-                                                                        <Text style={{ fontSize: 11, color: COLORS.text, fontWeight: "600", flex: 1 }} numberOfLines={1}>
-                                                                            {prod.nombre || "Producto"}
-                                                                        </Text>
-                                                                    </View>
-                                                                    <Text style={{ fontSize: 11, fontWeight: "700", color: COLORS.text }}>
-                                                                        Bs. {Number((prod.precio || 0) * (prod.cantidad || 1)).toFixed(0)}
+                                                                    <Text style={{ fontSize: 9, fontWeight: "800", color: COLORS.card }}>
+                                                                        {prod.cantidad || 1}
                                                                     </Text>
                                                                 </View>
-                                                            ))}
+                                                                <Text style={{ fontSize: 11, color: COLORS.text, fontWeight: "600", flex: 1 }} numberOfLines={1}>
+                                                                    {prod.nombre || "Producto"}
+                                                                </Text>
+                                                            </View>
+                                                            <Text style={{ fontSize: 11, fontWeight: "700", color: COLORS.text }}>
+                                                                Bs. {Number((prod.precio || 0) * (prod.cantidad || 1)).toFixed(0)}
+                                                            </Text>
                                                         </View>
-                                                    )}
+                                                    ))}
                                                 </View>
-                                            ))}
-                                        </ScrollView>
-
-                                        <View style={{
-                                            flexDirection: "row",
-                                            justifyContent: "space-between",
-                                            alignItems: "center",
-                                            marginTop: 10,
-                                            paddingTop: 8,
-                                            borderTopWidth: 1,
-                                            borderTopColor: COLORS.border,
-                                        }}>
-                                            <Text style={{ fontSize: 11, fontWeight: "700", color: COLORS.textMid }}>
-                                                Total · {selectedStop.totalBoxes} cajas
-                                            </Text>
-                                            <Text style={{ fontSize: 15, fontWeight: "800", color: COLORS.brand }}>
-                                                Bs. {Number(selectedStop.totalAmount || 0).toFixed(0)}
-                                            </Text>
+                                            )}
                                         </View>
-                                    </View>
+                                    ))}
+                                </ScrollView>
+
+                                <View style={{
+                                    flexDirection: "row",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    marginTop: 10,
+                                    paddingTop: 8,
+                                    borderTopWidth: 1,
+                                    borderTopColor: COLORS.border,
+                                }}>
+                                    <Text style={{ fontSize: 11, fontWeight: "700", color: COLORS.textMid }}>
+                                        Total · {selectedStop.totalBoxes} cajas
+                                    </Text>
+                                    <Text style={{ fontSize: 15, fontWeight: "800", color: COLORS.brand }}>
+                                        Bs. {Number(selectedStop.totalAmount || 0).toFixed(0)}
+                                    </Text>
+                                </View>
+                            </View>
+                            )}
+                        </ScrollView>
+                        <View style={[styles.bottomSheetActions, { flexShrink: 0 }]}>
+                            {selectedStop.orders && selectedStop.orders.length > 0 && (
+                                <>
                                     {!isTimerRunning && !isAlreadyDelivered && (
                                         <TouchableOpacity
                                             style={{
@@ -1727,43 +1860,63 @@ const MapScreenDelivery = () => {
                             )}
 
                             {isTimerRunning && !deliveryRegistered && (
-                                <TouchableOpacity
-                                    style={{
-                                        flexDirection: "row",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        gap: 10,
-                                        paddingVertical: 15,
-                                        borderRadius: 14,
-                                        backgroundColor: COLORS.info,
-                                        shadowColor: COLORS.info,
-                                        shadowOpacity: 0.35,
-                                        shadowOffset: { width: 0, height: 4 },
-                                        shadowRadius: 10,
-                                        elevation: 5,
-                                    }}
-                                    onPress={() => handleOpenDeliveryForm(selectedStop)}
-                                    activeOpacity={0.9}
-                                >
-                                    <View style={{
-                                        width: 30,
-                                        height: 30,
-                                        borderRadius: 10,
-                                        backgroundColor: "rgba(255,255,255,0.2)",
-                                        justifyContent: "center",
-                                        alignItems: "center",
-                                    }}>
-                                        <Ionicons name="cube" size={16} color="#fff" />
-                                    </View>
-                                    <View>
-                                        <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800", letterSpacing: 0.3 }}>
-                                            Registrar entrega
-                                        </Text>
-                                        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 10, fontWeight: "600" }}>
-                                            Confirmar los pedidos entregados
-                                        </Text>
-                                    </View>
-                                </TouchableOpacity>
+                                <>
+                                    {!withinGeofence && (
+                                        <View style={{
+                                            flexDirection: "row",
+                                            alignItems: "center",
+                                            gap: 6,
+                                            backgroundColor: COLORS.warningBg,
+                                            paddingHorizontal: 12,
+                                            paddingVertical: 10,
+                                            borderRadius: 12,
+                                            marginBottom: 8,
+                                        }}>
+                                            <Ionicons name="warning" size={14} color={COLORS.warning} />
+                                            <Text style={{ flex: 1, fontSize: 11, fontWeight: "700", color: COLORS.warning }}>
+                                                Acércate a menos de {GEOFENCE_RADIUS_METERS}m · estás a {formatDistance(distanceToStop)}
+                                            </Text>
+                                        </View>
+                                    )}
+                                    <TouchableOpacity
+                                        style={{
+                                            flexDirection: "row",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: 10,
+                                            paddingVertical: 15,
+                                            borderRadius: 14,
+                                            backgroundColor: withinGeofence ? COLORS.info : COLORS.textLight,
+                                            shadowColor: COLORS.info,
+                                            shadowOpacity: withinGeofence ? 0.35 : 0,
+                                            shadowOffset: { width: 0, height: 4 },
+                                            shadowRadius: 10,
+                                            elevation: withinGeofence ? 5 : 0,
+                                        }}
+                                        onPress={() => handleOpenDeliveryForm(selectedStop)}
+                                        disabled={!withinGeofence}
+                                        activeOpacity={0.9}
+                                    >
+                                        <View style={{
+                                            width: 30,
+                                            height: 30,
+                                            borderRadius: 10,
+                                            backgroundColor: "rgba(255,255,255,0.2)",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                        }}>
+                                            <Ionicons name={withinGeofence ? "cube" : "lock-closed"} size={16} color="#fff" />
+                                        </View>
+                                        <View>
+                                            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800", letterSpacing: 0.3 }}>
+                                                {withinGeofence ? "Registrar entrega" : "Fuera de rango"}
+                                            </Text>
+                                            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 10, fontWeight: "600" }}>
+                                                {withinGeofence ? "Confirmar los pedidos entregados" : "Debes estar en el punto de entrega"}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                </>
                             )}
 
                             {isTimerRunning && deliveryRegistered && (
@@ -1803,6 +1956,29 @@ const MapScreenDelivery = () => {
                                             Marcar parada como completada
                                         </Text>
                                     </View>
+                                </TouchableOpacity>
+                            )}
+                            {isTimerRunning && (
+                                <TouchableOpacity
+                                    style={{
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: 8,
+                                        paddingVertical: 13,
+                                        borderRadius: 14,
+                                        backgroundColor: "#fff",
+                                        borderWidth: 1.5,
+                                        borderColor: COLORS.brand,
+                                        marginTop: 8,
+                                    }}
+                                    onPress={cancelTrip}
+                                    activeOpacity={0.9}
+                                >
+                                    <Ionicons name="close-circle" size={16} color={COLORS.brand} />
+                                    <Text style={{ color: COLORS.brand, fontSize: 13, fontWeight: "800", letterSpacing: 0.3 }}>
+                                        Cancelar entrega
+                                    </Text>
                                 </TouchableOpacity>
                             )}
                         </View>

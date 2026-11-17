@@ -53,6 +53,34 @@ const getProgressColor = (pct) => {
   if (pct >= 70) return COLORS.warning;
   return COLORS.brand;
 };
+
+const normalizeRoutes = (data) =>
+  (Array.isArray(data) ? data : []).map((ruta) => ({
+    ...ruta,
+    route: (ruta.route || []).map((p) => {
+      const c = p.id_client || {};
+      return {
+        ...p,
+        name: p.name || c.name,
+        lastName: p.lastName || c.lastName,
+        company: p.company || c.company,
+        profilePicture: p.profilePicture || c.profilePicture,
+        identificationImage: p.identificationImage || c.identificationImage,
+        userCategory: p.userCategory || c.userCategory,
+        client_location:
+          (p.client_location && typeof p.client_location === "object" ? p.client_location : null) ||
+          (c.client_location && typeof c.client_location === "object" ? c.client_location : null),
+      };
+    }),
+  }));
+
+const getCoords = (p) => {
+  const lat = parseFloat(p?.client_location?.latitud);
+  const lng = parseFloat(p?.client_location?.longitud);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { latitude: lat, longitude: lng };
+};
+
 const ShimmerBlock = ({ width: w, height: h, style, radius = 8 }) => {
   const shimmer = useRef(new Animated.Value(0)).current;
 
@@ -171,7 +199,7 @@ export default function DeliveryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [salesData, setSalesData] = useState([]);
   const [route, setRoute] = useState(null);
-const today = useRef(new Date()).current;
+  const today = useRef(new Date()).current;
   const [profile, setProfile] = useState(null);
   const [id, setId] = useState([]);
   const [isRouteLoading, setIsRouteLoading] = useState(true);
@@ -199,7 +227,7 @@ const today = useRef(new Date()).current;
       setLocationPermissionGranted(true);
     }
   };
- useEffect(() => {
+  useEffect(() => {
     const initLocation = async () => {
       await requestLocationPermission();
       try {
@@ -215,7 +243,7 @@ const today = useRef(new Date()).current;
             });
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     initLocation();
   }, []);
@@ -252,9 +280,10 @@ const today = useRef(new Date()).current;
         }
       });
       if (response.status === 200) {
-        setRoute(response.data);
-        setSalesData(response.data);
-        setFilteredData(response.data);
+        const normalized = normalizeRoutes(response.data);
+        setRoute(normalized);
+        setSalesData(normalized);
+        setFilteredData(normalized);
         setRouteLoaded(true);
       }
     } catch (error) {
@@ -279,21 +308,19 @@ const today = useRef(new Date()).current;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const validStops = (route?.[0]?.route || []).filter((p) => getCoords(p));
+
   useEffect(() => {
-    if (!userLocation || !route?.[0]?.route?.length || !mapRef.current) return;
-    const coords = [
-      userLocation,
-      ...route[0].route.map(p => ({
-        latitude: parseFloat(p.client_location.latitud),
-        longitude: parseFloat(p.client_location.longitud),
-      })),
-    ];
-    setTimeout(() => {
+    if (!userLocation || validStops.length === 0 || !mapRef.current) return;
+    const coords = [userLocation, ...validStops.map((p) => getCoords(p))];
+    const t = setTimeout(() => {
       mapRef.current?.fitToCoordinates(coords, {
         edgePadding: { top: 40, right: 40, bottom: 40, left: 40 },
         animated: true,
       });
     }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLocation, route]);
   useEffect(() => {
     if (searchTerm.trim() === "") {
@@ -313,24 +340,13 @@ const today = useRef(new Date()).current;
   const goToClientDetails = (item) => {
     navigation.navigate("OrderDetailsScreenDeliver", { item });
   };
-  const formatDate2 = (dateString) => {
-    const date = new Date(dateString);
-    const daysOfWeek = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-    const dayOfWeek = daysOfWeek[date.getDay()];
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-
-    return `${dayOfWeek}, ${day} de ${month} del ${year}`;
-  };
   const formatDateLong = (s) => {
     const d = new Date(s);
     const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
     return `${days[d.getDay()]}, ${d.getDate()} de ${months[d.getMonth()]}`;
   };
-const totalPedidos = filteredData.reduce((acc, ruta) => acc + (ruta.route?.length || 0), 0);
+  const totalPedidos = filteredData.reduce((acc, ruta) => acc + (ruta.route?.length || 0), 0);
   const stopsRuta = route?.[0]?.route?.length || 0;
 
   const getOrderStatusStyle = (status) => {
@@ -346,13 +362,6 @@ const totalPedidos = filteredData.reduce((acc, ruta) => acc + (ruta.route?.lengt
     }
   };
   const navigate = () => navigation.navigate("Map", { screen: "MapScreen" });
-
-  const formatDate = (s) => {
-    if (!s) return "—";
-    const d = new Date(s);
-    if (isNaN(d.getTime())) return "—";
-    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-  };
   const onRefresh = async () => {
     try {
       setRefreshing(true);
@@ -479,14 +488,11 @@ const totalPedidos = filteredData.reduce((acc, ruta) => acc + (ruta.route?.lengt
                   showsUserLocation={true}
                   showsMyLocationButton={true}
                 >
-                  {route?.[0]?.route?.map((point, index) => (
+                  {validStops.map((point, index) => (
                     <Marker
                       key={index}
-                      coordinate={{
-                        latitude: parseFloat(point.client_location.latitud),
-                        longitude: parseFloat(point.client_location.longitud),
-                      }}
-                      title={`${point.name}`}
+                      coordinate={getCoords(point)}
+                      title={`${point.name || ""}`}
                     >
                       <View style={styles.markerWrapper}>
                         <View style={styles.markerCircle}>
@@ -497,17 +503,11 @@ const totalPedidos = filteredData.reduce((acc, ruta) => acc + (ruta.route?.lengt
                     </Marker>
                   ))}
 
-                  {route?.[0]?.route?.length > 0 && userLocation && (
+                  {validStops.length > 0 && userLocation && (
                     <MapViewDirections
                       origin={userLocation}
-                      destination={{
-                        latitude: parseFloat(route[0].route[route[0].route.length - 1].client_location.latitud),
-                        longitude: parseFloat(route[0].route[route[0].route.length - 1].client_location.longitud),
-                      }}
-                      waypoints={route[0].route.slice(0, -1).map((point) => ({
-                        latitude: parseFloat(point.client_location.latitud),
-                        longitude: parseFloat(point.client_location.longitud),
-                      }))}
+                      destination={getCoords(validStops[validStops.length - 1])}
+                      waypoints={validStops.slice(0, -1).map((point) => getCoords(point))}
                       optimizeWaypoints={false}
                       apikey={GOOGLE_API_KEY}
                       strokeColor="#111827"
@@ -557,7 +557,7 @@ const totalPedidos = filteredData.reduce((acc, ruta) => acc + (ruta.route?.lengt
                   const orderStatus = getOrderStatusStyle(item.orderStatus);
                   return (
 
-                  <TouchableOpacity
+                    <TouchableOpacity
                       key={`${i}-${index}`}
                       style={styles.orderCard}
                       onPress={() => goToClientDetails(item)}
@@ -616,7 +616,7 @@ const totalPedidos = filteredData.reduce((acc, ruta) => acc + (ruta.route?.lengt
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 10 }}>
                         <Ionicons name="location-sharp" size={11} color={COLORS.brand} />
                         <Text style={{ fontSize: 11, color: COLORS.textMid, fontWeight: "500", flex: 1 }} numberOfLines={1}>
-                          {item.client_location?.direction || "Sin dirección"}
+                          {item.client_location?.direction || item.direction || "Sin dirección"}
                         </Text>
                       </View>
 
@@ -627,7 +627,7 @@ const totalPedidos = filteredData.reduce((acc, ruta) => acc + (ruta.route?.lengt
                           Nota #{item.receiveNumber}
                         </Text>
                         <View style={{ flexDirection: "row", gap: 6 }}>
-                         <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: COLORS.dangerBg, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: COLORS.dangerBg, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
                             <Ionicons name="cube" size={9} color={COLORS.brand} />
                             <Text style={{ fontSize: 10, fontWeight: "700", color: COLORS.brand }}>
                               {item.products?.reduce((s, p) => s + Math.floor((p.cantidad || 0) / (p.unidadesPorCaja || 12)), 0) || 0} cajas
@@ -638,7 +638,7 @@ const totalPedidos = filteredData.reduce((acc, ruta) => acc + (ruta.route?.lengt
                             <Text style={{ fontSize: 10, fontWeight: "700", color: COLORS.info }}>
                               {item.products?.reduce((s, p) => s + (p.cantidad || 0), 0) || 0} bts
                             </Text>
-                          </View>x  ``
+                          </View>
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: COLORS.successBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
                             <Ionicons name="chevron-forward" size={10} color={COLORS.success} />
                             <Text style={{ fontSize: 10, fontWeight: "700", color: COLORS.success }}>
